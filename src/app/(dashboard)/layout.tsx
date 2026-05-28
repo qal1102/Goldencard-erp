@@ -1,9 +1,21 @@
-import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { redirect } from 'next/navigation';
+import { auth } from '@/auth';
+import { DashboardShell } from '@/components/layout/dashboard-shell';
 
-export default function DashboardGroupLayout({
+export default async function DashboardGroupLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
-  return <DashboardShell>{children}</DashboardShell>;
+}) {
+  const session = await auth();
+  if (!session?.user?.id) redirect('/login');
+
+  const user = {
+    id: session.user.id,
+    name: session.user.name,
+    email: session.user.email,
+    roles: session.user.roles ?? [],
+  };
+
+  return <DashboardShell user={user}>{children}</DashboardShell>;
 }

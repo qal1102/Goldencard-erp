@@ -1,23 +1,25 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { MenuIcon } from "lucide-react";
-
-import { AppBrand } from "@/components/layout/app-brand";
-import { NavLinks } from "@/components/layout/nav-links";
-import { Button } from "@/components/ui/button";
+import { useState } from 'react';
+import { MenuIcon } from 'lucide-react';
+import { AppBrand } from '@/components/layout/app-brand';
+import { NavLinks } from '@/components/layout/nav-links';
+import { UserMenu } from '@/components/auth/user-menu';
+import { Button } from '@/components/ui/button';
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet";
+} from '@/components/ui/sheet';
+import type { SessionUser } from '@/components/layout/dashboard-shell';
 
 type AppHeaderProps = {
   title: string;
+  user: SessionUser;
 };
 
-export function AppHeader({ title }: AppHeaderProps) {
+export function AppHeader({ title, user }: AppHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -39,8 +41,11 @@ export function AppHeader({ title }: AppHeaderProps) {
               <SheetTitle className="sr-only">Menu điều hướng</SheetTitle>
               <AppBrand showTagline />
             </SheetHeader>
-            <div className="px-3 py-4">
-              <NavLinks onNavigate={() => setMenuOpen(false)} />
+            <div className="flex flex-1 flex-col overflow-hidden">
+              <div className="flex-1 overflow-y-auto px-3 py-4">
+                <NavLinks onNavigate={() => setMenuOpen(false)} />
+              </div>
+              <UserMenu name={user.name} email={user.email} />
             </div>
           </SheetContent>
         </Sheet>

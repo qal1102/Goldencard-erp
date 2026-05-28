@@ -8,6 +8,13 @@
       "when": 1779958016874,
       "tag": "0000_outgoing_nocturne",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1779959414823,
+      "tag": "0001_closed_sebastian_shaw",
+      "breakpoints": true
     }
   ]
 }
