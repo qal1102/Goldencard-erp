@@ -15,6 +15,13 @@
       "when": 1779959414823,
       "tag": "0001_closed_sebastian_shaw",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779963916270,
+      "tag": "0002_nasty_vector",
+      "breakpoints": true
     }
   ]
 }
