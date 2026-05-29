@@ -1,4 +1,5 @@
 import { PhoneIcon } from 'lucide-react';
+import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import type { Customer } from '@/db/schema';
 
@@ -12,7 +13,8 @@ type Props = {
 
 export function CustomerCard({ customer }: Props) {
   return (
-    <Card>
+    <Link href={`/crm/customers/${customer.id}`} className="block">
+    <Card className="transition-colors hover:bg-muted/50">
       <CardContent className="flex flex-col gap-2 p-4">
         <div className="flex items-start justify-between gap-2">
           <div>
@@ -34,5 +36,6 @@ export function CustomerCard({ customer }: Props) {
         )}
       </CardContent>
     </Card>
+    </Link>
   );
 }

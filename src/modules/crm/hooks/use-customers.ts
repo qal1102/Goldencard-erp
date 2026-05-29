@@ -1,13 +1,18 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { convertLeadToCustomerAction, getCustomersAction } from '../actions/customer.actions';
+import {
+  convertLeadToCustomerAction,
+  getCustomerAction,
+  getCustomersAction,
+} from '../actions/customer.actions';
 import { leadKeys } from './use-leads';
 import type { ConvertLeadInput, CustomerFilters } from '../schema/customer.schema';
 
 export const customerKeys = {
   all: ['customers'] as const,
   list: (filters?: CustomerFilters) => ['customers', 'list', filters ?? {}] as const,
+  detail: (id: string) => ['customers', 'detail', id] as const,
 };
 
 export function useCustomers(filters: CustomerFilters = {}) {
@@ -15,6 +20,17 @@ export function useCustomers(filters: CustomerFilters = {}) {
     queryKey: customerKeys.list(filters),
     queryFn: async () => {
       const result = await getCustomersAction(filters);
+      if (!result.success) throw new Error(result.error);
+      return result.data;
+    },
+  });
+}
+
+export function useCustomer(id: string) {
+  return useQuery({
+    queryKey: customerKeys.detail(id),
+    queryFn: async () => {
+      const result = await getCustomerAction(id);
       if (!result.success) throw new Error(result.error);
       return result.data;
     },

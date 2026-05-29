@@ -7,7 +7,7 @@ import { db } from '@/db';
 import { customers, leadActivities, leads } from '@/db/schema';
 import { requireRole } from '@/lib/auth/roles';
 import type { ActionResult } from './lead.actions';
-import { queryCustomers } from '../lib/customer.queries';
+import { queryCustomerById, queryCustomers } from '../lib/customer.queries';
 import { queryLeadById } from '../lib/lead.queries';
 import {
   convertLeadSchema,
@@ -98,6 +98,18 @@ export async function convertLeadToCustomerAction(
     return { success: true, data: result };
   } catch (e) {
     console.error('[convertLeadToCustomerAction]', e);
+    return { success: false, error: e instanceof Error ? e.message : 'Lỗi hệ thống' };
+  }
+}
+
+export async function getCustomerAction(
+  id: string,
+): Promise<ActionResult<Awaited<ReturnType<typeof queryCustomerById>>>> {
+  try {
+    await getSessionOrThrow();
+    const data = await queryCustomerById(id);
+    return { success: true, data };
+  } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : 'Lỗi hệ thống' };
   }
 }

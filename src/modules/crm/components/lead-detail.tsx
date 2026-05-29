@@ -78,7 +78,7 @@ export function LeadDetail({ leadId, canEdit }: Props) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon-sm" render={<Link href="/crm/leads" />}>
+        <Button variant="ghost" size="icon-sm" nativeButton={false} render={<Link href="/crm/leads" />}>
           <ArrowLeftIcon className="size-4" />
         </Button>
         <div className="flex-1">
@@ -86,7 +86,7 @@ export function LeadDetail({ leadId, canEdit }: Props) {
           <p className="font-mono text-xs text-muted-foreground">{leadTyped.code}</p>
         </div>
         {canEdit && !isTerminal && (
-          <Button variant="outline" size="sm" render={<Link href={`/crm/leads/${leadId}/edit`} />}>
+          <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/crm/leads/${leadId}/edit`} />}>
             <EditIcon className="size-4" />
             Sửa
           </Button>
@@ -137,7 +137,7 @@ export function LeadDetail({ leadId, canEdit }: Props) {
                   {leadTyped.customer.code}
                 </p>
               </div>
-              <Button variant="ghost" size="sm" render={<Link href="/crm/customers" />} className="text-xs">
+              <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/crm/customers" />} className="text-xs">
                 Xem DS
               </Button>
             </div>

@@ -41,9 +41,10 @@ function formatDateTime(date: Date | string) {
 
 type Props = {
   leadId: string;
+  readOnly?: boolean;
 };
 
-export function LeadActivityFeed({ leadId }: Props) {
+export function LeadActivityFeed({ leadId, readOnly = false }: Props) {
   const { data: activities, isLoading } = useLeadActivities(leadId);
   const addNote = useAddLeadNote(leadId);
 
@@ -73,7 +74,7 @@ export function LeadActivityFeed({ leadId }: Props) {
         <CardTitle className="text-sm">Lịch sử hoạt động</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+        {!readOnly && <form onSubmit={handleSubmit} className="flex flex-col gap-2">
           <div className="flex gap-2">
             <Select value={type} onValueChange={(v) => setType(v as 'note' | 'call')}>
               <SelectTrigger className="w-[130px] shrink-0">
@@ -106,7 +107,7 @@ export function LeadActivityFeed({ leadId }: Props) {
           >
             {addNote.isPending ? 'Đang lưu...' : 'Thêm'}
           </Button>
-        </form>
+        </form>}
 
         <div className="flex flex-col gap-3">
           {isLoading && (
