@@ -1,6 +1,6 @@
 'use client';
 
-import { MessageSquareIcon, PhoneIcon, RefreshCwIcon, UserIcon } from 'lucide-react';
+import { ArrowRightCircleIcon, MessageSquareIcon, PhoneIcon, RefreshCwIcon, UserIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +22,7 @@ const ACTIVITY_ICONS: Record<ActivityType, React.ReactNode> = {
   call: <PhoneIcon className="size-3.5" />,
   status_change: <RefreshCwIcon className="size-3.5" />,
   assignment_change: <UserIcon className="size-3.5" />,
+  conversion: <ArrowRightCircleIcon className="size-3.5" />,
 };
 
 type ActivityWithUser = LeadActivity & {

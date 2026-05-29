@@ -15,7 +15,7 @@ export const leads = pgTable('leads', {
   fullName: varchar('full_name', { length: 255 }).notNull(),
   phone: varchar('phone', { length: 20 }).notNull(),
   email: varchar('email', { length: 255 }),
-  address: text('address'),
+  address: text('address').notNull(),
   province: varchar('province', { length: 100 }),
   source: varchar('source', { length: 50 }).notNull().default('direct'),
   status: varchar('status', { length: 50 }).notNull().default('new'),
@@ -25,6 +25,12 @@ export const leads = pgTable('leads', {
   lostReason: text('lost_reason'),
   lostAt: timestamp('lost_at'),
   wonAt: timestamp('won_at'),
+  convertedAt: timestamp('converted_at'),
+  convertedBy: uuid('converted_by').references(() => users.id, { onDelete: 'set null' }),
+  // Referral info — commission calculation deferred to accounting/finance module (TODO)
+  referrerName: varchar('referrer_name', { length: 255 }),
+  referrerPhone: varchar('referrer_phone', { length: 20 }),
+  referralNote: text('referral_note'),
   createdBy: uuid('created_by')
     .notNull()
     .references(() => users.id, { onDelete: 'restrict' }),

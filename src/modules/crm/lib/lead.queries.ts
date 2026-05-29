@@ -47,6 +47,9 @@ export async function queryLeadById(id: string) {
       createdByUser: {
         columns: { id: true, name: true },
       },
+      customer: {
+        columns: { id: true, code: true },
+      },
     },
   });
 }

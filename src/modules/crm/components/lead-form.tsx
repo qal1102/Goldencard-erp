@@ -3,7 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowLeftIcon } from 'lucide-react';
 import Link from 'next/link';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -56,32 +56,35 @@ export function LeadForm({ mode, leadId, defaultValues, assignableUsers }: Props
     },
   });
 
+  const selectedSource = useWatch({ control, name: 'source' });
+
   const onSubmit = async (data: CreateLeadInput) => {
-    const cleanData: CreateLeadInput = {
-      fullName: data.fullName,
-      phone: data.phone,
-      source: data.source,
-      ...(data.email?.trim() ? { email: data.email.trim() } : {}),
-      ...(data.address?.trim() ? { address: data.address.trim() } : {}),
-      ...(data.province?.trim() ? { province: data.province.trim() } : {}),
-      ...(data.expectedCapacity?.trim() ? { expectedCapacity: data.expectedCapacity.trim() } : {}),
-      ...(data.notes?.trim() ? { notes: data.notes.trim() } : {}),
-      ...(data.assignedTo != null ? { assignedTo: data.assignedTo } : {}),
+    // zodResolver + z.preprocess already normalised the data (empty strings → undefined).
+    // toNull() in the server action converts undefined/empty to null before DB insert.
+    // We only clear referral fields when source is not 'referral' to avoid stale hidden values.
+    const payload: CreateLeadInput = {
+      ...data,
+      referrerName: data.source === 'referral' ? data.referrerName : undefined,
+      referrerPhone: data.source === 'referral' ? data.referrerPhone : undefined,
+      referralNote: data.source === 'referral' ? data.referralNote : undefined,
     };
 
     try {
       if (mode === 'create') {
-        const result = await createLead.mutateAsync(cleanData);
+        const result = await createLead.mutateAsync(payload);
         if (!result.success) {
+          console.error('[LeadForm] create failed:', result.error);
           alert(result.error);
         }
       } else if (leadId) {
-        const result = await updateLead.mutateAsync(cleanData);
+        const result = await updateLead.mutateAsync(payload);
         if (!result.success) {
+          console.error('[LeadForm] update failed:', result.error);
           alert(result.error);
         }
       }
     } catch (err) {
+      console.error('[LeadForm] unexpected error:', err);
       alert(err instanceof Error ? err.message : 'Lỗi không xác định');
     }
   };
@@ -149,12 +152,16 @@ export function LeadForm({ mode, leadId, defaultValues, assignableUsers }: Props
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="address">Địa chỉ lắp đặt</Label>
+              <Label htmlFor="address">
+                Địa chỉ lắp đặt <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="address"
                 placeholder="Số nhà, đường, phường/xã..."
                 {...register('address')}
+                aria-invalid={Boolean(errors.address)}
               />
+              <FieldError message={errors.address?.message} />
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -188,6 +195,48 @@ export function LeadForm({ mode, leadId, defaultValues, assignableUsers }: Props
               />
               <FieldError message={errors.source?.message} />
             </div>
+
+            {selectedSource === 'referral' && (
+              <div className="rounded-lg border border-dashed p-3 flex flex-col gap-3">
+                <p className="text-xs font-medium text-muted-foreground">Thông tin giới thiệu</p>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="referrerName">
+                    Người giới thiệu <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="referrerName"
+                    placeholder="Tên người giới thiệu"
+                    {...register('referrerName')}
+                    aria-invalid={Boolean(errors.referrerName)}
+                  />
+                  <FieldError message={errors.referrerName?.message} />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="referrerPhone">SĐT người giới thiệu</Label>
+                  <Input
+                    id="referrerPhone"
+                    type="tel"
+                    placeholder="0901234567"
+                    inputMode="numeric"
+                    {...register('referrerPhone')}
+                    aria-invalid={Boolean(errors.referrerPhone)}
+                  />
+                  <FieldError message={errors.referrerPhone?.message} />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="referralNote">Ghi chú giới thiệu</Label>
+                  <Textarea
+                    id="referralNote"
+                    placeholder="Ghi chú thêm về nguồn giới thiệu..."
+                    rows={2}
+                    {...register('referralNote')}
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="expectedCapacity">Công suất dự kiến</Label>

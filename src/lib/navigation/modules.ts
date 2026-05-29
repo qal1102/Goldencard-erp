@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   Package,
   Settings,
+  Users,
   UserPlus,
   Wrench,
   type LucideIcon,
@@ -34,6 +35,14 @@ export const mainNavItems: NavItem[] = [
     icon: UserPlus,
     phase: "Phase 2",
     description: "Quản lý khách tiềm năng và pipeline bán hàng.",
+  },
+  {
+    id: "crm-customers",
+    label: "Khách hàng",
+    href: "/crm/customers",
+    icon: Users,
+    phase: "Phase 2",
+    description: "Danh sách khách hàng đã chốt hợp đồng từ pipeline bán hàng.",
   },
   {
     id: "surveys",

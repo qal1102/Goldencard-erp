@@ -28,6 +28,10 @@ import {
 
 const LEAD_WRITE_ROLES = ['admin', 'director', 'sales', 'chief_accountant'] as const;
 
+// Converts undefined, null, or whitespace-only strings to null for DB insertion.
+// Using ?? null alone is not enough — it passes '' (empty string) through unchanged.
+const toNull = (v: string | null | undefined): string | null => (v?.trim() ? v.trim() : null);
+
 async function getSessionOrThrow() {
   const session = await auth();
   if (!session?.user?.id) throw new Error('Unauthorized');
@@ -101,19 +105,23 @@ export async function createLeadAction(
     }
 
     const code = await nextLeadCode();
+    const d = parsed.data;
     const [lead] = await db
       .insert(leads)
       .values({
         code,
-        fullName: parsed.data.fullName,
-        phone: parsed.data.phone,
-        email: parsed.data.email ?? null,
-        address: parsed.data.address ?? null,
-        province: parsed.data.province ?? null,
-        source: parsed.data.source,
-        expectedCapacity: parsed.data.expectedCapacity ?? null,
-        notes: parsed.data.notes ?? null,
-        assignedTo: parsed.data.assignedTo ?? null,
+        fullName: d.fullName,
+        phone: d.phone,
+        email: toNull(d.email),
+        address: d.address,
+        province: toNull(d.province),
+        source: d.source,
+        expectedCapacity: toNull(d.expectedCapacity),
+        notes: toNull(d.notes),
+        assignedTo: d.assignedTo ?? null,
+        referrerName: toNull(d.referrerName),
+        referrerPhone: toNull(d.referrerPhone),
+        referralNote: toNull(d.referralNote),
         createdBy: session.user.id,
       })
       .returning({ id: leads.id, code: leads.code });
@@ -130,6 +138,7 @@ export async function createLeadAction(
     revalidatePath('/crm/leads');
     return { success: true, data: { id: lead.id, code: lead.code } };
   } catch (e) {
+    console.error('[createLeadAction]', e);
     return { success: false, error: e instanceof Error ? e.message : 'Lỗi hệ thống' };
   }
 }
@@ -153,15 +162,31 @@ export async function updateLeadAction(
       return { success: false, error: 'Không thể chỉnh sửa lead đã chốt hoặc đã mất' };
     }
 
+    const d = parsed.data;
     await db
       .update(leads)
-      .set({ ...parsed.data, updatedAt: new Date() })
+      .set({
+        ...(d.fullName !== undefined && { fullName: d.fullName }),
+        ...(d.phone !== undefined && { phone: d.phone }),
+        ...(d.source !== undefined && { source: d.source }),
+        ...(d.address !== undefined && { address: d.address }),
+        email: d.email !== undefined ? toNull(d.email) : undefined,
+        province: d.province !== undefined ? toNull(d.province) : undefined,
+        expectedCapacity: d.expectedCapacity !== undefined ? toNull(d.expectedCapacity) : undefined,
+        notes: d.notes !== undefined ? toNull(d.notes) : undefined,
+        assignedTo: d.assignedTo !== undefined ? (d.assignedTo ?? null) : undefined,
+        referrerName: d.referrerName !== undefined ? toNull(d.referrerName) : undefined,
+        referrerPhone: d.referrerPhone !== undefined ? toNull(d.referrerPhone) : undefined,
+        referralNote: d.referralNote !== undefined ? toNull(d.referralNote) : undefined,
+        updatedAt: new Date(),
+      })
       .where(eq(leads.id, id));
 
     revalidatePath('/crm/leads');
     revalidatePath(`/crm/leads/${id}`);
     return { success: true, data: undefined };
   } catch (e) {
+    console.error('[updateLeadAction]', e);
     return { success: false, error: e instanceof Error ? e.message : 'Lỗi hệ thống' };
   }
 }
@@ -207,6 +232,7 @@ export async function updateLeadStatusAction(
     revalidatePath(`/crm/leads/${id}`);
     return { success: true, data: undefined };
   } catch (e) {
+    console.error('[updateLeadStatusAction]', e);
     return { success: false, error: e instanceof Error ? e.message : 'Lỗi hệ thống' };
   }
 }
@@ -238,6 +264,7 @@ export async function assignLeadAction(
     revalidatePath(`/crm/leads/${id}`);
     return { success: true, data: undefined };
   } catch (e) {
+    console.error('[assignLeadAction]', e);
     return { success: false, error: e instanceof Error ? e.message : 'Lỗi hệ thống' };
   }
 }
@@ -271,6 +298,7 @@ export async function addLeadNoteAction(
     revalidatePath(`/crm/leads/${leadId}`);
     return { success: true, data: undefined };
   } catch (e) {
+    console.error('[addLeadNoteAction]', e);
     return { success: false, error: e instanceof Error ? e.message : 'Lỗi hệ thống' };
   }
 }

@@ -1,7 +1,8 @@
 'use client';
 
-import { ArrowLeftIcon, EditIcon } from 'lucide-react';
+import { ArrowLeftIcon, ArrowRightCircleIcon, CheckCircle2Icon, EditIcon } from 'lucide-react';
 import Link from 'next/link';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -13,12 +14,19 @@ import {
   type LeadSource,
   type LeadStatus,
 } from '../schema/lead.schema';
+import { ConvertLeadDialog } from './convert-lead-dialog';
 import { LeadActivityFeed } from './lead-activity-feed';
 import { LeadStatusSelect } from './lead-status-select';
 
 type Props = {
   leadId: string;
   canEdit: boolean;
+};
+
+type LeadWithRelations = Lead & {
+  assignedUser: { id: string; name: string; email: string } | null;
+  createdByUser: { id: string; name: string };
+  customer: { id: string; code: string } | null;
 };
 
 function DetailRow({ label, value }: { label: string; value?: string | null }) {
@@ -34,6 +42,7 @@ function DetailRow({ label, value }: { label: string; value?: string | null }) {
 export function LeadDetail({ leadId, canEdit }: Props) {
   const { data: lead, isLoading } = useLead(leadId);
   const updateStatus = useUpdateLeadStatus(leadId);
+  const [convertOpen, setConvertOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -53,12 +62,11 @@ export function LeadDetail({ leadId, canEdit }: Props) {
     );
   }
 
-  const leadTyped = lead as Lead & {
-    assignedUser: { id: string; name: string; email: string } | null;
-    createdByUser: { id: string; name: string };
-  };
+  const leadTyped = lead as LeadWithRelations;
 
   const isTerminal = leadTyped.status === 'won' || leadTyped.status === 'lost';
+  const isConverted = Boolean(leadTyped.convertedAt);
+  const canConvert = canEdit && leadTyped.status === 'won' && !isConverted;
 
   const handleStatusChange = async (status: LeadStatus, lostReason?: string) => {
     const result = await updateStatus.mutateAsync({ status, lostReason });
@@ -110,14 +118,52 @@ export function LeadDetail({ leadId, canEdit }: Props) {
           <DetailRow label="Công suất dự kiến" value={leadTyped.expectedCapacity} />
           <DetailRow label="Ghi chú" value={leadTyped.notes} />
           <DetailRow label="Phụ trách" value={leadTyped.assignedUser?.name} />
+
           {leadTyped.status === 'lost' && leadTyped.lostReason && (
             <div className="rounded-lg bg-destructive/10 p-3">
               <p className="text-xs font-medium text-destructive">Lý do không tiến hành</p>
               <p className="mt-0.5 text-xs">{leadTyped.lostReason}</p>
             </div>
           )}
+
+          {isConverted && leadTyped.customer && (
+            <div className="flex items-center gap-2 rounded-lg bg-emerald-50 p-3 dark:bg-emerald-950/30">
+              <CheckCircle2Icon className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <div className="flex-1">
+                <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                  Đã chuyển thành khách hàng
+                </p>
+                <p className="font-mono text-xs text-emerald-600 dark:text-emerald-400">
+                  {leadTyped.customer.code}
+                </p>
+              </div>
+              <Button variant="ghost" size="sm" render={<Link href="/crm/customers" />} className="text-xs">
+                Xem DS
+              </Button>
+            </div>
+          )}
+
+          {canConvert && (
+            <Button
+              variant="default"
+              className="mt-1 w-full"
+              onClick={() => setConvertOpen(true)}
+            >
+              <ArrowRightCircleIcon className="size-4" />
+              Chuyển thành Khách hàng
+            </Button>
+          )}
         </CardContent>
       </Card>
+
+      {canConvert && (
+        <ConvertLeadDialog
+          lead={leadTyped}
+          open={convertOpen}
+          onOpenChange={setConvertOpen}
+          onSuccess={() => {}}
+        />
+      )}
 
       <LeadActivityFeed leadId={leadId} />
     </div>

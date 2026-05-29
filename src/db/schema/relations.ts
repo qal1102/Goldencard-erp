@@ -1,4 +1,5 @@
 import { relations } from 'drizzle-orm';
+import { customers } from './customers';
 import { leadActivities } from './lead-activities';
 import { leads } from './leads';
 import { users } from './users';
@@ -14,7 +15,17 @@ export const leadsRelations = relations(leads, ({ one, many }) => ({
     references: [users.id],
     relationName: 'lead_created_by_user',
   }),
+  convertedByUser: one(users, {
+    fields: [leads.convertedBy],
+    references: [users.id],
+    relationName: 'lead_converted_by_user',
+  }),
   activities: many(leadActivities),
+  customer: one(customers, {
+    fields: [leads.id],
+    references: [customers.leadId],
+    relationName: 'lead_customer',
+  }),
 }));
 
 export const leadActivitiesRelations = relations(leadActivities, ({ one }) => ({
@@ -26,5 +37,18 @@ export const leadActivitiesRelations = relations(leadActivities, ({ one }) => ({
     fields: [leadActivities.createdBy],
     references: [users.id],
     relationName: 'activity_created_by_user',
+  }),
+}));
+
+export const customersRelations = relations(customers, ({ one }) => ({
+  lead: one(leads, {
+    fields: [customers.leadId],
+    references: [leads.id],
+    relationName: 'lead_customer',
+  }),
+  convertedByUser: one(users, {
+    fields: [customers.convertedBy],
+    references: [users.id],
+    relationName: 'customer_converted_by_user',
   }),
 }));
