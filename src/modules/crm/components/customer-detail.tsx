@@ -3,15 +3,21 @@
 import {
   ArrowLeftIcon,
   CalendarIcon,
+  ClipboardPlusIcon,
   UserIcon,
   UsersIcon,
   ZapIcon,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { CreateSurveyDialog } from '@/modules/surveys/components/create-survey-dialog';
+import { SurveyStatusBadge } from '@/modules/surveys/components/survey-status-badge';
+import { useSurveysByCustomer } from '@/modules/surveys/hooks/use-surveys';
+import type { SurveyStatus } from '@/modules/surveys/schema/survey.schema';
 import { useCustomer } from '../hooks/use-customers';
 import type { LeadSource } from '../schema/lead.schema';
 import { LeadActivityFeed } from './lead-activity-feed';
@@ -19,6 +25,7 @@ import { LeadSourceBadge } from './lead-source-badge';
 
 type Props = {
   customerId: string;
+  canManageSurvey?: boolean;
 };
 
 function DetailRow({ label, value }: { label: string; value?: string | null }) {
@@ -40,8 +47,10 @@ function formatDate(date: Date | string | null | undefined): string | null {
   });
 }
 
-export function CustomerDetail({ customerId }: Props) {
+export function CustomerDetail({ customerId, canManageSurvey = false }: Props) {
+  const [surveyDialogOpen, setSurveyDialogOpen] = useState(false);
   const { data: customer, isLoading } = useCustomer(customerId);
+  const { data: surveys } = useSurveysByCustomer(customerId);
 
   if (isLoading) {
     return (
@@ -76,6 +85,12 @@ export function CustomerDetail({ customerId }: Props) {
           <p className="font-medium leading-tight">{customer.fullName}</p>
           <p className="font-mono text-xs text-muted-foreground">{customer.code}</p>
         </div>
+        {canManageSurvey && (
+          <Button variant="outline" size="sm" onClick={() => setSurveyDialogOpen(true)}>
+            <ClipboardPlusIcon className="size-4" />
+            Tạo khảo sát
+          </Button>
+        )}
       </div>
 
       {/* Customer info */}
@@ -164,9 +179,61 @@ export function CustomerDetail({ customerId }: Props) {
         </Card>
       )}
 
+      {/* Surveys */}
+      {(surveys && surveys.length > 0) || canManageSurvey ? (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm">Phiếu khảo sát</CardTitle>
+              {canManageSurvey && (
+                <Button variant="ghost" size="sm" onClick={() => setSurveyDialogOpen(true)}>
+                  <ClipboardPlusIcon className="size-3.5" />
+                  Thêm
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            {(!surveys || surveys.length === 0) && (
+              <p className="text-xs text-muted-foreground">Chưa có phiếu khảo sát nào.</p>
+            )}
+            {surveys?.map((sv) => (
+              <Link
+                key={sv.id}
+                href={`/surveys/${sv.id}`}
+                className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm hover:bg-muted/40 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs font-semibold text-primary">{sv.code}</span>
+                  {sv.assignedUser && (
+                    <span className="text-xs text-muted-foreground">{sv.assignedUser.name}</span>
+                  )}
+                </div>
+                <SurveyStatusBadge status={sv.status as SurveyStatus} />
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
+
       {/* Activity feed — tied to originating lead */}
       {hasLead && customer.lead && (
         <LeadActivityFeed leadId={customer.lead.id} readOnly />
+      )}
+
+      {canManageSurvey && (
+        <CreateSurveyDialog
+          customer={{
+            id: customer.id,
+            code: customer.code,
+            fullName: customer.fullName,
+            address: customer.address,
+            province: customer.province,
+          }}
+          leadId={customer.lead?.id}
+          open={surveyDialogOpen}
+          onOpenChange={setSurveyDialogOpen}
+        />
       )}
     </div>
   );

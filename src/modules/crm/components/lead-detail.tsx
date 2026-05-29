@@ -1,6 +1,12 @@
 'use client';
 
-import { ArrowLeftIcon, ArrowRightCircleIcon, CheckCircle2Icon, EditIcon } from 'lucide-react';
+import {
+  ArrowLeftIcon,
+  ArrowRightCircleIcon,
+  CheckCircle2Icon,
+  ClipboardPlusIcon,
+  EditIcon,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -8,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Lead } from '@/db/schema';
+import { CreateSurveyDialog } from '@/modules/surveys/components/create-survey-dialog';
 import { useLead, useUpdateLeadStatus } from '../hooks/use-leads';
 import {
   LEAD_SOURCE_LABELS,
@@ -21,6 +28,7 @@ import { LeadStatusSelect } from './lead-status-select';
 type Props = {
   leadId: string;
   canEdit: boolean;
+  canManageSurvey?: boolean;
 };
 
 type LeadWithRelations = Lead & {
@@ -39,10 +47,11 @@ function DetailRow({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-export function LeadDetail({ leadId, canEdit }: Props) {
+export function LeadDetail({ leadId, canEdit, canManageSurvey = false }: Props) {
   const { data: lead, isLoading } = useLead(leadId);
   const updateStatus = useUpdateLeadStatus(leadId);
   const [convertOpen, setConvertOpen] = useState(false);
+  const [surveyDialogOpen, setSurveyDialogOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -67,6 +76,8 @@ export function LeadDetail({ leadId, canEdit }: Props) {
   const isTerminal = leadTyped.status === 'won' || leadTyped.status === 'lost';
   const isConverted = Boolean(leadTyped.convertedAt);
   const canConvert = canEdit && leadTyped.status === 'won' && !isConverted;
+  // Survey can only be created if lead has been converted to a customer
+  const canCreateSurvey = canManageSurvey && isConverted && Boolean(leadTyped.customer);
 
   const handleStatusChange = async (status: LeadStatus, lostReason?: string) => {
     const result = await updateStatus.mutateAsync({ status, lostReason });
@@ -85,12 +96,20 @@ export function LeadDetail({ leadId, canEdit }: Props) {
           <p className="font-medium leading-tight">{leadTyped.fullName}</p>
           <p className="font-mono text-xs text-muted-foreground">{leadTyped.code}</p>
         </div>
-        {canEdit && !isTerminal && (
-          <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/crm/leads/${leadId}/edit`} />}>
-            <EditIcon className="size-4" />
-            Sửa
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {canCreateSurvey && (
+            <Button variant="outline" size="sm" onClick={() => setSurveyDialogOpen(true)}>
+              <ClipboardPlusIcon className="size-4" />
+              Khảo sát
+            </Button>
+          )}
+          {canEdit && !isTerminal && (
+            <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/crm/leads/${leadId}/edit`} />}>
+              <EditIcon className="size-4" />
+              Sửa
+            </Button>
+          )}
+        </div>
       </div>
 
       <Card>
@@ -162,6 +181,21 @@ export function LeadDetail({ leadId, canEdit }: Props) {
           open={convertOpen}
           onOpenChange={setConvertOpen}
           onSuccess={() => {}}
+        />
+      )}
+
+      {canCreateSurvey && leadTyped.customer && (
+        <CreateSurveyDialog
+          customer={{
+            id: leadTyped.customer.id,
+            code: leadTyped.customer.code,
+            fullName: leadTyped.fullName,
+            address: leadTyped.address,
+            province: leadTyped.province,
+          }}
+          leadId={leadId}
+          open={surveyDialogOpen}
+          onOpenChange={setSurveyDialogOpen}
         />
       )}
 

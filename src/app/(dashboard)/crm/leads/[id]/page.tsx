@@ -17,10 +17,11 @@ export default async function LeadDetailPage({ params }: Props) {
 
   const roles = session?.user?.roles ?? [];
   const canEdit = hasRole(roles, 'admin', 'director', 'sales', 'chief_accountant');
+  const canManageSurvey = hasRole(roles, 'admin', 'director', 'sales');
 
   return (
     <div className="mx-auto w-full max-w-xl">
-      <LeadDetail leadId={id} canEdit={canEdit} />
+      <LeadDetail leadId={id} canEdit={canEdit} canManageSurvey={canManageSurvey} />
     </div>
   );
 }

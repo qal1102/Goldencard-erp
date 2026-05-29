@@ -2,6 +2,7 @@ import { relations } from 'drizzle-orm';
 import { customers } from './customers';
 import { leadActivities } from './lead-activities';
 import { leads } from './leads';
+import { surveys } from './surveys';
 import { users } from './users';
 
 export const leadsRelations = relations(leads, ({ one, many }) => ({
@@ -40,7 +41,7 @@ export const leadActivitiesRelations = relations(leadActivities, ({ one }) => ({
   }),
 }));
 
-export const customersRelations = relations(customers, ({ one }) => ({
+export const customersRelations = relations(customers, ({ one, many }) => ({
   lead: one(leads, {
     fields: [customers.leadId],
     references: [leads.id],
@@ -50,5 +51,29 @@ export const customersRelations = relations(customers, ({ one }) => ({
     fields: [customers.convertedBy],
     references: [users.id],
     relationName: 'customer_converted_by_user',
+  }),
+  surveys: many(surveys),
+}));
+
+export const surveysRelations = relations(surveys, ({ one }) => ({
+  customer: one(customers, {
+    fields: [surveys.customerId],
+    references: [customers.id],
+    relationName: 'survey_customer',
+  }),
+  lead: one(leads, {
+    fields: [surveys.leadId],
+    references: [leads.id],
+    relationName: 'survey_lead',
+  }),
+  assignedUser: one(users, {
+    fields: [surveys.assignedTo],
+    references: [users.id],
+    relationName: 'survey_assigned_user',
+  }),
+  createdByUser: one(users, {
+    fields: [surveys.createdBy],
+    references: [users.id],
+    relationName: 'survey_created_by_user',
   }),
 }));

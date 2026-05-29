@@ -6,5 +6,6 @@ export * from './permissions';
 export * from './relations';
 export * from './role-permissions';
 export * from './roles';
+export * from './surveys';
 export * from './user-roles';
 export * from './users';
