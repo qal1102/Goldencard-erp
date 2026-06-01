@@ -55,6 +55,7 @@ type EditProps = {
   mode: 'edit';
   quotationId: string;
   survey: SurveyContext;
+  isSentEdit?: boolean;
   defaultValues: Omit<UpdateQuotationInput, 'items'> & { items: ItemRow[] };
 };
 
@@ -198,6 +199,7 @@ export function QuotationForm(props: Props) {
   }, [watchedItems, watchedDiscountType, watchedDiscountValue, watchedVatRate]);
 
   const pending = isSubmitting || mutation.isPending;
+  const isSentEdit = props.mode === 'edit' && props.isSentEdit;
 
   const onSubmit = async (data: UpdateQuotationInput) => {
     if (props.mode === 'create') {
@@ -205,6 +207,10 @@ export function QuotationForm(props: Props) {
       const result = await createMutation.mutateAsync(payload);
       if (!result.success) alert(result.error);
     } else {
+      if (isSentEdit && !data.editNote?.trim()) {
+        alert('Vui lòng nhập ghi chú tóm tắt thay đổi');
+        return;
+      }
       const result = await updateMutation.mutateAsync(data);
       if (!result.success) alert(result.error);
     }
@@ -212,6 +218,16 @@ export function QuotationForm(props: Props) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+      {isSentEdit && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 dark:border-amber-900 dark:bg-amber-950/30">
+          <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+            Báo giá đã gửi cho khách
+          </p>
+          <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-400">
+            Nếu sửa, cần xuất và gửi lại bản mới. Trạng thái vẫn giữ là &quot;Đã gửi cho khách&quot;.
+          </p>
+        </div>
+      )}
       {/* Customer & survey info (read-only preview) */}
       <Card>
         <CardHeader>
@@ -558,6 +574,26 @@ export function QuotationForm(props: Props) {
           </div>
         </CardContent>
       </Card>
+
+      {isSentEdit && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">
+              Ghi chú thay đổi <span className="text-destructive">*</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-1.5">
+            <Textarea
+              id="qf-edit-note"
+              rows={3}
+              placeholder="Mô tả ngắn gọn nội dung đã thay đổi (ít nhất 5 ký tự)..."
+              {...register('editNote')}
+              aria-invalid={Boolean(errors.editNote)}
+            />
+            <FieldError message={errors.editNote?.message} />
+          </CardContent>
+        </Card>
+      )}
 
       <Button type="submit" className="w-full" disabled={pending}>
         {pending

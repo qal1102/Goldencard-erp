@@ -3,6 +3,7 @@ import 'server-only';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { roles, surveys, userRoles, users } from '@/db/schema';
+import { queryAcceptedQuotationBySurveyId } from '@/modules/quotations/lib/quotation.queries';
 import type { SurveyFilters, SurveyStatus } from '../schema/survey.schema';
 
 export async function querySurveys(filters: SurveyFilters = {}) {
@@ -61,9 +62,24 @@ export async function querySurveyById(id: string) {
       zones: {
         orderBy: (cols, { asc }) => [asc(cols.sortOrder)],
       },
+      editLogs: {
+        orderBy: (cols, { desc }) => [desc(cols.editedAt)],
+        with: {
+          editedByUser: { columns: { id: true, name: true } },
+        },
+      },
     },
   });
 }
+
+export async function querySurveyDetailById(id: string) {
+  const row = await querySurveyById(id);
+  if (!row) return undefined;
+  const acceptedQuotation = await queryAcceptedQuotationBySurveyId(id);
+  return { ...row, acceptedQuotation: acceptedQuotation ?? null };
+}
+
+export type SurveyDetail = NonNullable<Awaited<ReturnType<typeof querySurveyDetailById>>>;
 
 export async function querySurveysByCustomerId(customerId: string) {
   return db.query.surveys.findMany({

@@ -47,9 +47,17 @@ type Props = {
   onSubmit: (data: UpdateSurveyInput) => Promise<void>;
   onCancel: () => void;
   isPending?: boolean;
+  /** When true, requires editNote (completed survey correction) */
+  requireEditNote?: boolean;
 };
 
-export function SurveyForm({ defaultValues, onSubmit, onCancel, isPending }: Props) {
+export function SurveyForm({
+  defaultValues,
+  onSubmit,
+  onCancel,
+  isPending,
+  requireEditNote = false,
+}: Props) {
   const {
     register,
     control,
@@ -411,12 +419,33 @@ export function SurveyForm({ defaultValues, onSubmit, onCancel, isPending }: Pro
         </CardContent>
       </Card>
 
+      {requireEditNote && (
+        <Card className="border-amber-200 dark:border-amber-900">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-amber-800 dark:text-amber-300">
+              Lý do chỉnh sửa
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-1.5 pt-0">
+            <Label htmlFor="sf-editNote">Ghi chú bắt buộc</Label>
+            <Textarea
+              id="sf-editNote"
+              rows={3}
+              placeholder="Mô tả ngắn lý do chỉnh sửa phiếu đã hoàn thành..."
+              {...register('editNote')}
+              aria-invalid={Boolean(errors.editNote)}
+            />
+            <FieldError message={errors.editNote?.message} />
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex gap-2 justify-end">
         <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>
           Hủy
         </Button>
         <Button type="submit" disabled={pending}>
-          {pending ? 'Đang lưu...' : 'Lưu khảo sát'}
+          {pending ? 'Đang lưu...' : requireEditNote ? 'Lưu chỉnh sửa' : 'Lưu khảo sát'}
         </Button>
       </div>
     </form>

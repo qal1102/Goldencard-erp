@@ -1,6 +1,16 @@
+import type { Survey, SurveyZone } from '@/db/schema';
+import {
+  computeSurveyAggregates,
+  resolveZonePanelQuantity,
+  type SurveyAggregates,
+  type SurveyForZoneResolution,
+  type SurveyZoneAggregateInput,
+} from '@/modules/surveys/lib/survey-aggregates';
 import type {
   InstallationDifficulty,
   PowerPhase,
+  ProjectScale,
+  ProjectType,
   SystemType,
 } from '@/modules/surveys/schema/survey.schema';
 
@@ -18,12 +28,19 @@ export type SurveyTechnicalSource = {
   installationDifficulty: string | null;
   extraMaterialsNote: string | null;
   installationPlanNote: string | null;
+  projectType: string | null;
+  projectScale: string | null;
+  /** Legacy flat roof area (single-zone surveys without DB zones). */
+  roofAreaM2?: string | null;
+  /** Persisted survey_zones rows; when absent, legacy flat fields are used. */
+  zones?: SurveyZone[];
 };
 
 export type SurveyTechnicalForQuotation = {
   recommendedSystemKw: number;
   panelWattageW: number;
   recommendedPanelQuantity: number;
+  totalUsableAreaM2: number;
   inverterType: string;
   inverterQuantity: number;
   systemType: SystemType | null;
@@ -34,6 +51,12 @@ export type SurveyTechnicalForQuotation = {
   installationDifficulty: InstallationDifficulty | null;
   extraMaterialsNote: string | null;
   installationPlanNote: string | null;
+  projectType: ProjectType | null;
+  projectScale: ProjectScale | null;
+  isMultiZone: boolean;
+  zoneBreakdownText: string | null;
+  aggregates: SurveyAggregates | null;
+  resolvedZones: SurveyZone[];
 };
 
 export type GeneratedQuotationItem = {
@@ -60,7 +83,111 @@ export const QUOTATION_ITEM_DEFAULT_PRICES = {
   difficultInstallPackage: 5_000_000,
 } as const;
 
+export type SurveyForQuotationTechnical = SurveyForZoneResolution &
+  Pick<
+    Survey,
+    | 'recommendedSystemKw'
+    | 'panelWattageW'
+    | 'recommendedPanelQuantity'
+    | 'inverterType'
+    | 'inverterQuantity'
+    | 'systemType'
+    | 'powerPhase'
+    | 'needsRoofReinforcement'
+    | 'needsElectricalCabinetUpgrade'
+    | 'hasGrounding'
+    | 'installationDifficulty'
+    | 'extraMaterialsNote'
+    | 'installationPlanNote'
+    | 'projectType'
+    | 'projectScale'
+    | 'roofAreaM2'
+  >;
+
+export function buildSurveyTechnicalSource(
+  survey: SurveyForQuotationTechnical,
+): SurveyTechnicalSource {
+  return {
+    recommendedSystemKw: survey.recommendedSystemKw,
+    panelWattageW: survey.panelWattageW,
+    recommendedPanelQuantity: survey.recommendedPanelQuantity,
+    inverterType: survey.inverterType,
+    inverterQuantity: survey.inverterQuantity,
+    systemType: survey.systemType,
+    powerPhase: survey.powerPhase,
+    needsRoofReinforcement: survey.needsRoofReinforcement,
+    needsElectricalCabinetUpgrade: survey.needsElectricalCabinetUpgrade,
+    hasGrounding: survey.hasGrounding,
+    installationDifficulty: survey.installationDifficulty,
+    extraMaterialsNote: survey.extraMaterialsNote,
+    installationPlanNote: survey.installationPlanNote,
+    projectType: survey.projectType,
+    projectScale: survey.projectScale,
+    roofAreaM2: survey.roofAreaM2,
+    zones: survey.zones,
+  };
+}
+
+function parsePositiveNumber(value: string | null | undefined): number {
+  if (value == null || value === '') return 0;
+  const n = parseFloat(value);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+function zoneRecommendedSystemKw(zone: SurveyZoneAggregateInput): number {
+  return parsePositiveNumber(zone.recommendedSystemKw);
+}
+
+export function formatZoneBreakdownText(
+  zones: SurveyZoneAggregateInput[],
+  aggregates: SurveyAggregates,
+): string {
+  const lines = zones.map((zone) => {
+    const kw = zoneRecommendedSystemKw(zone);
+    const panels = resolveZonePanelQuantity(zone);
+    const area = parsePositiveNumber(zone.usableAreaM2);
+    const parts = [
+      `${zone.zoneName}: ${kw > 0 ? kw : '—'} kWp`,
+      `${panels > 0 ? panels : '—'} tấm`,
+    ];
+    if (area > 0) {
+      parts.push(`${area} m²`);
+    }
+    return parts.join(' · ');
+  });
+
+  const totalKw =
+    aggregates.totalRecommendedSystemKw > 0
+      ? String(aggregates.totalRecommendedSystemKw)
+      : '—';
+  const totalPanels =
+    aggregates.totalPanelQuantity > 0 ? String(aggregates.totalPanelQuantity) : '—';
+  lines.push(`Tổng: ${totalKw} kWp · ${totalPanels} tấm`);
+
+  return lines.join('\n');
+}
+
+function appendZoneBreakdown(description: string, zoneBreakdownText: string | null): string {
+  if (!zoneBreakdownText) return description;
+  return description ? `${description}\n${zoneBreakdownText}` : zoneBreakdownText;
+}
+
+function appendUsableAreaNote(description: string, totalUsableAreaM2: number): string {
+  if (totalUsableAreaM2 <= 0) return description;
+  const note = `Tổng diện tích sử dụng: ${totalUsableAreaM2} m²`;
+  return description ? `${description}\n${note}` : note;
+}
+
 export function hasSurveyTechnicalData(survey: SurveyTechnicalSource): boolean {
+  if (survey.zones && survey.zones.length > 0) {
+    const aggregates = computeSurveyAggregates(survey.zones);
+    return (
+      aggregates.totalRecommendedSystemKw > 0 ||
+      aggregates.totalPanelQuantity > 0 ||
+      aggregates.totalUsableAreaM2 > 0
+    );
+  }
+
   return Boolean(
     survey.recommendedSystemKw ||
       survey.recommendedPanelQuantity ||
@@ -71,9 +198,71 @@ export function hasSurveyTechnicalData(survey: SurveyTechnicalSource): boolean {
   );
 }
 
+export function isMultiZoneSurveyTechnical(survey: SurveyTechnicalSource): boolean {
+  return (survey.zones?.length ?? 0) > 1;
+}
+
 export function parseSurveyTechnicalForQuotation(
   survey: SurveyTechnicalSource,
 ): SurveyTechnicalForQuotation | null {
+  const hasDbZones = Boolean(survey.zones && survey.zones.length > 0);
+
+  if (hasDbZones) {
+    const resolvedZones = survey.zones!;
+    const aggregates = computeSurveyAggregates(resolvedZones);
+
+    if (aggregates.totalRecommendedSystemKw <= 0 && aggregates.totalPanelQuantity <= 0) {
+      return null;
+    }
+
+    const firstZone = resolvedZones[0];
+    const panelW = firstZone?.panelWattageW ?? survey.panelWattageW ?? 550;
+    const systemKw =
+      aggregates.totalRecommendedSystemKw > 0
+        ? aggregates.totalRecommendedSystemKw
+        : (aggregates.totalPanelQuantity * panelW) / 1000;
+    const panelQty =
+      aggregates.totalPanelQuantity > 0
+        ? aggregates.totalPanelQuantity
+        : Math.ceil((systemKw * 1000) / panelW);
+
+    if (!systemKw || systemKw <= 0 || !panelQty || panelQty <= 0) {
+      return null;
+    }
+
+    const isMultiZone = resolvedZones.length > 1;
+    const installationDifficulty: InstallationDifficulty | null =
+      aggregates.hardDifficultyZoneCount > 0
+        ? 'hard'
+        : ((survey.installationDifficulty as InstallationDifficulty | null) ?? null);
+
+    return {
+      recommendedSystemKw: systemKw,
+      panelWattageW: panelW,
+      recommendedPanelQuantity: panelQty,
+      totalUsableAreaM2: aggregates.totalUsableAreaM2,
+      inverterType: survey.inverterType ?? '',
+      inverterQuantity: survey.inverterQuantity ?? 1,
+      systemType: (survey.systemType as SystemType | null) ?? null,
+      powerPhase: (survey.powerPhase as PowerPhase | null) ?? null,
+      needsRoofReinforcement:
+        aggregates.roofReinforcementZoneCount > 0 || (survey.needsRoofReinforcement ?? false),
+      needsElectricalCabinetUpgrade: survey.needsElectricalCabinetUpgrade ?? false,
+      hasGrounding: survey.hasGrounding ?? false,
+      installationDifficulty,
+      extraMaterialsNote: survey.extraMaterialsNote,
+      installationPlanNote: survey.installationPlanNote,
+      projectType: (survey.projectType as ProjectType | null) ?? null,
+      projectScale: (survey.projectScale as ProjectScale | null) ?? null,
+      isMultiZone,
+      zoneBreakdownText: isMultiZone
+        ? formatZoneBreakdownText(resolvedZones, aggregates)
+        : null,
+      aggregates,
+      resolvedZones,
+    };
+  }
+
   const panelW = survey.panelWattageW ?? 550;
   const parsedKw = survey.recommendedSystemKw
     ? parseFloat(survey.recommendedSystemKw)
@@ -95,10 +284,13 @@ export function parseSurveyTechnicalForQuotation(
     return null;
   }
 
+  const totalUsableAreaM2 = parsePositiveNumber(survey.roofAreaM2);
+
   return {
     recommendedSystemKw: systemKw,
     panelWattageW: panelW,
     recommendedPanelQuantity: panelQty,
+    totalUsableAreaM2,
     inverterType: survey.inverterType ?? '',
     inverterQuantity: survey.inverterQuantity ?? 1,
     systemType: (survey.systemType as SystemType | null) ?? null,
@@ -110,6 +302,12 @@ export function parseSurveyTechnicalForQuotation(
       (survey.installationDifficulty as InstallationDifficulty | null) ?? null,
     extraMaterialsNote: survey.extraMaterialsNote,
     installationPlanNote: survey.installationPlanNote,
+    projectType: (survey.projectType as ProjectType | null) ?? null,
+    projectScale: (survey.projectScale as ProjectScale | null) ?? null,
+    isMultiZone: false,
+    zoneBreakdownText: null,
+    aggregates: null,
+    resolvedZones: [],
   };
 }
 
@@ -121,11 +319,21 @@ export function generateQuotationItemsFromSurvey(
     ? `Inverter ${tech.inverterType}`
     : 'Inverter';
 
+  const zoneNote = tech.zoneBreakdownText;
+  const panelDescription = appendZoneBreakdown('Thiết bị chính', zoneNote);
+
+  let railDescription = 'Khung & mái';
+  railDescription = appendUsableAreaNote(railDescription, tech.totalUsableAreaM2);
+  railDescription = appendZoneBreakdown(railDescription, zoneNote);
+
+  let laborDescription = 'Thi công';
+  laborDescription = appendZoneBreakdown(laborDescription, zoneNote);
+
   const items: GeneratedQuotationItem[] = [
     // Group 1 — Thiết bị chính
     {
       productName: `Tấm pin năng lượng mặt trời ${tech.panelWattageW}W`,
-      description: 'Thiết bị chính',
+      description: panelDescription,
       quantity: tech.recommendedPanelQuantity,
       unit: 'tấm',
       unitPrice: prices.panelPerUnit,
@@ -140,7 +348,7 @@ export function generateQuotationItemsFromSurvey(
     // Group 2 — Khung & mái
     {
       productName: 'Hệ khung rail & phụ kiện mái',
-      description: 'Khung & mái',
+      description: railDescription,
       quantity: tech.recommendedSystemKw,
       unit: 'kWp',
       unitPrice: prices.railPerKwp,
@@ -149,7 +357,7 @@ export function generateQuotationItemsFromSurvey(
       productName: 'Phụ kiện chống thấm / chống dột',
       description: tech.needsRoofReinforcement
         ? 'Khung & mái — khảo sát ghi nhận cần gia cố mái'
-        : 'Khung & mái',
+        : appendUsableAreaNote('Khung & mái', tech.totalUsableAreaM2),
       quantity: 1,
       unit: 'gói',
       unitPrice: prices.waterproofPackage,
@@ -199,7 +407,7 @@ export function generateQuotationItemsFromSurvey(
     // Group 6 — Thi công
     {
       productName: 'Nhân công lắp đặt',
-      description: 'Thi công',
+      description: laborDescription,
       quantity: tech.recommendedSystemKw,
       unit: 'kWp',
       unitPrice: prices.laborPerKwp,

@@ -4,6 +4,14 @@ import { and, desc, eq, ne, notExists, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { customers, leads, quotationExports, quotations, surveys } from '@/db/schema';
 import type { QuotationFilters } from '../schema/quotation.schema';
+import {
+  computeLatestEditAt,
+  computeNeedsResend,
+} from './quotation-resend';
+import {
+  computeLatestSurveyEditAt,
+  isQuotationStaleFromSurvey,
+} from './quotation-stale';
 
 /**
  * Consumes the next value from quotation_code_seq and returns a formatted
@@ -40,7 +48,16 @@ export async function queryQuotationById(id: string) {
       customer: {
         columns: { id: true, code: true, fullName: true, phone: true, address: true },
       },
-      survey: { columns: { id: true, code: true, status: true } },
+      survey: {
+        columns: { id: true, code: true, status: true, updatedAt: true },
+        with: {
+          editLogs: {
+            columns: { editedAt: true },
+            orderBy: (cols, { desc: descOrder }) => [descOrder(cols.editedAt)],
+            limit: 1,
+          },
+        },
+      },
       items: {
         orderBy: (cols, { asc }) => [asc(cols.sortOrder)],
       },
@@ -55,8 +72,51 @@ export async function queryQuotationById(id: string) {
           exportedByUser: { columns: { id: true, name: true } },
         },
       },
+      editLogs: {
+        orderBy: (cols, { desc: descOrder }) => [descOrder(cols.editedAt)],
+        with: {
+          editedByUser: { columns: { id: true, name: true } },
+        },
+      },
     },
   });
+}
+
+export function enrichQuotationDetail<
+  T extends {
+    status: string;
+    sentAt: Date | null;
+    updatedAt: Date;
+    editLogs?: { editedAt: Date }[];
+    survey?: {
+      updatedAt: Date;
+      editLogs?: { editedAt: Date }[];
+    } | null;
+  },
+>(quotation: T) {
+  const latestEditAt = computeLatestEditAt(quotation.editLogs ?? []);
+  const needsResend = computeNeedsResend({
+    status: quotation.status,
+    sentAt: quotation.sentAt,
+    latestEditAt,
+  });
+  const latestSurveyEditAt = computeLatestSurveyEditAt(
+    quotation.survey?.editLogs ?? [],
+  );
+  const isSurveyStale = quotation.survey
+    ? isQuotationStaleFromSurvey({
+        quotationUpdatedAt: quotation.updatedAt,
+        surveyUpdatedAt: quotation.survey.updatedAt,
+        latestSurveyEditAt,
+      })
+    : false;
+  return { ...quotation, latestEditAt, needsResend, isSurveyStale };
+}
+
+export async function queryQuotationDetailById(id: string) {
+  const row = await queryQuotationById(id);
+  if (!row) return null;
+  return enrichQuotationDetail(row);
 }
 
 export async function queryQuotationExportCount(quotationId: string): Promise<number> {
@@ -154,7 +214,7 @@ export async function querySurveyHasQuotation(surveyId: string): Promise<boolean
 }
 
 export type QuotationRow = Awaited<ReturnType<typeof queryQuotations>>[number];
-export type QuotationDetail = Awaited<ReturnType<typeof queryQuotationById>>;
+export type QuotationDetail = NonNullable<Awaited<ReturnType<typeof queryQuotationDetailById>>>;
 export type CompletedSurveyOption = Awaited<
   ReturnType<typeof queryCompletedSurveysWithoutQuotation>
 >[number];

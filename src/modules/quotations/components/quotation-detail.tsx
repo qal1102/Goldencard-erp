@@ -5,6 +5,7 @@ import {
   CalendarIcon,
   EditIcon,
   FileTextIcon,
+  LockIcon,
   UserIcon,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -15,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { QuotationStatus } from '../schema/quotation.schema';
+import { isQuotationEditable } from '../lib/quotation-resend';
 import { useQuotation } from '../hooks/use-quotations';
 import { QuotationStatusBadge } from './quotation-status-badge';
 import { QuotationWorkflowPanel } from './quotation-workflow-panel';
@@ -100,10 +102,10 @@ export function QuotationDetail({ quotationId, canWrite, canApprove }: Props) {
   }
 
   const status = quotation.status as QuotationStatus;
-  const isDraft = status === 'draft';
-  const isContentLocked = Boolean(quotation.contentLockedAt);
+  const isAccepted = status === 'accepted';
   const revisionNumber = quotation.revisionNumber ?? 1;
-  const canEdit = isDraft && canWrite && !isContentLocked;
+  const canEdit = isQuotationEditable(status) && canWrite;
+  const editLogs = quotation.editLogs ?? [];
 
   return (
     <div className="flex flex-col gap-4">
@@ -124,6 +126,12 @@ export function QuotationDetail({ quotationId, canWrite, canApprove }: Props) {
               <span className="text-muted-foreground"> · v{revisionNumber}</span>
             </p>
             <QuotationStatusBadge status={status} />
+            {isAccepted && (
+              <Badge variant="secondary" className="gap-1">
+                <LockIcon className="size-3" />
+                Đã khóa
+              </Badge>
+            )}
           </div>
           <p className="truncate text-xs text-muted-foreground">
             {quotation.customerNameSnapshot}
@@ -141,6 +149,28 @@ export function QuotationDetail({ quotationId, canWrite, canApprove }: Props) {
           </Button>
         )}
       </div>
+
+      {quotation.needsResend && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 dark:border-amber-900 dark:bg-amber-950/30">
+          <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+            Đã chỉnh sửa sau khi gửi — cần xuất và gửi lại
+          </p>
+          <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-400">
+            Tải file Excel mới và đánh dấu đã gửi lại cho khách trước khi ghi nhận phản hồi.
+          </p>
+        </div>
+      )}
+
+      {quotation.isSurveyStale && (
+        <div className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-2.5 dark:border-orange-900 dark:bg-orange-950/30">
+          <p className="text-sm font-medium text-orange-800 dark:text-orange-300">
+            Dữ liệu khảo sát đã thay đổi sau khi tạo báo giá. Cần kiểm tra lại báo giá.
+          </p>
+          <p className="mt-0.5 text-xs text-orange-700 dark:text-orange-400">
+            Không tự động cập nhật báo giá — hãy rà soát và chỉnh sửa hoặc tạo bản mới nếu cần.
+          </p>
+        </div>
+      )}
 
       <QuotationWorkflowPanel
         quotation={quotation}
@@ -252,6 +282,33 @@ export function QuotationDetail({ quotationId, canWrite, canApprove }: Props) {
         </CardContent>
       </Card>
 
+      {/* Edit history */}
+      {editLogs.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Lịch sử chỉnh sửa</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            {editLogs.map((log) => (
+              <div key={log.id} className="flex flex-col gap-1 border-b pb-3 last:border-0 last:pb-0">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {formatDateTime(log.editedAt)}
+                    {log.editedByUser?.name && ` · ${log.editedByUser.name}`}
+                  </span>
+                  {log.beforeTotal != null && log.afterTotal != null && (
+                    <span className="text-xs tabular-nums text-muted-foreground">
+                      {formatCurrency(log.beforeTotal)} → {formatCurrency(log.afterTotal)}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm">{log.note}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Metadata */}
       <Card>
         <CardHeader>
@@ -268,14 +325,6 @@ export function QuotationDetail({ quotationId, canWrite, canApprove }: Props) {
           <DetailRow label="Tạo bởi" value={quotation.createdByUser?.name} />
           {quotation.updatedByUser && (
             <DetailRow label="Cập nhật bởi" value={quotation.updatedByUser.name} />
-          )}
-          {quotation.contentLockedAt && (
-            <div className="flex items-center gap-2">
-              <Badge variant="outline">Nội dung đã khóa</Badge>
-              <span className="text-xs text-muted-foreground">
-                {formatDateTime(quotation.contentLockedAt)}
-              </span>
-            </div>
           )}
           {quotation.acceptedAt && (
             <div className="flex flex-col gap-0.5">

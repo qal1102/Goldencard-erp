@@ -2,9 +2,11 @@ import { relations } from 'drizzle-orm';
 import { customers } from './customers';
 import { leadActivities } from './lead-activities';
 import { leads } from './leads';
+import { quotationEditLogs } from './quotation-edit-logs';
 import { quotationExports } from './quotation-exports';
 import { quotationItems } from './quotation-items';
 import { quotations } from './quotations';
+import { surveyEditLogs } from './survey-edit-logs';
 import { surveyZones } from './survey-zones';
 import { surveys } from './surveys';
 import { users } from './users';
@@ -83,6 +85,19 @@ export const surveysRelations = relations(surveys, ({ one, many }) => ({
   }),
   quotations: many(quotations, { relationName: 'survey_quotation' }),
   zones: many(surveyZones, { relationName: 'survey_zone' }),
+  editLogs: many(surveyEditLogs),
+}));
+
+export const surveyEditLogsRelations = relations(surveyEditLogs, ({ one }) => ({
+  survey: one(surveys, {
+    fields: [surveyEditLogs.surveyId],
+    references: [surveys.id],
+  }),
+  editedByUser: one(users, {
+    fields: [surveyEditLogs.editedBy],
+    references: [users.id],
+    relationName: 'survey_edit_edited_by_user',
+  }),
 }));
 
 export const surveyZonesRelations = relations(surveyZones, ({ one }) => ({
@@ -131,6 +146,19 @@ export const quotationsRelations = relations(quotations, ({ one, many }) => ({
   }),
   items: many(quotationItems),
   exports: many(quotationExports),
+  editLogs: many(quotationEditLogs),
+}));
+
+export const quotationEditLogsRelations = relations(quotationEditLogs, ({ one }) => ({
+  quotation: one(quotations, {
+    fields: [quotationEditLogs.quotationId],
+    references: [quotations.id],
+  }),
+  editedByUser: one(users, {
+    fields: [quotationEditLogs.editedBy],
+    references: [users.id],
+    relationName: 'quotation_edit_edited_by_user',
+  }),
 }));
 
 export const quotationExportsRelations = relations(quotationExports, ({ one }) => ({

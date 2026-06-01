@@ -3,6 +3,8 @@ import { auth } from '@/auth';
 import { hasRole } from '@/lib/auth/roles';
 import { QuotationForm } from '@/modules/quotations/components/quotation-form';
 import { queryQuotationById } from '@/modules/quotations/lib/quotation.queries';
+import { buildSurveyTechnicalSource } from '@/modules/quotations/lib/generate-quotation-items';
+import { isQuotationEditable } from '@/modules/quotations/lib/quotation-resend';
 import { querySurveyById } from '@/modules/surveys/lib/survey.queries';
 
 type Props = {
@@ -23,12 +25,14 @@ export default async function EditQuotationPage({ params }: Props) {
 
   if (!quotation) redirect('/quotations');
 
+  if (!isQuotationEditable(quotation.status)) {
+    redirect(`/quotations/${id}`);
+  }
+
   const linkedSurvey =
     quotation.survey?.id != null ? await querySurveyById(quotation.survey.id) : null;
 
-  if (quotation.status !== 'draft' || quotation.contentLockedAt) {
-    redirect(`/quotations/${id}`);
-  }
+  const isSentEdit = quotation.status === 'sent';
 
   return (
     <div className="mx-auto w-full max-w-xl">
@@ -59,6 +63,7 @@ export default async function EditQuotationPage({ params }: Props) {
           <QuotationForm
             mode="edit"
             quotationId={id}
+            isSentEdit={isSentEdit}
             survey={{
               id: quotation.survey?.id ?? '',
               code: quotation.survey?.code ?? '',
@@ -66,21 +71,7 @@ export default async function EditQuotationPage({ params }: Props) {
               customerPhone: quotation.customerPhoneSnapshot ?? null,
               customerAddress: quotation.customerAddressSnapshot ?? null,
               technical: linkedSurvey
-                ? {
-                    recommendedSystemKw: linkedSurvey.recommendedSystemKw,
-                    panelWattageW: linkedSurvey.panelWattageW,
-                    recommendedPanelQuantity: linkedSurvey.recommendedPanelQuantity,
-                    inverterType: linkedSurvey.inverterType,
-                    inverterQuantity: linkedSurvey.inverterQuantity,
-                    systemType: linkedSurvey.systemType,
-                    powerPhase: linkedSurvey.powerPhase,
-                    needsRoofReinforcement: linkedSurvey.needsRoofReinforcement,
-                    needsElectricalCabinetUpgrade: linkedSurvey.needsElectricalCabinetUpgrade,
-                    hasGrounding: linkedSurvey.hasGrounding,
-                    installationDifficulty: linkedSurvey.installationDifficulty,
-                    extraMaterialsNote: linkedSurvey.extraMaterialsNote,
-                    installationPlanNote: linkedSurvey.installationPlanNote,
-                  }
+                ? buildSurveyTechnicalSource(linkedSurvey)
                 : {
                     recommendedSystemKw: null,
                     panelWattageW: null,
@@ -95,6 +86,9 @@ export default async function EditQuotationPage({ params }: Props) {
                     installationDifficulty: null,
                     extraMaterialsNote: null,
                     installationPlanNote: null,
+                    projectType: null,
+                    projectScale: null,
+                    roofAreaM2: null,
                   },
             }}
             defaultValues={{
@@ -103,6 +97,7 @@ export default async function EditQuotationPage({ params }: Props) {
               discountType: 'amount',
               discountValue: storedDiscount,
               vatRate: inferredVatRate,
+              editNote: '',
               items: (quotation.items ?? []).map((item) => ({
                 productName: item.productName,
                 description: item.description ?? '',

@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import { hasRole } from '@/lib/auth/roles';
 import { queryQuotationBySurveyId } from '@/modules/quotations/lib/quotation.queries';
 import { QuotationForm } from '@/modules/quotations/components/quotation-form';
+import { buildSurveyTechnicalSource } from '@/modules/quotations/lib/generate-quotation-items';
 import { querySurveyById } from '@/modules/surveys/lib/survey.queries';
 
 type Props = {
@@ -56,21 +57,7 @@ export default async function NewQuotationPage({ searchParams }: Props) {
           customerName: snapshotName,
           customerPhone: snapshotPhone,
           customerAddress: snapshotAddress,
-          technical: {
-            recommendedSystemKw: survey.recommendedSystemKw,
-            panelWattageW: survey.panelWattageW,
-            recommendedPanelQuantity: survey.recommendedPanelQuantity,
-            inverterType: survey.inverterType,
-            inverterQuantity: survey.inverterQuantity,
-            systemType: survey.systemType,
-            powerPhase: survey.powerPhase,
-            needsRoofReinforcement: survey.needsRoofReinforcement,
-            needsElectricalCabinetUpgrade: survey.needsElectricalCabinetUpgrade,
-            hasGrounding: survey.hasGrounding,
-            installationDifficulty: survey.installationDifficulty,
-            extraMaterialsNote: survey.extraMaterialsNote,
-            installationPlanNote: survey.installationPlanNote,
-          },
+          technical: buildSurveyTechnicalSource(survey),
         }}
       />
     </div>

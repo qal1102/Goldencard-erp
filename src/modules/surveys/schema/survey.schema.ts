@@ -201,6 +201,8 @@ export const updateSurveySchema = z
   maintenanceAccessNotes: z.string().max(5000).optional(),
   fireSafetyNotes: z.string().max(5000).optional(),
   generalTechnicalRiskNotes: z.string().max(5000).optional(),
+  /** Required when correcting a completed survey */
+  editNote: z.string().max(2000).optional(),
 })
   .superRefine((data, ctx) => {
     if (data.zones === undefined) return;

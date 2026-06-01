@@ -5,13 +5,11 @@ import {
   ClockIcon,
   DownloadIcon,
   GitBranchPlusIcon,
-  LockIcon,
   MessageSquareIcon,
   SendIcon,
   XCircleIcon,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -105,7 +103,7 @@ type Props = {
 export function QuotationWorkflowPanel({ quotation, canWrite, canApprove }: Props) {
   const status = quotation.status as QuotationStatus;
   const exportCount = quotation.exports?.length ?? 0;
-  const isContentLocked = Boolean(quotation.contentLockedAt);
+  const needsResend = quotation.needsResend ?? false;
   const filename = `${quotation.code}_v${quotation.revisionNumber ?? 1}.xlsx`;
 
   const downloadExcel = useDownloadQuotationExcel(quotation.id, filename);
@@ -117,10 +115,13 @@ export function QuotationWorkflowPanel({ quotation, canWrite, canApprove }: Prop
   const [sentChannel, setSentChannel] = useState<QuotationSentChannel | ''>('');
   const [sentNote, setSentNote] = useState('');
   const [responseNote, setResponseNote] = useState('');
+  const [isResendDialog, setIsResendDialog] = useState(false);
 
   const showMarkSent = canWrite && status === 'draft' && exportCount >= 1;
+  const showMarkResent = canWrite && status === 'sent' && needsResend;
   const showExportBeforeSentHint = canWrite && status === 'draft' && exportCount === 0;
-  const showResponse = canApprove && status === 'sent';
+  const showExportForSent = canWrite && status === 'sent';
+  const showResponse = canApprove && status === 'sent' && !needsResend;
   const showRevision =
     canWrite &&
     REVISION_SOURCE_STATUSES.includes(
@@ -180,8 +181,14 @@ export function QuotationWorkflowPanel({ quotation, canWrite, canApprove }: Prop
           <CardTitle className="text-sm">Xuất &amp; theo dõi gửi báo giá</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
+          {needsResend && (
+            <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+              Đã chỉnh sửa sau khi gửi — cần xuất và gửi lại bản mới cho khách.
+            </p>
+          )}
+
           <div className="flex flex-wrap items-center gap-2">
-            {canWrite && (
+            {canWrite && (status === 'draft' || showExportForSent) && (
               <Button
                 className="w-full sm:w-auto"
                 size="sm"
@@ -191,12 +198,6 @@ export function QuotationWorkflowPanel({ quotation, canWrite, canApprove }: Prop
                 <DownloadIcon className="size-3.5" />
                 Tải báo giá Excel
               </Button>
-            )}
-            {isContentLocked && (
-              <Badge variant="secondary" className="gap-1">
-                <LockIcon className="size-3" />
-                Đã khóa nội dung
-              </Badge>
             )}
           </div>
 
@@ -235,11 +236,29 @@ export function QuotationWorkflowPanel({ quotation, canWrite, canApprove }: Prop
             <Button
               className="w-full"
               size="sm"
-              onClick={() => setSentDialogOpen(true)}
+              onClick={() => {
+                setIsResendDialog(false);
+                setSentDialogOpen(true);
+              }}
               disabled={isBusy}
             >
               <SendIcon className="size-3.5" />
               Đánh dấu đã gửi cho khách
+            </Button>
+          )}
+
+          {showMarkResent && (
+            <Button
+              className="w-full"
+              size="sm"
+              onClick={() => {
+                setIsResendDialog(true);
+                setSentDialogOpen(true);
+              }}
+              disabled={isBusy}
+            >
+              <SendIcon className="size-3.5" />
+              Đánh dấu đã gửi lại cho khách
             </Button>
           )}
 
@@ -328,12 +347,28 @@ export function QuotationWorkflowPanel({ quotation, canWrite, canApprove }: Prop
         </CardContent>
       </Card>
 
-      <Dialog open={sentDialogOpen} onOpenChange={setSentDialogOpen}>
+      <Dialog
+        open={sentDialogOpen}
+        onOpenChange={(open) => {
+          setSentDialogOpen(open);
+          if (!open) {
+            setIsResendDialog(false);
+            setSentChannel('');
+            setSentNote('');
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Đánh dấu đã gửi cho khách</DialogTitle>
+            <DialogTitle>
+              {isResendDialog
+                ? 'Đánh dấu đã gửi lại cho khách'
+                : 'Đánh dấu đã gửi cho khách'}
+            </DialogTitle>
             <DialogDescription>
-              Ghi nhận bạn đã gửi file báo giá cho khách bên ngoài hệ thống.
+              {isResendDialog
+                ? 'Ghi nhận bạn đã gửi lại bản báo giá đã chỉnh sửa cho khách bên ngoài hệ thống.'
+                : 'Ghi nhận bạn đã gửi file báo giá cho khách bên ngoài hệ thống.'}
             </DialogDescription>
           </DialogHeader>
 

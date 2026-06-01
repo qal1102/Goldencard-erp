@@ -23,6 +23,7 @@ export default async function SurveyDetailPage({ params }: Props) {
   if (isTechnician && survey.assignedTo !== userId) notFound();
 
   const canManage = hasRole(roles, 'admin', 'director', 'sales');
+  const canCorrectAcceptedSurvey = hasRole(roles, 'admin', 'director');
   const canCreateQuotation = hasRole(roles, 'admin', 'director', 'sales', 'chief_accountant');
 
   return (
@@ -30,6 +31,7 @@ export default async function SurveyDetailPage({ params }: Props) {
       <SurveyDetail
         surveyId={id}
         canManage={canManage}
+        canCorrectAcceptedSurvey={canCorrectAcceptedSurvey}
         isTechnician={isTechnician}
         userId={userId}
         canCreateQuotation={canCreateQuotation}

@@ -4,8 +4,13 @@ import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { db } from '@/db';
-import { surveyZones, surveys } from '@/db/schema';
+import { surveyEditLogs, surveyZones, surveys } from '@/db/schema';
+import { createAuditLog } from '@/lib/audit/create-audit-log';
 import { hasRole, requireRole } from '@/lib/auth/roles';
+import {
+  queryAcceptedQuotationBySurveyId,
+  queryQuotationsBySurveyId,
+} from '@/modules/quotations/lib/quotation.queries';
 import {
   type CreateSurveyInput,
   type SurveyFilters,
@@ -24,6 +29,7 @@ import {
 import {
   nextSurveyCode,
   querySurveyById,
+  querySurveyDetailById,
   querySurveysByCustomerId,
   querySurveys,
   querySurveysForTechnician,
@@ -35,6 +41,8 @@ export type ActionResult<T = void> =
   | { success: false; error: string };
 
 const SURVEY_MANAGE_ROLES = ['admin', 'director', 'sales'] as const;
+/** When a survey has an accepted quotation, only these roles may correct technical data */
+const SURVEY_ACCEPTED_QUOTATION_EDIT_ROLES = ['admin', 'director'] as const;
 
 async function getSessionOrThrow() {
   const session = await auth();
@@ -175,12 +183,12 @@ export async function getSurveysAction(
 
 export async function getSurveyAction(
   id: string,
-): Promise<ActionResult<Awaited<ReturnType<typeof querySurveyById>>>> {
+): Promise<ActionResult<Awaited<ReturnType<typeof querySurveyDetailById>>>> {
   try {
     const session = await getSessionOrThrow();
     const sessionRoles = session.user.roles ?? [];
 
-    const data = await querySurveyById(id);
+    const data = await querySurveyDetailById(id);
 
     // Technician can only access surveys assigned to them
     if (
@@ -226,8 +234,21 @@ export async function updateSurveyAction(
     const existing = await querySurveyById(id);
     if (!existing) return { success: false, error: 'Không tìm thấy phiếu khảo sát' };
 
-    if (existing.status === 'completed' || existing.status === 'cancelled') {
-      return { success: false, error: 'Không thể chỉnh sửa phiếu đã hoàn thành hoặc đã hủy' };
+    if (existing.status === 'cancelled') {
+      return { success: false, error: 'Không thể chỉnh sửa phiếu đã hủy' };
+    }
+
+    const isCompletedEdit = existing.status === 'completed';
+    const acceptedQuotation = await queryAcceptedQuotationBySurveyId(id);
+
+    if (acceptedQuotation) {
+      if (!hasRole(sessionRoles, ...SURVEY_ACCEPTED_QUOTATION_EDIT_ROLES)) {
+        return {
+          success: false,
+          error:
+            'Phiếu khảo sát đã có báo giá được khách chấp nhận — chỉ quản trị viên hoặc giám đốc mới được chỉnh sửa dữ liệu kỹ thuật',
+        };
+      }
     }
 
     // Technician can only update surveys assigned to them
@@ -238,12 +259,26 @@ export async function updateSurveyAction(
       if (existing.assignedTo !== session.user.id) {
         return { success: false, error: 'Không có quyền chỉnh sửa phiếu khảo sát này' };
       }
-    } else {
-      // Must be admin/director/sales
+    } else if (!isCompletedEdit) {
       requireRole(sessionRoles, ...SURVEY_MANAGE_ROLES);
+    } else if (
+      !hasRole(sessionRoles, ...SURVEY_MANAGE_ROLES) &&
+      !hasRole(sessionRoles, 'technician')
+    ) {
+      return { success: false, error: 'Không có quyền chỉnh sửa phiếu khảo sát này' };
     }
 
     const d = parsed.data;
+
+    if (isCompletedEdit) {
+      const editNote = d.editNote?.trim() ?? '';
+      if (editNote.length < 5) {
+        return {
+          success: false,
+          error: 'Cần ghi chú lý do chỉnh sửa (ít nhất 5 ký tự) khi sửa phiếu đã hoàn thành',
+        };
+      }
+    }
 
     const scheduledAt =
       d.scheduledAt !== undefined
@@ -370,6 +405,9 @@ export async function updateSurveyAction(
       }
     }
 
+    const now = surveyPatch.updatedAt as Date;
+    const beforeStatus = existing.status;
+
     await db.transaction(async (tx) => {
       await tx.update(surveys).set(surveyPatch).where(eq(surveys.id, id));
 
@@ -381,10 +419,38 @@ export async function updateSurveyAction(
           );
         }
       }
+
+      if (isCompletedEdit) {
+        await tx.insert(surveyEditLogs).values({
+          surveyId: id,
+          editedBy: session.user.id,
+          editedAt: now,
+          note: d.editNote!.trim(),
+          beforeStatus,
+          afterStatus: beforeStatus,
+        });
+      }
     });
+
+    if (isCompletedEdit) {
+      await createAuditLog({
+        userId: session.user.id,
+        action: 'survey.correct',
+        resource: 'survey',
+        resourceId: id,
+        summary: d.editNote!.trim(),
+        before: { status: beforeStatus, code: existing.code },
+        after: { status: beforeStatus, code: existing.code },
+      });
+    }
 
     revalidatePath('/surveys');
     revalidatePath(`/surveys/${id}`);
+    revalidatePath('/quotations');
+    const linkedQuotations = await queryQuotationsBySurveyId(id);
+    for (const q of linkedQuotations) {
+      revalidatePath(`/quotations/${q.id}`);
+    }
     return { success: true, data: undefined };
   } catch (e) {
     console.error('[updateSurveyAction]', e);

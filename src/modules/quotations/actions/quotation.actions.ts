@@ -4,7 +4,7 @@ import { and, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { db } from '@/db';
-import { quotationExports, quotationItems, quotations, surveys } from '@/db/schema';
+import { quotationEditLogs, quotationExports, quotationItems, quotations, surveys } from '@/db/schema';
 import { requireRole } from '@/lib/auth/roles';
 import {
   QUOTATION_STATUS_LABELS,
@@ -33,11 +33,17 @@ import {
   queryCompletedSurveysWithoutQuotation,
   queryMaxRevisionNumber,
   queryQuotationById,
+  queryQuotationDetailById,
   queryQuotationBySurveyId,
   queryQuotationExportCount,
   queryQuotations,
   querySurveyHasQuotation,
 } from '../lib/quotation.queries';
+import {
+  computeLatestEditAt,
+  computeNeedsResend,
+  isQuotationEditable,
+} from '../lib/quotation-resend';
 
 // ---------------------------------------------------------------------------
 // Shared result type (mirrors pattern in survey.actions.ts)
@@ -247,12 +253,12 @@ export async function getQuotationsAction(
 // ---------------------------------------------------------------------------
 export async function getQuotationAction(
   id: string,
-): Promise<ActionResult<Awaited<ReturnType<typeof queryQuotationById>>>> {
+): Promise<ActionResult<Awaited<ReturnType<typeof queryQuotationDetailById>>>> {
   try {
     const session = await getSessionOrThrow();
     requireRole(session.user.roles ?? [], ...QUOTATION_VIEW_ROLES);
 
-    const data = await queryQuotationById(id);
+    const data = await queryQuotationDetailById(id);
     return { success: true, data };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : 'Lỗi hệ thống' };
@@ -260,7 +266,7 @@ export async function getQuotationAction(
 }
 
 // ---------------------------------------------------------------------------
-// updateQuotationAction — draft only, not content-locked; snapshots never touched
+// updateQuotationAction — draft or sent; snapshots never touched
 // ---------------------------------------------------------------------------
 export async function updateQuotationAction(
   id: string,
@@ -280,23 +286,40 @@ export async function updateQuotationAction(
 
     const existing = await queryQuotationById(id);
     if (!existing) return { success: false, error: 'Không tìm thấy báo giá' };
-    if (existing.status !== 'draft') {
-      return { success: false, error: 'Chỉ có thể chỉnh sửa báo giá ở trạng thái nháp' };
-    }
-    if (existing.contentLockedAt) {
+
+    const existingStatus = existing.status as QuotationStatus;
+    if (!isQuotationEditable(existingStatus)) {
+      if (existingStatus === 'accepted') {
+        return { success: false, error: 'Báo giá đã được khách chấp nhận — không thể chỉnh sửa' };
+      }
       return {
         success: false,
-        error: 'Báo giá đã được xuất — không thể chỉnh sửa trực tiếp. Hãy tạo bản chỉnh sửa mới.',
+        error: 'Không thể chỉnh sửa trực tiếp ở trạng thái này. Hãy tạo bản chỉnh sửa mới.',
       };
     }
 
     const d = parsed.data;
+    const isSentEdit = existingStatus === 'sent';
+
+    if (isSentEdit) {
+      const editNote = d.editNote?.trim() ?? '';
+      if (editNote.length < 5) {
+        return {
+          success: false,
+          error: 'Cần ghi chú tóm tắt thay đổi (ít nhất 5 ký tự) khi sửa báo giá đã gửi',
+        };
+      }
+    }
+
+    const beforeTotal = existing.grandTotal;
     const { lineTotals, subtotal, discountAmount, taxAmount, grandTotal } = calculateTotals(
       d.items,
       d.discountType,
       d.discountValue,
       d.vatRate,
     );
+
+    const now = new Date();
 
     await db.transaction(async (tx) => {
       await tx.delete(quotationItems).where(eq(quotationItems.quotationId, id));
@@ -327,9 +350,22 @@ export async function updateQuotationAction(
           taxAmount: taxAmount.toFixed(2),
           grandTotal: grandTotal.toFixed(2),
           updatedBy: session.user.id,
-          updatedAt: new Date(),
+          updatedAt: now,
         })
         .where(eq(quotations.id, id));
+
+      if (isSentEdit) {
+        await tx.insert(quotationEditLogs).values({
+          quotationId: id,
+          editedBy: session.user.id,
+          editedAt: now,
+          note: d.editNote!.trim(),
+          beforeTotal: beforeTotal,
+          afterTotal: grandTotal.toFixed(2),
+          beforeStatus: existingStatus,
+          afterStatus: existingStatus,
+        });
+      }
     });
 
     revalidateQuotationPaths(id, existing.surveyId);
@@ -364,24 +400,11 @@ export async function recordQuotationExportAction(
 
     const now = new Date();
 
-    await db.transaction(async (tx) => {
-      await tx.insert(quotationExports).values({
-        quotationId: id,
-        format: parsed.data.format,
-        exportedBy: session.user.id,
-        exportedAt: now,
-      });
-
-      if (!existing.contentLockedAt) {
-        await tx
-          .update(quotations)
-          .set({
-            contentLockedAt: now,
-            updatedBy: session.user.id,
-            updatedAt: now,
-          })
-          .where(eq(quotations.id, id));
-      }
+    await db.insert(quotationExports).values({
+      quotationId: id,
+      format: parsed.data.format,
+      exportedBy: session.user.id,
+      exportedAt: now,
     });
 
     const exportCount = await queryQuotationExportCount(id);
@@ -414,9 +437,14 @@ export async function markQuotationSentAction(
 
     const existing = await queryQuotationById(id);
     if (!existing) return { success: false, error: 'Không tìm thấy báo giá' };
-    if (existing.status !== 'draft') {
-      return { success: false, error: 'Chỉ có thể đánh dấu đã gửi khi báo giá ở trạng thái nháp' };
-    }
+
+    const existingStatus = existing.status as QuotationStatus;
+    const latestEditAt = computeLatestEditAt(existing.editLogs ?? []);
+    const needsResend = computeNeedsResend({
+      status: existingStatus,
+      sentAt: existing.sentAt,
+      latestEditAt,
+    });
 
     const exportCount = await queryQuotationExportCount(id);
     if (exportCount < 1) {
@@ -424,6 +452,16 @@ export async function markQuotationSentAction(
         success: false,
         error: 'Phải xuất báo giá ít nhất một lần trước khi đánh dấu đã gửi cho khách',
       };
+    }
+
+    const isInitialSend = existingStatus === 'draft';
+    const isResend = existingStatus === 'sent' && needsResend;
+
+    if (!isInitialSend && !isResend) {
+      if (existingStatus === 'sent') {
+        return { success: false, error: 'Báo giá đã được gửi và chưa có chỉnh sửa cần gửi lại' };
+      }
+      return { success: false, error: 'Chỉ có thể đánh dấu đã gửi khi báo giá ở trạng thái nháp hoặc cần gửi lại' };
     }
 
     const now = new Date();
@@ -473,6 +511,20 @@ export async function recordQuotationResponseAction(
       return {
         success: false,
         error: 'Chỉ có thể ghi nhận phản hồi khách khi báo giá đã được gửi',
+      };
+    }
+
+    const latestEditAt = computeLatestEditAt(existing.editLogs ?? []);
+    const needsResend = computeNeedsResend({
+      status: existing.status,
+      sentAt: existing.sentAt,
+      latestEditAt,
+    });
+    if (needsResend) {
+      return {
+        success: false,
+        error:
+          'Báo giá đã được chỉnh sửa sau lần gửi cuối — cần xuất và đánh dấu gửi lại trước khi ghi nhận phản hồi',
       };
     }
 

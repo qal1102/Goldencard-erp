@@ -132,6 +132,8 @@ export const updateQuotationSchema = z.object({
     .min(0, 'Thuế VAT không được âm')
     .max(100, 'Thuế VAT không được vượt quá 100%'),
   items: z.array(quotationItemSchema).min(1, 'Báo giá phải có ít nhất 1 dòng hàng'),
+  /** Required when editing a sent quotation — validated server-side. */
+  editNote: z.string().max(2000, 'Ghi chú thay đổi quá dài').optional(),
 });
 export type UpdateQuotationInput = z.infer<typeof updateQuotationSchema>;
 

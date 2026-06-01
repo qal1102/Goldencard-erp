@@ -52,6 +52,8 @@ import { SurveyZoneReadCard } from './survey-zone-read-card';
 type Props = {
   surveyId: string;
   canManage: boolean;
+  /** admin/director — may correct survey when an accepted quotation exists */
+  canCorrectAcceptedSurvey: boolean;
   isTechnician: boolean;
   userId: string;
   canCreateQuotation: boolean;
@@ -80,7 +82,14 @@ function formatDate(date: Date | string | null | undefined): string | null {
 
 type AssignFeedback = { type: 'success' | 'info'; message: string } | null;
 
-export function SurveyDetail({ surveyId, canManage, isTechnician, userId, canCreateQuotation }: Props) {
+export function SurveyDetail({
+  surveyId,
+  canManage,
+  canCorrectAcceptedSurvey,
+  isTechnician,
+  userId,
+  canCreateQuotation,
+}: Props) {
   const [editMode, setEditMode] = useState(false);
   const [selectedTechId, setSelectedTechId] = useState<string | null>(null);
   const [assignFeedback, setAssignFeedback] = useState<AssignFeedback>(null);
@@ -110,10 +119,15 @@ export function SurveyDetail({ surveyId, canManage, isTechnician, userId, canCre
   }
 
   const status = survey.status as SurveyStatus;
-  const isTerminal = status === 'completed' || status === 'cancelled';
+  const isCancelled = status === 'cancelled';
+  const isCompleted = status === 'completed';
+  const acceptedQuotation = survey.acceptedQuotation ?? null;
   const canFill =
     canManage || (isTechnician && survey.assignedTo === userId);
-  const canEdit = canFill && !isTerminal;
+  const canEditCompleted =
+    isCompleted && canFill && (!acceptedQuotation || canCorrectAcceptedSurvey);
+  const canEdit = canFill && !isCancelled && (!isCompleted || canEditCompleted);
+  const editLogs = survey.editLogs ?? [];
 
   const resolvedZones = resolveSurveyZones(survey);
   const aggregates = computeSurveyAggregates(resolvedZones);
@@ -207,7 +221,16 @@ export function SurveyDetail({ surveyId, canManage, isTechnician, userId, canCre
       </div>
 
       {/* Manage actions */}
-      {canManage && !isTerminal && (
+      {acceptedQuotation && !canCorrectAcceptedSurvey && isCompleted && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 dark:border-amber-900 dark:bg-amber-950/30">
+          <p className="text-sm text-amber-800 dark:text-amber-300">
+            Báo giá {acceptedQuotation.code} đã được khách chấp nhận — không thể chỉnh sửa khảo
+            sát. Liên hệ quản trị viên hoặc giám đốc nếu cần hiệu chỉnh.
+          </p>
+        </div>
+      )}
+
+      {canManage && !isCancelled && !isCompleted && (
         <Card>
           <CardContent className="flex flex-col gap-3 p-4">
             {/* Assign technician */}
@@ -357,7 +380,7 @@ export function SurveyDetail({ surveyId, canManage, isTechnician, userId, canCre
                 {canEdit && (
                   <Button variant="outline" size="sm" onClick={() => setEditMode(true)}>
                     <EditIcon className="size-3.5" />
-                    {hasSurveyData ? 'Chỉnh sửa' : 'Nhập liệu'}
+                    {isCompleted ? 'Hiệu chỉnh' : hasSurveyData ? 'Chỉnh sửa' : 'Nhập liệu'}
                   </Button>
                 )}
               </div>
@@ -479,7 +502,30 @@ export function SurveyDetail({ surveyId, canManage, isTechnician, userId, canCre
           onSubmit={handleFormSubmit}
           onCancel={() => setEditMode(false)}
           isPending={updateSurvey.isPending}
+          requireEditNote={isCompleted}
         />
+      )}
+
+      {editLogs.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Lịch sử chỉnh sửa khảo sát</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            {editLogs.map((log) => (
+              <div
+                key={log.id}
+                className="flex flex-col gap-1 border-b pb-3 last:border-0 last:pb-0"
+              >
+                <span className="text-xs text-muted-foreground">
+                  {formatDate(log.editedAt)}
+                  {log.editedByUser?.name && ` · ${log.editedByUser.name}`}
+                </span>
+                <p className="text-sm">{log.note}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       )}
 
       {/* Completed state banner + quotation action */}
