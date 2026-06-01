@@ -1,30 +1,42 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { db } from '@/db';
-import { quotationItems, quotations, surveys } from '@/db/schema';
+import { quotationExports, quotationItems, quotations, surveys } from '@/db/schema';
 import { requireRole } from '@/lib/auth/roles';
 import {
   QUOTATION_STATUS_LABELS,
   QUOTATION_STATUS_TRANSITIONS,
+  REVISION_SOURCE_STATUSES,
   type CreateQuotationInput,
+  type MarkQuotationSentInput,
   type QuotationFilters,
   type QuotationStatus,
+  type RecordQuotationExportInput,
+  type RecordQuotationResponseInput,
+  type RevisionSourceStatus,
   type UpdateQuotationInput,
   type UpdateQuotationStatusInput,
   createQuotationSchema,
+  markQuotationSentSchema,
   quotationFiltersSchema,
+  recordQuotationExportSchema,
+  recordQuotationResponseSchema,
   updateQuotationSchema,
   updateQuotationStatusSchema,
 } from '../schema/quotation.schema';
 import {
   nextQuotationCode,
+  queryAcceptedQuotationBySurveyId,
   queryCompletedSurveysWithoutQuotation,
+  queryMaxRevisionNumber,
   queryQuotationById,
   queryQuotationBySurveyId,
+  queryQuotationExportCount,
   queryQuotations,
+  querySurveyHasQuotation,
 } from '../lib/quotation.queries';
 
 // ---------------------------------------------------------------------------
@@ -97,6 +109,12 @@ function calculateTotals(
   return { lineTotals, subtotal, discountAmount, taxableAmount, taxAmount, grandTotal };
 }
 
+function revalidateQuotationPaths(quotationId: string, surveyId?: string | null) {
+  revalidatePath('/quotations');
+  revalidatePath(`/quotations/${quotationId}`);
+  if (surveyId) revalidatePath(`/surveys/${surveyId}`);
+}
+
 // ---------------------------------------------------------------------------
 // createQuotationAction
 // ---------------------------------------------------------------------------
@@ -117,7 +135,6 @@ export async function createQuotationAction(
 
     const d = parsed.data;
 
-    // Survey must exist and be completed
     const survey = await db.query.surveys.findFirst({
       where: eq(surveys.id, d.surveyId),
       with: { customer: true, lead: true },
@@ -130,13 +147,11 @@ export async function createQuotationAction(
       };
     }
 
-    // MVP: one quotation per survey
-    const existing = await queryQuotationBySurveyId(d.surveyId);
-    if (existing) {
+    const hasQuotation = await querySurveyHasQuotation(d.surveyId);
+    if (hasQuotation) {
       return { success: false, error: 'Phiếu khảo sát này đã có báo giá' };
     }
 
-    // Snapshot source: customer takes priority; fall back to lead for lead-origin surveys
     const customer = survey.customer;
     const lead = survey.lead;
     if (!customer && !lead) {
@@ -154,8 +169,6 @@ export async function createQuotationAction(
       d.vatRate,
     );
 
-    // Generate the code before the transaction — sequences never roll back in
-    // PostgreSQL, so a gap is possible on retry but the code is always unique.
     const code = await nextQuotationCode();
 
     const quotation = await db.transaction(async (tx) => {
@@ -163,16 +176,18 @@ export async function createQuotationAction(
         .insert(quotations)
         .values({
           code,
-          // null when lead-origin (no customer yet); filled after lead conversion
           customerId: customer?.id ?? null,
           surveyId: d.surveyId,
+          revisionNumber: 1,
           status: 'draft',
           validUntil: d.validUntil?.trim() || null,
           note: toNull(d.note),
-          // Snapshot fields — written once at creation, never updated
           customerNameSnapshot: snapshotName,
           customerPhoneSnapshot: snapshotPhone,
           customerAddressSnapshot: snapshotAddress,
+          discountType: d.discountType,
+          discountValue: d.discountValue.toFixed(2),
+          vatRate: d.vatRate.toFixed(2),
           subtotal: subtotal.toFixed(2),
           discountAmount: discountAmount.toFixed(2),
           taxAmount: taxAmount.toFixed(2),
@@ -199,8 +214,7 @@ export async function createQuotationAction(
       return row;
     });
 
-    revalidatePath('/quotations');
-    revalidatePath(`/surveys/${d.surveyId}`);
+    revalidateQuotationPaths(quotation.id, d.surveyId);
     return { success: true, data: { id: quotation.id, code: quotation.code } };
   } catch (e) {
     console.error('[createQuotationAction]', e);
@@ -246,7 +260,7 @@ export async function getQuotationAction(
 }
 
 // ---------------------------------------------------------------------------
-// updateQuotationAction — draft only; snapshot fields are never touched
+// updateQuotationAction — draft only, not content-locked; snapshots never touched
 // ---------------------------------------------------------------------------
 export async function updateQuotationAction(
   id: string,
@@ -269,6 +283,12 @@ export async function updateQuotationAction(
     if (existing.status !== 'draft') {
       return { success: false, error: 'Chỉ có thể chỉnh sửa báo giá ở trạng thái nháp' };
     }
+    if (existing.contentLockedAt) {
+      return {
+        success: false,
+        error: 'Báo giá đã được xuất — không thể chỉnh sửa trực tiếp. Hãy tạo bản chỉnh sửa mới.',
+      };
+    }
 
     const d = parsed.data;
     const { lineTotals, subtotal, discountAmount, taxAmount, grandTotal } = calculateTotals(
@@ -279,7 +299,6 @@ export async function updateQuotationAction(
     );
 
     await db.transaction(async (tx) => {
-      // Replace all items (delete + re-insert keeps it simple)
       await tx.delete(quotationItems).where(eq(quotationItems.quotationId, id));
 
       await tx.insert(quotationItems).values(
@@ -295,12 +314,14 @@ export async function updateQuotationAction(
         })),
       );
 
-      // Snapshot fields are intentionally excluded from this update
       await tx
         .update(quotations)
         .set({
           validUntil: d.validUntil?.trim() || null,
           note: toNull(d.note),
+          discountType: d.discountType,
+          discountValue: d.discountValue.toFixed(2),
+          vatRate: d.vatRate.toFixed(2),
           subtotal: subtotal.toFixed(2),
           discountAmount: discountAmount.toFixed(2),
           taxAmount: taxAmount.toFixed(2),
@@ -311,8 +332,7 @@ export async function updateQuotationAction(
         .where(eq(quotations.id, id));
     });
 
-    revalidatePath('/quotations');
-    revalidatePath(`/quotations/${id}`);
+    revalidateQuotationPaths(id, existing.surveyId);
     return { success: true, data: undefined };
   } catch (e) {
     console.error('[updateQuotationAction]', e);
@@ -321,7 +341,289 @@ export async function updateQuotationAction(
 }
 
 // ---------------------------------------------------------------------------
-// updateQuotationStatusAction
+// recordQuotationExportAction
+// ---------------------------------------------------------------------------
+export async function recordQuotationExportAction(
+  id: string,
+  input: RecordQuotationExportInput,
+): Promise<ActionResult<{ exportCount: number }>> {
+  try {
+    const session = await getSessionOrThrow();
+    requireRole(session.user.roles ?? [], ...QUOTATION_WRITE_ROLES);
+
+    const parsed = recordQuotationExportSchema.safeParse(input);
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: parsed.error.issues[0]?.message ?? 'Dữ liệu không hợp lệ',
+      };
+    }
+
+    const existing = await queryQuotationById(id);
+    if (!existing) return { success: false, error: 'Không tìm thấy báo giá' };
+
+    const now = new Date();
+
+    await db.transaction(async (tx) => {
+      await tx.insert(quotationExports).values({
+        quotationId: id,
+        format: parsed.data.format,
+        exportedBy: session.user.id,
+        exportedAt: now,
+      });
+
+      if (!existing.contentLockedAt) {
+        await tx
+          .update(quotations)
+          .set({
+            contentLockedAt: now,
+            updatedBy: session.user.id,
+            updatedAt: now,
+          })
+          .where(eq(quotations.id, id));
+      }
+    });
+
+    const exportCount = await queryQuotationExportCount(id);
+    revalidateQuotationPaths(id, existing.surveyId);
+    return { success: true, data: { exportCount } };
+  } catch (e) {
+    console.error('[recordQuotationExportAction]', e);
+    return { success: false, error: e instanceof Error ? e.message : 'Lỗi hệ thống' };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// markQuotationSentAction
+// ---------------------------------------------------------------------------
+export async function markQuotationSentAction(
+  id: string,
+  input: MarkQuotationSentInput,
+): Promise<ActionResult> {
+  try {
+    const session = await getSessionOrThrow();
+    requireRole(session.user.roles ?? [], ...QUOTATION_WRITE_ROLES);
+
+    const parsed = markQuotationSentSchema.safeParse(input);
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: parsed.error.issues[0]?.message ?? 'Dữ liệu không hợp lệ',
+      };
+    }
+
+    const existing = await queryQuotationById(id);
+    if (!existing) return { success: false, error: 'Không tìm thấy báo giá' };
+    if (existing.status !== 'draft') {
+      return { success: false, error: 'Chỉ có thể đánh dấu đã gửi khi báo giá ở trạng thái nháp' };
+    }
+
+    const exportCount = await queryQuotationExportCount(id);
+    if (exportCount < 1) {
+      return {
+        success: false,
+        error: 'Phải xuất báo giá ít nhất một lần trước khi đánh dấu đã gửi cho khách',
+      };
+    }
+
+    const now = new Date();
+    await db
+      .update(quotations)
+      .set({
+        status: 'sent',
+        sentAt: now,
+        sentBy: session.user.id,
+        sentChannel: parsed.data.sentChannel,
+        sentNote: toNull(parsed.data.sentNote),
+        updatedBy: session.user.id,
+        updatedAt: now,
+      })
+      .where(eq(quotations.id, id));
+
+    revalidateQuotationPaths(id, existing.surveyId);
+    return { success: true, data: undefined };
+  } catch (e) {
+    console.error('[markQuotationSentAction]', e);
+    return { success: false, error: e instanceof Error ? e.message : 'Lỗi hệ thống' };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// recordQuotationResponseAction
+// ---------------------------------------------------------------------------
+export async function recordQuotationResponseAction(
+  id: string,
+  input: RecordQuotationResponseInput,
+): Promise<ActionResult> {
+  try {
+    const session = await getSessionOrThrow();
+    requireRole(session.user.roles ?? [], ...QUOTATION_APPROVE_ROLES);
+
+    const parsed = recordQuotationResponseSchema.safeParse(input);
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: parsed.error.issues[0]?.message ?? 'Dữ liệu không hợp lệ',
+      };
+    }
+
+    const existing = await queryQuotationById(id);
+    if (!existing) return { success: false, error: 'Không tìm thấy báo giá' };
+    if (existing.status !== 'sent') {
+      return {
+        success: false,
+        error: 'Chỉ có thể ghi nhận phản hồi khách khi báo giá đã được gửi',
+      };
+    }
+
+    const { status: responseStatus, responseNote } = parsed.data;
+
+    if (responseStatus === 'accepted') {
+      const otherAccepted = await queryAcceptedQuotationBySurveyId(existing.surveyId, id);
+      if (otherAccepted) {
+        return {
+          success: false,
+          error: `Khảo sát này đã có báo giá được chấp nhận (${otherAccepted.code} · v${otherAccepted.revisionNumber})`,
+        };
+      }
+    }
+
+    const now = new Date();
+    const updates: Record<string, unknown> = {
+      status: responseStatus,
+      responseNote: toNull(responseNote),
+      respondedAt: now,
+      respondedBy: session.user.id,
+      updatedBy: session.user.id,
+      updatedAt: now,
+    };
+
+    if (responseStatus === 'accepted') {
+      updates.acceptedAt = now;
+      updates.acceptedBy = session.user.id;
+    }
+
+    await db.update(quotations).set(updates).where(eq(quotations.id, id));
+
+    revalidateQuotationPaths(id, existing.surveyId);
+    return { success: true, data: undefined };
+  } catch (e) {
+    console.error('[recordQuotationResponseAction]', e);
+    return { success: false, error: e instanceof Error ? e.message : 'Lỗi hệ thống' };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// createQuotationRevisionAction
+// ---------------------------------------------------------------------------
+export async function createQuotationRevisionAction(
+  sourceQuotationId: string,
+): Promise<ActionResult<{ id: string; code: string; revisionNumber: number }>> {
+  try {
+    const session = await getSessionOrThrow();
+    requireRole(session.user.roles ?? [], ...QUOTATION_WRITE_ROLES);
+
+    const source = await queryQuotationById(sourceQuotationId);
+    if (!source) return { success: false, error: 'Không tìm thấy báo giá' };
+
+    const sourceStatus = source.status as QuotationStatus;
+    if (!REVISION_SOURCE_STATUSES.includes(sourceStatus as RevisionSourceStatus)) {
+      return {
+        success: false,
+        error: `Không thể tạo bản chỉnh sửa từ trạng thái "${QUOTATION_STATUS_LABELS[sourceStatus]}"`,
+      };
+    }
+
+    const activeDraft = await db.query.quotations.findFirst({
+      where: and(eq(quotations.surveyId, source.surveyId), eq(quotations.status, 'draft')),
+      columns: { id: true, revisionNumber: true },
+    });
+    if (activeDraft) {
+      return {
+        success: false,
+        error: `Đã có bản nháp v${activeDraft.revisionNumber} đang chờ xử lý`,
+      };
+    }
+
+    const nextRevision = (await queryMaxRevisionNumber(source.surveyId)) + 1;
+
+    const revision = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .insert(quotations)
+        .values({
+          code: source.code,
+          customerId: source.customerId,
+          surveyId: source.surveyId,
+          revisionNumber: nextRevision,
+          status: 'draft',
+          validUntil: source.validUntil,
+          note: source.note,
+          customerNameSnapshot: source.customerNameSnapshot,
+          customerPhoneSnapshot: source.customerPhoneSnapshot,
+          customerAddressSnapshot: source.customerAddressSnapshot,
+          discountType: source.discountType,
+          discountValue: source.discountValue,
+          vatRate: source.vatRate,
+          subtotal: source.subtotal,
+          discountAmount: source.discountAmount,
+          taxAmount: source.taxAmount,
+          grandTotal: source.grandTotal,
+          contentLockedAt: null,
+          sentAt: null,
+          sentBy: null,
+          sentChannel: null,
+          sentNote: null,
+          responseNote: null,
+          respondedAt: null,
+          respondedBy: null,
+          acceptedAt: null,
+          acceptedBy: null,
+          createdBy: session.user.id,
+        })
+        .returning({
+          id: quotations.id,
+          code: quotations.code,
+          revisionNumber: quotations.revisionNumber,
+        });
+
+      if (!row) throw new Error('Không thể tạo bản chỉnh sửa báo giá');
+
+      const items = source.items ?? [];
+      if (items.length > 0) {
+        await tx.insert(quotationItems).values(
+          items.map((item) => ({
+            quotationId: row.id,
+            sortOrder: item.sortOrder,
+            productName: item.productName,
+            description: item.description,
+            quantity: item.quantity,
+            unit: item.unit,
+            unitPrice: item.unitPrice,
+            lineTotal: item.lineTotal,
+          })),
+        );
+      }
+
+      return row;
+    });
+
+    revalidateQuotationPaths(revision.id, source.surveyId);
+    return {
+      success: true,
+      data: {
+        id: revision.id,
+        code: revision.code,
+        revisionNumber: revision.revisionNumber,
+      },
+    };
+  } catch (e) {
+    console.error('[createQuotationRevisionAction]', e);
+    return { success: false, error: e instanceof Error ? e.message : 'Lỗi hệ thống' };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// updateQuotationStatusAction (legacy — prefer dedicated workflow actions)
 // ---------------------------------------------------------------------------
 export async function updateQuotationStatusAction(
   id: string,
@@ -354,10 +656,9 @@ export async function updateQuotationStatusAction(
       };
     }
 
-    // Sending requires write role; accepting / rejecting / expiring requires approve role
-    const isApproveAction = (['accepted', 'rejected', 'expired'] as QuotationStatus[]).includes(
-      newStatus,
-    );
+    const isApproveAction = (
+      ['accepted', 'rejected', 'needs_revision', 'no_response', 'expired'] as QuotationStatus[]
+    ).includes(newStatus);
     if (isApproveAction) {
       requireRole(sessionRoles, ...QUOTATION_APPROVE_ROLES);
     } else {
@@ -372,14 +673,20 @@ export async function updateQuotationStatusAction(
     };
 
     if (newStatus === 'accepted') {
+      const otherAccepted = await queryAcceptedQuotationBySurveyId(existing.surveyId, id);
+      if (otherAccepted) {
+        return {
+          success: false,
+          error: `Khảo sát này đã có báo giá được chấp nhận (${otherAccepted.code} · v${otherAccepted.revisionNumber})`,
+        };
+      }
       updates.acceptedAt = now;
       updates.acceptedBy = session.user.id;
     }
 
     await db.update(quotations).set(updates).where(eq(quotations.id, id));
 
-    revalidatePath('/quotations');
-    revalidatePath(`/quotations/${id}`);
+    revalidateQuotationPaths(id, existing.surveyId);
     return { success: true, data: undefined };
   } catch (e) {
     console.error('[updateQuotationStatusAction]', e);

@@ -4,11 +4,12 @@ import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { db } from '@/db';
-import { surveys } from '@/db/schema';
+import { surveyZones, surveys } from '@/db/schema';
 import { hasRole, requireRole } from '@/lib/auth/roles';
 import {
   type CreateSurveyInput,
   type SurveyFilters,
+  type SurveyZoneInput,
   type UpdateSurveyInput,
   type UpdateSurveyStatusInput,
   createSurveySchema,
@@ -16,6 +17,10 @@ import {
   updateSurveySchema,
   updateSurveyStatusSchema,
 } from '../schema/survey.schema';
+import {
+  hasValidSurveyZonesForCompletion,
+  resolveSurveyZones,
+} from '../lib/survey-aggregates';
 import {
   nextSurveyCode,
   querySurveyById,
@@ -38,6 +43,63 @@ async function getSessionOrThrow() {
 }
 
 const toNull = (v: string | null | undefined): string | null => (v?.trim() ? v.trim() : null);
+
+const toIntOrNull = (v: string | undefined): number | null => {
+  if (v === undefined || v === '' || v === null) return null;
+  const n = parseInt(v, 10);
+  return isNaN(n) ? null : n;
+};
+
+const toIntOrNullOptional = (v: string | undefined): number | null | undefined => {
+  if (v === undefined) return undefined;
+  return toIntOrNull(v);
+};
+
+function mapZoneToInsert(zone: SurveyZoneInput, surveyId: string, sortOrder: number) {
+  return {
+    surveyId,
+    sortOrder,
+    zoneName: zone.zoneName.trim(),
+    roofType: toNull(zone.roofType),
+    roofMaterial: toNull(zone.roofMaterial),
+    usableAreaM2: toNull(zone.usableAreaM2),
+    roofOrientation: toNull(zone.roofOrientation),
+    roofTiltDeg: toIntOrNull(zone.roofTiltDeg),
+    shadingNotes: toNull(zone.shadingNotes),
+    roofStructureCondition: toNull(zone.roofStructureCondition),
+    needsRoofReinforcement: zone.needsRoofReinforcement ?? false,
+    recommendedSystemKw: toNull(zone.recommendedSystemKw),
+    panelWattageW: toIntOrNull(zone.panelWattageW) ?? 550,
+    recommendedPanelQuantity: toIntOrNull(zone.recommendedPanelQuantity),
+    inverterLocation: toNull(zone.inverterLocation),
+    cableRouteDistanceM: toIntOrNull(zone.cableRouteDistanceM),
+    cableRouteNotes: toNull(zone.cableRouteNotes),
+    installationDifficulty: toNull(zone.installationDifficulty),
+    extraMaterialsNote: toNull(zone.extraMaterialsNote),
+    installationPlanNote: toNull(zone.installationPlanNote),
+  };
+}
+
+function legacyFieldsFromZone(zone: SurveyZoneInput) {
+  return {
+    roofType: toNull(zone.roofType),
+    roofMaterial: toNull(zone.roofMaterial),
+    roofAreaM2: toNull(zone.usableAreaM2),
+    roofOrientation: toNull(zone.roofOrientation),
+    roofTiltDeg: toIntOrNull(zone.roofTiltDeg),
+    shadingNotes: toNull(zone.shadingNotes),
+    recommendedSystemKw: toNull(zone.recommendedSystemKw),
+    panelWattageW: toIntOrNull(zone.panelWattageW),
+    recommendedPanelQuantity: toIntOrNull(zone.recommendedPanelQuantity),
+    roofStructureCondition: toNull(zone.roofStructureCondition),
+    needsRoofReinforcement: zone.needsRoofReinforcement ?? false,
+    inverterLocation: toNull(zone.inverterLocation),
+    cableRouteDistanceM: toIntOrNull(zone.cableRouteDistanceM),
+    installationDifficulty: toNull(zone.installationDifficulty),
+    extraMaterialsNote: toNull(zone.extraMaterialsNote),
+    installationPlanNote: toNull(zone.installationPlanNote),
+  };
+}
 
 export async function createSurveyAction(
   input: CreateSurveyInput,
@@ -190,77 +252,136 @@ export async function updateSurveyAction(
           : null
         : undefined;
 
-    const toIntOrNull = (v: string | undefined): number | null | undefined => {
-      if (v === undefined) return undefined;
-      if (v === '' || v === null) return null;
-      const n = parseInt(v, 10);
-      return isNaN(n) ? null : n;
+    const surveyPatch: Record<string, unknown> = {
+      updatedAt: new Date(),
     };
 
-    await db
-      .update(surveys)
-      .set({
-        ...(d.address !== undefined && { address: d.address }),
-        ...(d.province !== undefined && { province: toNull(d.province) }),
-        ...(scheduledAt !== undefined && { scheduledAt }),
-        ...(d.roofType !== undefined && { roofType: toNull(d.roofType) }),
-        ...(d.roofMaterial !== undefined && { roofMaterial: toNull(d.roofMaterial) }),
-        ...(d.roofAreaM2 !== undefined && { roofAreaM2: toNull(d.roofAreaM2) }),
-        ...(d.roofOrientation !== undefined && { roofOrientation: toNull(d.roofOrientation) }),
-        ...(d.roofTiltDeg !== undefined && { roofTiltDeg: toIntOrNull(d.roofTiltDeg) }),
-        ...(d.shadingNotes !== undefined && { shadingNotes: toNull(d.shadingNotes) }),
-        ...(d.floors !== undefined && { floors: toIntOrNull(d.floors) }),
-        ...(d.meterCapacityA !== undefined && { meterCapacityA: toIntOrNull(d.meterCapacityA) }),
-        ...(d.gridVoltage !== undefined && { gridVoltage: toNull(d.gridVoltage) }),
-        ...(d.siteNotes !== undefined && { siteNotes: toNull(d.siteNotes) }),
-        ...(d.internalNotes !== undefined && { internalNotes: toNull(d.internalNotes) }),
-        ...(d.photosNote !== undefined && { photosNote: toNull(d.photosNote) }),
-        // Technical proposal fields
-        ...(d.recommendedSystemKw !== undefined && {
-          recommendedSystemKw: toNull(d.recommendedSystemKw),
-        }),
-        ...(d.panelWattageW !== undefined && { panelWattageW: toIntOrNull(d.panelWattageW) }),
-        ...(d.recommendedPanelQuantity !== undefined && {
-          recommendedPanelQuantity: toIntOrNull(d.recommendedPanelQuantity),
-        }),
-        ...(d.inverterType !== undefined && { inverterType: toNull(d.inverterType) }),
-        ...(d.inverterQuantity !== undefined && {
-          inverterQuantity: toIntOrNull(d.inverterQuantity),
-        }),
-        ...(d.systemType !== undefined && { systemType: toNull(d.systemType) }),
-        ...(d.powerPhase !== undefined && { powerPhase: toNull(d.powerPhase) }),
-        ...(d.roofStructureCondition !== undefined && {
-          roofStructureCondition: toNull(d.roofStructureCondition),
-        }),
-        ...(d.needsRoofReinforcement !== undefined && {
-          needsRoofReinforcement: d.needsRoofReinforcement,
-        }),
-        ...(d.inverterLocation !== undefined && { inverterLocation: toNull(d.inverterLocation) }),
-        ...(d.cableRouteDistanceM !== undefined && {
-          cableRouteDistanceM: toIntOrNull(d.cableRouteDistanceM),
-        }),
-        ...(d.mainBreakerCapacityA !== undefined && {
-          mainBreakerCapacityA: toIntOrNull(d.mainBreakerCapacityA),
-        }),
-        ...(d.mainElectricalCabinetCondition !== undefined && {
-          mainElectricalCabinetCondition: toNull(d.mainElectricalCabinetCondition),
-        }),
-        ...(d.needsElectricalCabinetUpgrade !== undefined && {
-          needsElectricalCabinetUpgrade: d.needsElectricalCabinetUpgrade,
-        }),
-        ...(d.hasGrounding !== undefined && { hasGrounding: d.hasGrounding }),
-        ...(d.installationDifficulty !== undefined && {
-          installationDifficulty: toNull(d.installationDifficulty),
-        }),
-        ...(d.extraMaterialsNote !== undefined && {
-          extraMaterialsNote: toNull(d.extraMaterialsNote),
-        }),
-        ...(d.installationPlanNote !== undefined && {
-          installationPlanNote: toNull(d.installationPlanNote),
-        }),
-        updatedAt: new Date(),
-      })
-      .where(eq(surveys.id, id));
+    if (d.address !== undefined) surveyPatch.address = d.address;
+    if (d.province !== undefined) surveyPatch.province = toNull(d.province);
+    if (scheduledAt !== undefined) surveyPatch.scheduledAt = scheduledAt;
+    if (d.projectType !== undefined) surveyPatch.projectType = d.projectType;
+    if (d.projectScale !== undefined) surveyPatch.projectScale = d.projectScale;
+    if (d.roofType !== undefined) surveyPatch.roofType = toNull(d.roofType);
+    if (d.roofMaterial !== undefined) surveyPatch.roofMaterial = toNull(d.roofMaterial);
+    if (d.roofAreaM2 !== undefined) surveyPatch.roofAreaM2 = toNull(d.roofAreaM2);
+    if (d.roofOrientation !== undefined) surveyPatch.roofOrientation = toNull(d.roofOrientation);
+    if (d.roofTiltDeg !== undefined) surveyPatch.roofTiltDeg = toIntOrNullOptional(d.roofTiltDeg);
+    if (d.shadingNotes !== undefined) surveyPatch.shadingNotes = toNull(d.shadingNotes);
+    if (d.floors !== undefined) surveyPatch.floors = toIntOrNullOptional(d.floors);
+    if (d.meterCapacityA !== undefined) {
+      surveyPatch.meterCapacityA = toIntOrNullOptional(d.meterCapacityA);
+    }
+    if (d.gridVoltage !== undefined) surveyPatch.gridVoltage = toNull(d.gridVoltage);
+    if (d.siteNotes !== undefined) surveyPatch.siteNotes = toNull(d.siteNotes);
+    if (d.internalNotes !== undefined) surveyPatch.internalNotes = toNull(d.internalNotes);
+    if (d.photosNote !== undefined) surveyPatch.photosNote = toNull(d.photosNote);
+    if (d.recommendedSystemKw !== undefined) {
+      surveyPatch.recommendedSystemKw = toNull(d.recommendedSystemKw);
+    }
+    if (d.panelWattageW !== undefined) surveyPatch.panelWattageW = toIntOrNullOptional(d.panelWattageW);
+    if (d.recommendedPanelQuantity !== undefined) {
+      surveyPatch.recommendedPanelQuantity = toIntOrNullOptional(d.recommendedPanelQuantity);
+    }
+    if (d.inverterType !== undefined) surveyPatch.inverterType = toNull(d.inverterType);
+    if (d.inverterQuantity !== undefined) {
+      surveyPatch.inverterQuantity = toIntOrNullOptional(d.inverterQuantity);
+    }
+    if (d.systemType !== undefined) surveyPatch.systemType = toNull(d.systemType);
+    if (d.powerPhase !== undefined) surveyPatch.powerPhase = toNull(d.powerPhase);
+    if (d.roofStructureCondition !== undefined) {
+      surveyPatch.roofStructureCondition = toNull(d.roofStructureCondition);
+    }
+    if (d.needsRoofReinforcement !== undefined) {
+      surveyPatch.needsRoofReinforcement = d.needsRoofReinforcement;
+    }
+    if (d.inverterLocation !== undefined) surveyPatch.inverterLocation = toNull(d.inverterLocation);
+    if (d.cableRouteDistanceM !== undefined) {
+      surveyPatch.cableRouteDistanceM = toIntOrNullOptional(d.cableRouteDistanceM);
+    }
+    if (d.mainBreakerCapacityA !== undefined) {
+      surveyPatch.mainBreakerCapacityA = toIntOrNullOptional(d.mainBreakerCapacityA);
+    }
+    if (d.mainElectricalCabinetCondition !== undefined) {
+      surveyPatch.mainElectricalCabinetCondition = toNull(d.mainElectricalCabinetCondition);
+    }
+    if (d.needsElectricalCabinetUpgrade !== undefined) {
+      surveyPatch.needsElectricalCabinetUpgrade = d.needsElectricalCabinetUpgrade;
+    }
+    if (d.hasGrounding !== undefined) surveyPatch.hasGrounding = d.hasGrounding;
+    if (d.installationDifficulty !== undefined) {
+      surveyPatch.installationDifficulty = toNull(d.installationDifficulty);
+    }
+    if (d.extraMaterialsNote !== undefined) {
+      surveyPatch.extraMaterialsNote = toNull(d.extraMaterialsNote);
+    }
+    if (d.installationPlanNote !== undefined) {
+      surveyPatch.installationPlanNote = toNull(d.installationPlanNote);
+    }
+    if (d.plannedInverterArea !== undefined) {
+      surveyPatch.plannedInverterArea = toNull(d.plannedInverterArea);
+    }
+    if (d.inverterAreaNearMainPower !== undefined) {
+      surveyPatch.inverterAreaNearMainPower = d.inverterAreaNearMainPower;
+    }
+    if (d.inverterAreaDistanceToMainCabinetM !== undefined) {
+      surveyPatch.inverterAreaDistanceToMainCabinetM = toIntOrNullOptional(
+        d.inverterAreaDistanceToMainCabinetM,
+      );
+    }
+    if (d.inverterAreaCleanDryVentilated !== undefined) {
+      surveyPatch.inverterAreaCleanDryVentilated = d.inverterAreaCleanDryVentilated;
+    }
+    if (d.inverterAreaHasShelter !== undefined) {
+      surveyPatch.inverterAreaHasShelter = d.inverterAreaHasShelter;
+    }
+    if (d.inverterAreaRiskNotes !== undefined) {
+      surveyPatch.inverterAreaRiskNotes = toNull(d.inverterAreaRiskNotes);
+    }
+    if (d.needsInverterShelterOrRack !== undefined) {
+      surveyPatch.needsInverterShelterOrRack = d.needsInverterShelterOrRack;
+    }
+    if (d.mainPowerConnectionPoint !== undefined) {
+      surveyPatch.mainPowerConnectionPoint = toNull(d.mainPowerConnectionPoint);
+    }
+    if (d.mainCabinetLocation !== undefined) {
+      surveyPatch.mainCabinetLocation = toNull(d.mainCabinetLocation);
+    }
+    if (d.groundingLocation !== undefined) {
+      surveyPatch.groundingLocation = toNull(d.groundingLocation);
+    }
+    if (d.mainCableRouteNotes !== undefined) {
+      surveyPatch.mainCableRouteNotes = toNull(d.mainCableRouteNotes);
+    }
+    if (d.maintenanceAccessNotes !== undefined) {
+      surveyPatch.maintenanceAccessNotes = toNull(d.maintenanceAccessNotes);
+    }
+    if (d.fireSafetyNotes !== undefined) {
+      surveyPatch.fireSafetyNotes = toNull(d.fireSafetyNotes);
+    }
+    if (d.generalTechnicalRiskNotes !== undefined) {
+      surveyPatch.generalTechnicalRiskNotes = toNull(d.generalTechnicalRiskNotes);
+    }
+
+    if (d.zones !== undefined) {
+      const effectiveScale = d.projectScale ?? existing.projectScale ?? 'single';
+      surveyPatch.projectScale = effectiveScale;
+      if (effectiveScale === 'single' && d.zones.length === 1) {
+        Object.assign(surveyPatch, legacyFieldsFromZone(d.zones[0]));
+      }
+    }
+
+    await db.transaction(async (tx) => {
+      await tx.update(surveys).set(surveyPatch).where(eq(surveys.id, id));
+
+      if (d.zones !== undefined) {
+        await tx.delete(surveyZones).where(eq(surveyZones.surveyId, id));
+        if (d.zones.length > 0) {
+          await tx.insert(surveyZones).values(
+            d.zones.map((zone, index) => mapZoneToInsert(zone, id, index)),
+          );
+        }
+      }
+    });
 
     revalidatePath('/surveys');
     revalidatePath(`/surveys/${id}`);
@@ -304,6 +425,14 @@ export async function updateSurveyStatusAction(
         return {
           success: false,
           error: 'Chỉ có thể hoàn thành phiếu ở trạng thái đã phân công',
+        };
+      }
+      const zones = resolveSurveyZones(existing);
+      if (!hasValidSurveyZonesForCompletion(zones)) {
+        return {
+          success: false,
+          error:
+            'Phiếu khảo sát cần ít nhất một khu vực hợp lệ (tên khu và công suất hoặc diện tích)',
         };
       }
     } else {

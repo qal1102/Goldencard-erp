@@ -1,8 +1,9 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import { PlusIcon } from 'lucide-react';
 import { useEffect } from 'react';
-import { Controller, useForm, useWatch } from 'react-hook-form';
+import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,20 +16,24 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { createEmptyZone } from '../lib/survey-form-defaults';
 import {
   GRID_VOLTAGES,
   GRID_VOLTAGE_LABELS,
-  INSTALLATION_DIFFICULTIES,
-  INSTALLATION_DIFFICULTY_LABELS,
   POWER_PHASES,
   POWER_PHASE_LABELS,
-  ROOF_TYPES,
-  ROOF_TYPE_LABELS,
+  PROJECT_SCALES,
+  PROJECT_SCALE_LABELS,
+  PROJECT_TYPES,
+  PROJECT_TYPE_LABELS,
   SYSTEM_TYPES,
   SYSTEM_TYPE_LABELS,
+  type ProjectScale,
   type UpdateSurveyInput,
   updateSurveySchema,
 } from '../schema/survey.schema';
+import { SurveyInfrastructureSection } from './survey-infrastructure-section';
+import { SurveyZoneFormCard } from './survey-zone-form-card';
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
@@ -50,29 +55,55 @@ export function SurveyForm({ defaultValues, onSubmit, onCancel, isPending }: Pro
     control,
     handleSubmit,
     setValue,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<UpdateSurveyInput>({
     resolver: zodResolver(updateSurveySchema),
-    defaultValues: defaultValues ?? {},
+    defaultValues: {
+      projectType: 'residential',
+      projectScale: 'single',
+      zones: [createEmptyZone()],
+      ...defaultValues,
+    },
+  });
+
+  const { fields, append, remove, replace } = useFieldArray({
+    control,
+    name: 'zones',
   });
 
   const pending = isPending || isSubmitting;
-
-  // Auto-calculate recommended panel quantity
-  const recommendedSystemKw = useWatch({ control, name: 'recommendedSystemKw' });
-  const panelWattageW = useWatch({ control, name: 'panelWattageW' });
+  const projectScale = (useWatch({ control, name: 'projectScale' }) ?? 'single') as ProjectScale;
+  const isMulti = projectScale === 'multi';
 
   useEffect(() => {
-    const kw = parseFloat(recommendedSystemKw ?? '');
-    const w = parseInt(panelWattageW ?? '550', 10);
-    if (kw > 0 && w > 0) {
-      setValue('recommendedPanelQuantity', String(Math.ceil((kw * 1000) / w)));
+    if (projectScale === 'single') {
+      const current = getValues('zones') ?? [];
+      if (current.length === 0) {
+        replace([createEmptyZone()]);
+      } else if (current.length > 1) {
+        replace([current[0] ?? createEmptyZone()]);
+      } else if (!current[0]?.zoneName?.trim()) {
+        setValue('zones.0.zoneName', 'Mái chính');
+      }
     }
-  }, [recommendedSystemKw, panelWattageW, setValue]);
+  }, [projectScale, getValues, replace, setValue]);
+
+  const handleScaleChange = (scale: ProjectScale) => {
+    setValue('projectScale', scale);
+    if (scale === 'single') {
+      const first = getValues('zones')?.[0] ?? createEmptyZone();
+      if (!first.zoneName?.trim()) first.zoneName = 'Mái chính';
+      replace([first]);
+    }
+  };
+
+  const handleAddZone = () => {
+    append(createEmptyZone(`Khu ${fields.length + 1}`));
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-      {/* Location */}
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">Địa điểm khảo sát</CardTitle>
@@ -97,42 +128,36 @@ export function SurveyForm({ defaultValues, onSubmit, onCancel, isPending }: Pro
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="sf-scheduledAt">Ngày hẹn khảo sát</Label>
-            <Input
-              id="sf-scheduledAt"
-              type="datetime-local"
-              {...register('scheduledAt')}
-            />
+            <Input id="sf-scheduledAt" type="datetime-local" {...register('scheduledAt')} />
           </div>
         </CardContent>
       </Card>
 
-      {/* Roof */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Thông tin mái nhà</CardTitle>
+          <CardTitle className="text-sm">Phân loại công trình</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="sf-roofType">Loại mái</Label>
+            <Label htmlFor="sf-projectType">Loại công trình</Label>
             <Controller
               control={control}
-              name="roofType"
+              name="projectType"
               render={({ field }) => (
-                <Select
-                  value={field.value ?? ''}
-                  onValueChange={(v) => field.onChange(v || undefined)}
-                >
-                  <SelectTrigger id="sf-roofType" className="w-full">
-                    <SelectValue placeholder="Chọn loại mái...">
+                <Select value={field.value ?? 'residential'} onValueChange={field.onChange}>
+                  <SelectTrigger id="sf-projectType" className="w-full">
+                    <SelectValue>
                       {(value) =>
-                        value ? ROOF_TYPE_LABELS[value as keyof typeof ROOF_TYPE_LABELS] : null
+                        PROJECT_TYPE_LABELS[
+                          (value as (typeof PROJECT_TYPES)[number]) ?? 'residential'
+                        ]
                       }
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {ROOF_TYPES.map((t) => (
+                    {PROJECT_TYPES.map((t) => (
                       <SelectItem key={t} value={t}>
-                        {ROOF_TYPE_LABELS[t]}
+                        {PROJECT_TYPE_LABELS[t]}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -142,54 +167,39 @@ export function SurveyForm({ defaultValues, onSubmit, onCancel, isPending }: Pro
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="sf-roofMaterial">Vật liệu mái</Label>
-            <Input
-              id="sf-roofMaterial"
-              placeholder="vd: Tôn, Ngói, Bê tông..."
-              {...register('roofMaterial')}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="sf-roofAreaM2">Diện tích mái (m²)</Label>
-              <Input
-                id="sf-roofAreaM2"
-                type="number"
-                inputMode="decimal"
-                step="0.1"
-                min="0"
-                placeholder="0.0"
-                {...register('roofAreaM2')}
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="sf-roofTiltDeg">Độ dốc (°)</Label>
-              <Input
-                id="sf-roofTiltDeg"
-                type="number"
-                inputMode="numeric"
-                min="0"
-                max="90"
-                placeholder="0–90"
-                {...register('roofTiltDeg')}
-              />
-              <FieldError message={errors.roofTiltDeg?.message} />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="sf-roofOrientation">Hướng mái</Label>
-            <Input
-              id="sf-roofOrientation"
-              placeholder="vd: Nam, Đông Nam, Tây..."
-              {...register('roofOrientation')}
+            <Label htmlFor="sf-projectScale">Quy mô khảo sát</Label>
+            <Controller
+              control={control}
+              name="projectScale"
+              render={({ field }) => (
+                <Select
+                  value={field.value ?? 'single'}
+                  onValueChange={(v) => {
+                    field.onChange(v);
+                    handleScaleChange(v as ProjectScale);
+                  }}
+                >
+                  <SelectTrigger id="sf-projectScale" className="w-full">
+                    <SelectValue>
+                      {(value) =>
+                        PROJECT_SCALE_LABELS[(value as ProjectScale) ?? 'single']
+                      }
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROJECT_SCALES.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {PROJECT_SCALE_LABELS[s]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="sf-floors">Số tầng</Label>
+            <Label htmlFor="sf-floors">Số tầng / quy mô công trình</Label>
             <Input
               id="sf-floors"
               type="number"
@@ -200,23 +210,42 @@ export function SurveyForm({ defaultValues, onSubmit, onCancel, isPending }: Pro
             />
             <FieldError message={errors.floors?.message} />
           </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="sf-shadingNotes">Bóng che / Vật cản</Label>
-            <Textarea
-              id="sf-shadingNotes"
-              placeholder="Mô tả bóng che từ cây cối, công trình lân cận..."
-              rows={3}
-              {...register('shadingNotes')}
-            />
-          </div>
         </CardContent>
       </Card>
 
-      {/* Electrical */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Hệ thống điện</CardTitle>
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-sm">Khu vực lắp đặt</CardTitle>
+            {isMulti && (
+              <Button type="button" variant="outline" size="sm" onClick={handleAddZone}>
+                <PlusIcon className="size-3.5" />
+                Thêm khu
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <FieldError message={errors.zones?.message ?? errors.zones?.root?.message} />
+          {fields.map((field, index) => (
+            <SurveyZoneFormCard
+              key={field.id}
+              index={index}
+              control={control}
+              register={register}
+              errors={errors}
+              setValue={setValue}
+              defaultOpen={index === 0}
+              showRemove={isMulti && fields.length > 1}
+              onRemove={() => remove(index)}
+            />
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Hệ thống điện &amp; thiết bị chung</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
@@ -257,69 +286,12 @@ export function SurveyForm({ defaultValues, onSubmit, onCancel, isPending }: Pro
               type="number"
               inputMode="numeric"
               min="0"
-              placeholder="vd: 40, 63, 100..."
               {...register('meterCapacityA')}
             />
             <FieldError message={errors.meterCapacityA?.message} />
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Technical Proposal */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Đề xuất kỹ thuật &amp; vật tư</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          {/* System sizing */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="sf-recommendedSystemKw">Công suất hệ thống (kWp)</Label>
-              <Input
-                id="sf-recommendedSystemKw"
-                type="number"
-                inputMode="decimal"
-                step="0.1"
-                min="0"
-                placeholder="vd: 5.5"
-                {...register('recommendedSystemKw')}
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="sf-panelWattageW">Công suất tấm pin (W)</Label>
-              <Input
-                id="sf-panelWattageW"
-                type="number"
-                inputMode="numeric"
-                min="1"
-                placeholder="550"
-                {...register('panelWattageW')}
-              />
-              <FieldError message={errors.panelWattageW?.message} />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="sf-recommendedPanelQuantity">
-              Số tấm pin (tự tính)
-            </Label>
-            <Input
-              id="sf-recommendedPanelQuantity"
-              type="number"
-              inputMode="numeric"
-              min="1"
-              placeholder="Tự động tính từ kWp và W/tấm"
-              {...register('recommendedPanelQuantity')}
-            />
-            <p className="text-xs text-muted-foreground">
-              Tự động = ⌈kWp × 1000 ÷ W/tấm⌉. Có thể chỉnh tay.
-            </p>
-            <FieldError message={errors.recommendedPanelQuantity?.message} />
-          </div>
-
-          {/* System type & phase */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="sf-systemType">Loại hệ thống</Label>
               <Controller
@@ -383,17 +355,15 @@ export function SurveyForm({ defaultValues, onSubmit, onCancel, isPending }: Pro
             </div>
           </div>
 
-          {/* Inverter */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="sf-inverterType">Loại inverter</Label>
               <Input
                 id="sf-inverterType"
-                placeholder="vd: Solis 5kW, Growatt 10kW..."
+                placeholder="vd: Solis 50kW, Growatt..."
                 {...register('inverterType')}
               />
             </div>
-
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="sf-inverterQuantity">Số lượng inverter</Label>
               <Input
@@ -407,181 +377,11 @@ export function SurveyForm({ defaultValues, onSubmit, onCancel, isPending }: Pro
               <FieldError message={errors.inverterQuantity?.message} />
             </div>
           </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="sf-inverterLocation">Vị trí lắp inverter</Label>
-            <Input
-              id="sf-inverterLocation"
-              placeholder="vd: Tầng 1 gần tủ điện, ngoài trời có mái che..."
-              {...register('inverterLocation')}
-            />
-          </div>
-
-          {/* Roof structure */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="sf-roofStructureCondition">Tình trạng kết cấu mái</Label>
-            <Textarea
-              id="sf-roofStructureCondition"
-              placeholder="Mô tả tình trạng, độ chắc chắn của mái..."
-              rows={2}
-              {...register('roofStructureCondition')}
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Controller
-              control={control}
-              name="needsRoofReinforcement"
-              render={({ field }) => (
-                <input
-                  type="checkbox"
-                  id="sf-needsRoofReinforcement"
-                  className="h-4 w-4 rounded border border-input accent-primary"
-                  checked={field.value ?? false}
-                  onChange={(e) => field.onChange(e.target.checked)}
-                />
-              )}
-            />
-            <Label htmlFor="sf-needsRoofReinforcement" className="font-normal">
-              Cần gia cố mái trước khi lắp
-            </Label>
-          </div>
-
-          {/* Cable & electrical cabinet */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="sf-cableRouteDistanceM">Khoảng cách đi dây (m)</Label>
-              <Input
-                id="sf-cableRouteDistanceM"
-                type="number"
-                inputMode="numeric"
-                min="0"
-                placeholder="vd: 15"
-                {...register('cableRouteDistanceM')}
-              />
-              <FieldError message={errors.cableRouteDistanceM?.message} />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="sf-mainBreakerCapacityA">CB chính (A)</Label>
-              <Input
-                id="sf-mainBreakerCapacityA"
-                type="number"
-                inputMode="numeric"
-                min="0"
-                placeholder="vd: 100"
-                {...register('mainBreakerCapacityA')}
-              />
-              <FieldError message={errors.mainBreakerCapacityA?.message} />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="sf-mainElectricalCabinetCondition">Tình trạng tủ điện chính</Label>
-            <Textarea
-              id="sf-mainElectricalCabinetCondition"
-              placeholder="Mô tả tình trạng tủ điện, số CB hiện có..."
-              rows={2}
-              {...register('mainElectricalCabinetCondition')}
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Controller
-              control={control}
-              name="needsElectricalCabinetUpgrade"
-              render={({ field }) => (
-                <input
-                  type="checkbox"
-                  id="sf-needsElectricalCabinetUpgrade"
-                  className="h-4 w-4 rounded border border-input accent-primary"
-                  checked={field.value ?? false}
-                  onChange={(e) => field.onChange(e.target.checked)}
-                />
-              )}
-            />
-            <Label htmlFor="sf-needsElectricalCabinetUpgrade" className="font-normal">
-              Cần nâng cấp tủ điện
-            </Label>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Controller
-              control={control}
-              name="hasGrounding"
-              render={({ field }) => (
-                <input
-                  type="checkbox"
-                  id="sf-hasGrounding"
-                  className="h-4 w-4 rounded border border-input accent-primary"
-                  checked={field.value ?? false}
-                  onChange={(e) => field.onChange(e.target.checked)}
-                />
-              )}
-            />
-            <Label htmlFor="sf-hasGrounding" className="font-normal">
-              Đã có hệ thống tiếp địa
-            </Label>
-          </div>
-
-          {/* Installation difficulty */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="sf-installationDifficulty">Độ khó thi công</Label>
-            <Controller
-              control={control}
-              name="installationDifficulty"
-              render={({ field }) => (
-                <Select
-                  value={field.value ?? ''}
-                  onValueChange={(v) => field.onChange(v || undefined)}
-                >
-                  <SelectTrigger id="sf-installationDifficulty" className="w-full">
-                    <SelectValue placeholder="Chọn...">
-                      {(value) =>
-                        value
-                          ? INSTALLATION_DIFFICULTY_LABELS[
-                              value as keyof typeof INSTALLATION_DIFFICULTY_LABELS
-                            ]
-                          : null
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {INSTALLATION_DIFFICULTIES.map((d) => (
-                      <SelectItem key={d} value={d}>
-                        {INSTALLATION_DIFFICULTY_LABELS[d]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-          </div>
-
-          {/* Notes */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="sf-extraMaterialsNote">Vật tư phụ / Ghi chú vật tư</Label>
-            <Textarea
-              id="sf-extraMaterialsNote"
-              placeholder="Liệt kê vật tư phụ cần thêm, ống luồn dây, thanh ray đặc biệt..."
-              rows={3}
-              {...register('extraMaterialsNote')}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="sf-installationPlanNote">Kế hoạch thi công</Label>
-            <Textarea
-              id="sf-installationPlanNote"
-              placeholder="Phương án thi công, lưu ý an toàn, các bước thực hiện..."
-              rows={3}
-              {...register('installationPlanNote')}
-            />
-          </div>
         </CardContent>
       </Card>
 
-      {/* Notes */}
+      <SurveyInfrastructureSection control={control} register={register} errors={errors} />
+
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">Ghi chú</CardTitle>
@@ -589,12 +389,7 @@ export function SurveyForm({ defaultValues, onSubmit, onCancel, isPending }: Pro
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="sf-siteNotes">Ghi chú hiện trường</Label>
-            <Textarea
-              id="sf-siteNotes"
-              placeholder="Hiện trạng công trình, lưu ý thi công, thông tin thêm..."
-              rows={4}
-              {...register('siteNotes')}
-            />
+            <Textarea id="sf-siteNotes" rows={4} {...register('siteNotes')} />
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -611,12 +406,7 @@ export function SurveyForm({ defaultValues, onSubmit, onCancel, isPending }: Pro
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="sf-internalNotes">Ghi chú nội bộ</Label>
-            <Textarea
-              id="sf-internalNotes"
-              placeholder="Ghi chú cho đội kinh doanh..."
-              rows={3}
-              {...register('internalNotes')}
-            />
+            <Textarea id="sf-internalNotes" rows={3} {...register('internalNotes')} />
           </div>
         </CardContent>
       </Card>

@@ -26,22 +26,28 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   GRID_VOLTAGE_LABELS,
-  INSTALLATION_DIFFICULTY_LABELS,
   POWER_PHASE_LABELS,
-  ROOF_TYPE_LABELS,
+  PROJECT_SCALE_LABELS,
+  PROJECT_TYPE_LABELS,
   SYSTEM_TYPE_LABELS,
   type GridVoltage,
-  type InstallationDifficulty,
   type PowerPhase,
-  type RoofType,
+  type ProjectScale,
+  type ProjectType,
   type SurveyStatus,
   type SystemType,
   type UpdateSurveyInput,
 } from '../schema/survey.schema';
+import { computeSurveyAggregates, resolveSurveyZones } from '../lib/survey-aggregates';
+import { buildSurveyFormDefaults } from '../lib/survey-form-defaults';
 import { useQuotationBySurvey } from '@/modules/quotations/hooks/use-quotations';
 import { useSurvey, useTechnicianUsers, useUpdateSurvey, useUpdateSurveyStatus } from '../hooks/use-surveys';
+import { SurveyAggregationSummary } from './survey-aggregation-summary';
+import { SurveyInfrastructureReadCard } from './survey-infrastructure-read-card';
 import { SurveyStatusBadge } from './survey-status-badge';
 import { SurveyForm } from './survey-form';
+import { SurveyZoneBreakdownTable } from './survey-zone-breakdown-table';
+import { SurveyZoneReadCard } from './survey-zone-read-card';
 
 type Props = {
   surveyId: string;
@@ -70,13 +76,6 @@ function formatDate(date: Date | string | null | undefined): string | null {
     hour: '2-digit',
     minute: '2-digit',
   });
-}
-
-function toDatetimeLocalValue(date: Date | string | null | undefined): string {
-  if (!date) return '';
-  const d = new Date(date);
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 type AssignFeedback = { type: 'success' | 'info'; message: string } | null;
@@ -115,6 +114,27 @@ export function SurveyDetail({ surveyId, canManage, isTechnician, userId, canCre
   const canFill =
     canManage || (isTechnician && survey.assignedTo === userId);
   const canEdit = canFill && !isTerminal;
+
+  const resolvedZones = resolveSurveyZones(survey);
+  const aggregates = computeSurveyAggregates(resolvedZones);
+  const hasDbZones = Boolean(survey.zones && survey.zones.length > 0);
+  const projectScale = (survey.projectScale ?? 'single') as ProjectScale;
+  const projectType = (survey.projectType ?? 'residential') as ProjectType;
+
+  const hasSurveyData =
+    resolvedZones.some(
+      (z) =>
+        z.roofType ||
+        z.recommendedSystemKw ||
+        z.usableAreaM2 ||
+        z.roofMaterial ||
+        z.installationDifficulty,
+    ) ||
+    survey.siteNotes ||
+    survey.gridVoltage ||
+    survey.systemType ||
+    survey.plannedInverterArea ||
+    survey.mainCabinetLocation;
 
   const showAssignFeedback = (feedback: AssignFeedback) => {
     setAssignFeedback(feedback);
@@ -335,278 +355,127 @@ export function SurveyDetail({ surveyId, canManage, isTechnician, userId, canCre
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm">Dữ liệu khảo sát</CardTitle>
                 {canEdit && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setEditMode(true)}
-                  >
+                  <Button variant="outline" size="sm" onClick={() => setEditMode(true)}>
                     <EditIcon className="size-3.5" />
-                    {survey.siteNotes || survey.roofType ? 'Chỉnh sửa' : 'Nhập liệu'}
+                    {hasSurveyData ? 'Chỉnh sửa' : 'Nhập liệu'}
                   </Button>
                 )}
               </div>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
-              {!survey.roofType &&
-                !survey.siteNotes &&
-                !survey.meterCapacityA &&
-                !survey.floors &&
-                !survey.recommendedSystemKw && (
-                  <p className="text-sm text-muted-foreground">
-                    {canEdit
-                      ? 'Chưa có dữ liệu khảo sát. Nhấn "Nhập liệu" để bắt đầu.'
-                      : 'Chưa có dữ liệu khảo sát.'}
-                  </p>
-                )}
-
-              {/* Roof */}
-              {(survey.roofType || survey.roofMaterial || survey.roofAreaM2 || survey.roofOrientation) && (
-                <div className="flex flex-col gap-2">
-                  <p className="text-xs font-medium text-muted-foreground">Mái nhà</p>
-                  <DetailRow
-                    label="Loại mái"
-                    value={
-                      survey.roofType
-                        ? (ROOF_TYPE_LABELS[survey.roofType as RoofType] ?? survey.roofType)
-                        : null
-                    }
-                  />
-                  <DetailRow label="Vật liệu" value={survey.roofMaterial} />
-                  <DetailRow label="Diện tích" value={survey.roofAreaM2 ? `${survey.roofAreaM2} m²` : null} />
-                  <DetailRow label="Hướng mái" value={survey.roofOrientation} />
-                  <DetailRow label="Độ dốc" value={survey.roofTiltDeg != null ? `${survey.roofTiltDeg}°` : null} />
-                  <DetailRow label="Số tầng" value={survey.floors} />
-                  <DetailRow label="Bóng che" value={survey.shadingNotes} />
-                </div>
+              {!hasSurveyData && (
+                <p className="text-sm text-muted-foreground">
+                  {canEdit
+                    ? 'Chưa có dữ liệu khảo sát. Nhấn "Nhập liệu" để bắt đầu.'
+                    : 'Chưa có dữ liệu khảo sát.'}
+                </p>
               )}
 
-              {/* Electrical */}
-              {(survey.gridVoltage || survey.meterCapacityA) && (
+              <DetailRow
+                label="Loại công trình"
+                value={PROJECT_TYPE_LABELS[projectType]}
+              />
+              <DetailRow
+                label="Quy mô khảo sát"
+                value={PROJECT_SCALE_LABELS[projectScale]}
+              />
+
+              {(survey.gridVoltage || survey.meterCapacityA || survey.floors) && (
                 <div className="flex flex-col gap-2">
-                  <p className="text-xs font-medium text-muted-foreground">Hệ thống điện</p>
+                  <p className="text-xs font-medium text-muted-foreground">Thông tin công trình</p>
+                  <DetailRow label="Số tầng" value={survey.floors} />
                   <DetailRow
                     label="Loại điện"
                     value={
                       survey.gridVoltage
-                        ? (GRID_VOLTAGE_LABELS[survey.gridVoltage as GridVoltage] ?? survey.gridVoltage)
+                        ? (GRID_VOLTAGE_LABELS[survey.gridVoltage as GridVoltage] ??
+                          survey.gridVoltage)
                         : null
                     }
                   />
-                  <DetailRow label="CB tổng" value={survey.meterCapacityA ? `${survey.meterCapacityA} A` : null} />
+                  <DetailRow
+                    label="CB tổng"
+                    value={survey.meterCapacityA ? `${survey.meterCapacityA} A` : null}
+                  />
                 </div>
               )}
 
-              {/* Notes */}
-              {survey.siteNotes && (
-                <DetailRow label="Ghi chú hiện trường" value={survey.siteNotes} />
-              )}
-              {survey.photosNote && (
-                <DetailRow label="Ảnh hiện trường" value={survey.photosNote} />
-              )}
+              {survey.siteNotes && <DetailRow label="Ghi chú hiện trường" value={survey.siteNotes} />}
+              {survey.photosNote && <DetailRow label="Ảnh hiện trường" value={survey.photosNote} />}
               {survey.internalNotes && (
                 <DetailRow label="Ghi chú nội bộ" value={survey.internalNotes} />
               )}
             </CardContent>
           </Card>
 
-          {/* Technical Proposal */}
-          {(survey.recommendedSystemKw ||
-            survey.systemType ||
+          {hasSurveyData && (
+            <SurveyAggregationSummary
+              aggregates={aggregates}
+              inverterType={survey.inverterType}
+              inverterQuantity={survey.inverterQuantity}
+            />
+          )}
+
+          {hasSurveyData && resolvedZones.length > 1 && (
+            <SurveyZoneBreakdownTable zones={resolvedZones} />
+          )}
+
+          {hasSurveyData && (
+            <div className="flex flex-col gap-2">
+              <p className="text-sm font-medium">Khu vực lắp đặt</p>
+              {resolvedZones.map((zone, index) => (
+                <SurveyZoneReadCard
+                  key={zone.id}
+                  zone={zone}
+                  index={index}
+                  defaultOpen={index === 0}
+                  isLegacy={!hasDbZones}
+                />
+              ))}
+            </div>
+          )}
+
+          {(survey.systemType ||
+            survey.powerPhase ||
             survey.inverterType ||
-            survey.installationDifficulty) && (
+            survey.inverterQuantity) && (
             <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Đề xuất kỹ thuật &amp; vật tư</CardTitle>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Hệ thống &amp; inverter (dự án)</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
-                {/* System sizing */}
-                {(survey.recommendedSystemKw ||
-                  survey.panelWattageW ||
-                  survey.recommendedPanelQuantity) && (
-                  <div className="flex flex-col gap-2">
-                    <p className="text-xs font-medium text-muted-foreground">Hệ thống</p>
-                    <DetailRow
-                      label="Công suất hệ thống"
-                      value={
-                        survey.recommendedSystemKw ? `${survey.recommendedSystemKw} kWp` : null
-                      }
-                    />
-                    <DetailRow
-                      label="Công suất tấm pin"
-                      value={survey.panelWattageW ? `${survey.panelWattageW} W/tấm` : null}
-                    />
-                    <DetailRow
-                      label="Số tấm pin"
-                      value={
-                        survey.recommendedPanelQuantity
-                          ? `${survey.recommendedPanelQuantity} tấm`
-                          : null
-                      }
-                    />
-                    <DetailRow
-                      label="Loại hệ thống"
-                      value={
-                        survey.systemType
-                          ? (SYSTEM_TYPE_LABELS[survey.systemType as SystemType] ??
-                            survey.systemType)
-                          : null
-                      }
-                    />
-                    <DetailRow
-                      label="Pha điện"
-                      value={
-                        survey.powerPhase
-                          ? (POWER_PHASE_LABELS[survey.powerPhase as PowerPhase] ??
-                            survey.powerPhase)
-                          : null
-                      }
-                    />
-                  </div>
-                )}
-
-                {/* Inverter */}
-                {(survey.inverterType || survey.inverterQuantity || survey.inverterLocation) && (
-                  <div className="flex flex-col gap-2">
-                    <p className="text-xs font-medium text-muted-foreground">Inverter</p>
-                    <DetailRow label="Loại inverter" value={survey.inverterType} />
-                    <DetailRow
-                      label="Số lượng"
-                      value={survey.inverterQuantity != null ? `${survey.inverterQuantity} bộ` : null}
-                    />
-                    <DetailRow label="Vị trí lắp" value={survey.inverterLocation} />
-                  </div>
-                )}
-
-                {/* Roof & electrical */}
-                <div className="flex flex-col gap-2">
-                  <p className="text-xs font-medium text-muted-foreground">Thi công</p>
-                  {survey.roofStructureCondition && (
-                    <DetailRow
-                      label="Kết cấu mái"
-                      value={survey.roofStructureCondition}
-                    />
-                  )}
-                  <DetailRow
-                    label="Gia cố mái"
-                    value={
-                      survey.needsRoofReinforcement != null
-                        ? survey.needsRoofReinforcement
-                          ? 'Cần gia cố'
-                          : 'Không cần'
-                        : null
-                    }
-                  />
-                  <DetailRow
-                    label="Khoảng cách đi dây"
-                    value={
-                      survey.cableRouteDistanceM != null
-                        ? `${survey.cableRouteDistanceM} m`
-                        : null
-                    }
-                  />
-                  <DetailRow
-                    label="CB chính"
-                    value={
-                      survey.mainBreakerCapacityA != null
-                        ? `${survey.mainBreakerCapacityA} A`
-                        : null
-                    }
-                  />
-                  {survey.mainElectricalCabinetCondition && (
-                    <DetailRow
-                      label="Tủ điện chính"
-                      value={survey.mainElectricalCabinetCondition}
-                    />
-                  )}
-                  <DetailRow
-                    label="Nâng cấp tủ điện"
-                    value={
-                      survey.needsElectricalCabinetUpgrade != null
-                        ? survey.needsElectricalCabinetUpgrade
-                          ? 'Cần nâng cấp'
-                          : 'Không cần'
-                        : null
-                    }
-                  />
-                  <DetailRow
-                    label="Tiếp địa"
-                    value={
-                      survey.hasGrounding != null
-                        ? survey.hasGrounding
-                          ? 'Đã có'
-                          : 'Chưa có'
-                        : null
-                    }
-                  />
-                  <DetailRow
-                    label="Độ khó thi công"
-                    value={
-                      survey.installationDifficulty
-                        ? (INSTALLATION_DIFFICULTY_LABELS[
-                            survey.installationDifficulty as InstallationDifficulty
-                          ] ?? survey.installationDifficulty)
-                        : null
-                    }
-                  />
-                </div>
-
-                {survey.extraMaterialsNote && (
-                  <DetailRow label="Vật tư phụ" value={survey.extraMaterialsNote} />
-                )}
-                {survey.installationPlanNote && (
-                  <DetailRow label="Kế hoạch thi công" value={survey.installationPlanNote} />
-                )}
+                <DetailRow
+                  label="Loại hệ thống"
+                  value={
+                    survey.systemType
+                      ? (SYSTEM_TYPE_LABELS[survey.systemType as SystemType] ?? survey.systemType)
+                      : null
+                  }
+                />
+                <DetailRow
+                  label="Pha điện"
+                  value={
+                    survey.powerPhase
+                      ? (POWER_PHASE_LABELS[survey.powerPhase as PowerPhase] ?? survey.powerPhase)
+                      : null
+                  }
+                />
+                <DetailRow label="Loại inverter" value={survey.inverterType} />
+                <DetailRow
+                  label="Số lượng inverter"
+                  value={
+                    survey.inverterQuantity != null ? `${survey.inverterQuantity} bộ` : null
+                  }
+                />
               </CardContent>
             </Card>
           )}
+
+          <SurveyInfrastructureReadCard survey={survey} />
         </>
       ) : (
         <SurveyForm
-          defaultValues={{
-            address: survey.address,
-            province: survey.province ?? '',
-            scheduledAt: toDatetimeLocalValue(survey.scheduledAt),
-            roofType: (survey.roofType as RoofType | undefined) ?? undefined,
-            roofMaterial: survey.roofMaterial ?? '',
-            roofAreaM2: survey.roofAreaM2 ?? '',
-            roofOrientation: survey.roofOrientation ?? '',
-            roofTiltDeg: survey.roofTiltDeg != null ? String(survey.roofTiltDeg) : '',
-            shadingNotes: survey.shadingNotes ?? '',
-            floors: survey.floors != null ? String(survey.floors) : '',
-            meterCapacityA: survey.meterCapacityA != null ? String(survey.meterCapacityA) : '',
-            gridVoltage: (survey.gridVoltage as GridVoltage | undefined) ?? undefined,
-            siteNotes: survey.siteNotes ?? '',
-            internalNotes: survey.internalNotes ?? '',
-            photosNote: survey.photosNote ?? '',
-            // Technical proposal fields
-            recommendedSystemKw: survey.recommendedSystemKw ?? '',
-            panelWattageW:
-              survey.panelWattageW != null ? String(survey.panelWattageW) : '550',
-            recommendedPanelQuantity:
-              survey.recommendedPanelQuantity != null
-                ? String(survey.recommendedPanelQuantity)
-                : '',
-            inverterType: survey.inverterType ?? '',
-            inverterQuantity:
-              survey.inverterQuantity != null ? String(survey.inverterQuantity) : '1',
-            systemType: (survey.systemType as UpdateSurveyInput['systemType']) ?? undefined,
-            powerPhase: (survey.powerPhase as UpdateSurveyInput['powerPhase']) ?? undefined,
-            roofStructureCondition: survey.roofStructureCondition ?? '',
-            needsRoofReinforcement: survey.needsRoofReinforcement ?? false,
-            inverterLocation: survey.inverterLocation ?? '',
-            cableRouteDistanceM:
-              survey.cableRouteDistanceM != null ? String(survey.cableRouteDistanceM) : '',
-            mainBreakerCapacityA:
-              survey.mainBreakerCapacityA != null ? String(survey.mainBreakerCapacityA) : '',
-            mainElectricalCabinetCondition: survey.mainElectricalCabinetCondition ?? '',
-            needsElectricalCabinetUpgrade: survey.needsElectricalCabinetUpgrade ?? false,
-            hasGrounding: survey.hasGrounding ?? false,
-            installationDifficulty:
-              (survey.installationDifficulty as UpdateSurveyInput['installationDifficulty']) ??
-              undefined,
-            extraMaterialsNote: survey.extraMaterialsNote ?? '',
-            installationPlanNote: survey.installationPlanNote ?? '',
-          }}
+          defaultValues={buildSurveyFormDefaults(survey)}
           onSubmit={handleFormSubmit}
           onCancel={() => setEditMode(false)}
           isPending={updateSurvey.isPending}

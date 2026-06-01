@@ -56,6 +56,21 @@ export default async function NewQuotationPage({ searchParams }: Props) {
           customerName: snapshotName,
           customerPhone: snapshotPhone,
           customerAddress: snapshotAddress,
+          technical: {
+            recommendedSystemKw: survey.recommendedSystemKw,
+            panelWattageW: survey.panelWattageW,
+            recommendedPanelQuantity: survey.recommendedPanelQuantity,
+            inverterType: survey.inverterType,
+            inverterQuantity: survey.inverterQuantity,
+            systemType: survey.systemType,
+            powerPhase: survey.powerPhase,
+            needsRoofReinforcement: survey.needsRoofReinforcement,
+            needsElectricalCabinetUpgrade: survey.needsElectricalCabinetUpgrade,
+            hasGrounding: survey.hasGrounding,
+            installationDifficulty: survey.installationDifficulty,
+            extraMaterialsNote: survey.extraMaterialsNote,
+            installationPlanNote: survey.installationPlanNote,
+          },
         }}
       />
     </div>

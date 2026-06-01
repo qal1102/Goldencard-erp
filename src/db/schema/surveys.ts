@@ -69,6 +69,23 @@ export const surveys = pgTable('surveys', {
   installationDifficulty: varchar('installation_difficulty', { length: 20 }),
   extraMaterialsNote: text('extra_materials_note'),
   installationPlanNote: text('installation_plan_note'),
+  // Project-level type, scale, and electrical infrastructure (Phase 4A)
+  projectType: varchar('project_type', { length: 30 }).notNull().default('residential'),
+  projectScale: varchar('project_scale', { length: 20 }).notNull().default('single'),
+  plannedInverterArea: text('planned_inverter_area'),
+  inverterAreaNearMainPower: boolean('inverter_area_near_main_power').default(false),
+  inverterAreaDistanceToMainCabinetM: integer('inverter_area_distance_to_main_cabinet_m'),
+  inverterAreaCleanDryVentilated: boolean('inverter_area_clean_dry_ventilated'),
+  inverterAreaHasShelter: boolean('inverter_area_has_shelter'),
+  inverterAreaRiskNotes: text('inverter_area_risk_notes'),
+  needsInverterShelterOrRack: boolean('needs_inverter_shelter_or_rack').default(false),
+  mainPowerConnectionPoint: text('main_power_connection_point'),
+  mainCabinetLocation: text('main_cabinet_location'),
+  groundingLocation: text('grounding_location'),
+  mainCableRouteNotes: text('main_cable_route_notes'),
+  maintenanceAccessNotes: text('maintenance_access_notes'),
+  fireSafetyNotes: text('fire_safety_notes'),
+  generalTechnicalRiskNotes: text('general_technical_risk_notes'),
   createdBy: uuid('created_by')
     .notNull()
     .references(() => users.id, { onDelete: 'restrict' }),

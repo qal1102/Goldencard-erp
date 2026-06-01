@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { hasRole } from '@/lib/auth/roles';
-import { queryQuotationById } from '@/modules/quotations/lib/quotation.queries';
 import { QuotationForm } from '@/modules/quotations/components/quotation-form';
+import { queryQuotationById } from '@/modules/quotations/lib/quotation.queries';
+import { querySurveyById } from '@/modules/surveys/lib/survey.queries';
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -22,7 +23,10 @@ export default async function EditQuotationPage({ params }: Props) {
 
   if (!quotation) redirect('/quotations');
 
-  if (quotation.status !== 'draft') {
+  const linkedSurvey =
+    quotation.survey?.id != null ? await querySurveyById(quotation.survey.id) : null;
+
+  if (quotation.status !== 'draft' || quotation.contentLockedAt) {
     redirect(`/quotations/${id}`);
   }
 
@@ -61,6 +65,37 @@ export default async function EditQuotationPage({ params }: Props) {
               customerName: quotation.customerNameSnapshot,
               customerPhone: quotation.customerPhoneSnapshot ?? null,
               customerAddress: quotation.customerAddressSnapshot ?? null,
+              technical: linkedSurvey
+                ? {
+                    recommendedSystemKw: linkedSurvey.recommendedSystemKw,
+                    panelWattageW: linkedSurvey.panelWattageW,
+                    recommendedPanelQuantity: linkedSurvey.recommendedPanelQuantity,
+                    inverterType: linkedSurvey.inverterType,
+                    inverterQuantity: linkedSurvey.inverterQuantity,
+                    systemType: linkedSurvey.systemType,
+                    powerPhase: linkedSurvey.powerPhase,
+                    needsRoofReinforcement: linkedSurvey.needsRoofReinforcement,
+                    needsElectricalCabinetUpgrade: linkedSurvey.needsElectricalCabinetUpgrade,
+                    hasGrounding: linkedSurvey.hasGrounding,
+                    installationDifficulty: linkedSurvey.installationDifficulty,
+                    extraMaterialsNote: linkedSurvey.extraMaterialsNote,
+                    installationPlanNote: linkedSurvey.installationPlanNote,
+                  }
+                : {
+                    recommendedSystemKw: null,
+                    panelWattageW: null,
+                    recommendedPanelQuantity: null,
+                    inverterType: null,
+                    inverterQuantity: null,
+                    systemType: null,
+                    powerPhase: null,
+                    needsRoofReinforcement: null,
+                    needsElectricalCabinetUpgrade: null,
+                    hasGrounding: null,
+                    installationDifficulty: null,
+                    extraMaterialsNote: null,
+                    installationPlanNote: null,
+                  },
             }}
             defaultValues={{
               validUntil: quotation.validUntil ?? '',

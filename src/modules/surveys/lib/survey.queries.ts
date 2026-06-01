@@ -18,6 +18,9 @@ export async function querySurveys(filters: SurveyFilters = {}) {
       lead: { columns: { id: true, code: true, fullName: true } },
       assignedUser: { columns: { id: true, name: true } },
       createdByUser: { columns: { id: true, name: true } },
+      zones: {
+        orderBy: (cols, { asc }) => [asc(cols.sortOrder)],
+      },
     },
     orderBy: [desc(surveys.createdAt)],
   });
@@ -37,6 +40,9 @@ export async function querySurveysForTechnician(
       lead: { columns: { id: true, code: true, fullName: true } },
       assignedUser: { columns: { id: true, name: true } },
       createdByUser: { columns: { id: true, name: true } },
+      zones: {
+        orderBy: (cols, { asc }) => [asc(cols.sortOrder)],
+      },
     },
     orderBy: [desc(surveys.createdAt)],
   });
@@ -52,6 +58,9 @@ export async function querySurveyById(id: string) {
       lead: { columns: { id: true, code: true, fullName: true, phone: true, address: true } },
       assignedUser: { columns: { id: true, name: true, email: true } },
       createdByUser: { columns: { id: true, name: true } },
+      zones: {
+        orderBy: (cols, { asc }) => [asc(cols.sortOrder)],
+      },
     },
   });
 }
@@ -61,6 +70,9 @@ export async function querySurveysByCustomerId(customerId: string) {
     where: eq(surveys.customerId, customerId),
     with: {
       assignedUser: { columns: { id: true, name: true } },
+      zones: {
+        orderBy: (cols, { asc }) => [asc(cols.sortOrder)],
+      },
     },
     orderBy: [desc(surveys.createdAt)],
   });

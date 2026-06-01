@@ -1,24 +1,64 @@
 import { z } from 'zod';
 
-export const QUOTATION_STATUSES = ['draft', 'sent', 'accepted', 'rejected', 'expired'] as const;
+export const QUOTATION_STATUSES = [
+  'draft',
+  'sent',
+  'accepted',
+  'rejected',
+  'needs_revision',
+  'no_response',
+  'expired',
+] as const;
 export type QuotationStatus = (typeof QUOTATION_STATUSES)[number];
 
 export const QUOTATION_STATUS_LABELS: Record<QuotationStatus, string> = {
   draft: 'Nháp',
-  sent: 'Đã gửi',
-  accepted: 'Đã chấp nhận',
-  rejected: 'Từ chối',
-  expired: 'Hết hạn',
+  sent: 'Đã gửi cho khách',
+  accepted: 'Khách đồng ý',
+  rejected: 'Khách từ chối',
+  needs_revision: 'Cần chỉnh báo giá',
+  no_response: 'Không phản hồi',
+  expired: 'Hết hiệu lực',
 };
 
-/** Allowed transitions: from status → list of valid target statuses */
+/** Customer response outcomes — recorded via recordQuotationResponseAction. */
+export const QUOTATION_RESPONSE_STATUSES = [
+  'accepted',
+  'rejected',
+  'needs_revision',
+  'no_response',
+  'expired',
+] as const;
+export type QuotationResponseStatus = (typeof QUOTATION_RESPONSE_STATUSES)[number];
+
+/** Statuses from which a new revision may be created. */
+export const REVISION_SOURCE_STATUSES = [
+  'needs_revision',
+  'rejected',
+  'expired',
+  'no_response',
+] as const;
+export type RevisionSourceStatus = (typeof REVISION_SOURCE_STATUSES)[number];
+
+/**
+ * Allowed transitions for updateQuotationStatusAction (legacy).
+ * Draft → sent and sent → response use dedicated actions instead.
+ */
 export const QUOTATION_STATUS_TRANSITIONS: Record<QuotationStatus, QuotationStatus[]> = {
-  draft: ['sent'],
-  sent: ['accepted', 'rejected', 'expired'],
+  draft: [],
+  sent: [],
   accepted: [],
   rejected: [],
+  needs_revision: [],
+  no_response: [],
   expired: [],
 };
+
+export const QUOTATION_SENT_CHANNELS = ['zalo', 'email', 'print', 'other'] as const;
+export type QuotationSentChannel = (typeof QUOTATION_SENT_CHANNELS)[number];
+
+export const QUOTATION_EXPORT_FORMATS = ['xlsx', 'pdf'] as const;
+export type QuotationExportFormat = (typeof QUOTATION_EXPORT_FORMATS)[number];
 
 // ---------------------------------------------------------------------------
 // Line-item sub-schema (shared by create and update)
@@ -96,12 +136,32 @@ export const updateQuotationSchema = z.object({
 export type UpdateQuotationInput = z.infer<typeof updateQuotationSchema>;
 
 // ---------------------------------------------------------------------------
-// Status update
+// Status update (legacy — prefer dedicated workflow actions)
 // ---------------------------------------------------------------------------
 export const updateQuotationStatusSchema = z.object({
   status: z.enum(QUOTATION_STATUSES),
 });
 export type UpdateQuotationStatusInput = z.infer<typeof updateQuotationStatusSchema>;
+
+// ---------------------------------------------------------------------------
+// Export / send / response / revision
+// ---------------------------------------------------------------------------
+export const recordQuotationExportSchema = z.object({
+  format: z.enum(QUOTATION_EXPORT_FORMATS),
+});
+export type RecordQuotationExportInput = z.infer<typeof recordQuotationExportSchema>;
+
+export const markQuotationSentSchema = z.object({
+  sentChannel: z.enum(QUOTATION_SENT_CHANNELS),
+  sentNote: z.string().max(2000, 'Ghi chú quá dài').optional(),
+});
+export type MarkQuotationSentInput = z.infer<typeof markQuotationSentSchema>;
+
+export const recordQuotationResponseSchema = z.object({
+  status: z.enum(QUOTATION_RESPONSE_STATUSES),
+  responseNote: z.string().max(2000, 'Ghi chú quá dài').optional(),
+});
+export type RecordQuotationResponseInput = z.infer<typeof recordQuotationResponseSchema>;
 
 // ---------------------------------------------------------------------------
 // List filters

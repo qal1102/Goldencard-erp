@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { PlusIcon, Trash2Icon } from 'lucide-react';
+import { PlusIcon, SparklesIcon, Trash2Icon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,13 @@ import {
   type UpdateQuotationInput,
   updateQuotationSchema,
 } from '../schema/quotation.schema';
+import {
+  generateQuotationItemsFromSurvey,
+  parseSurveyTechnicalForQuotation,
+  type SurveyTechnicalSource,
+} from '../lib/generate-quotation-items';
 import { useCreateQuotation, useUpdateQuotation } from '../hooks/use-quotations';
+import { SurveyTechnicalSummary } from './survey-technical-summary';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -29,6 +35,7 @@ type SurveyContext = {
   customerName: string;
   customerPhone: string | null;
   customerAddress: string | null;
+  technical: SurveyTechnicalSource;
 };
 
 type ItemRow = {
@@ -119,19 +126,53 @@ export function QuotationForm(props: Props) {
     control,
     handleSubmit,
     setValue,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<UpdateQuotationInput>({
     resolver: zodResolver(updateQuotationSchema),
     defaultValues: formDefaults,
   });
 
-  const { fields, append, remove } = useFieldArray({ control, name: 'items' });
+  const { fields, append, remove, replace } = useFieldArray({ control, name: 'items' });
+
+  const parsedTechnical = useMemo(
+    () => parseSurveyTechnicalForQuotation(survey.technical),
+    [survey.technical],
+  );
 
   // Watchers
   const watchedItems = useWatch({ control, name: 'items' });
   const watchedDiscountType = useWatch({ control, name: 'discountType' });
   const watchedDiscountValue = useWatch({ control, name: 'discountValue' });
   const watchedVatRate = useWatch({ control, name: 'vatRate' });
+
+  const handleGenerateFromSurvey = () => {
+    if (!parsedTechnical) {
+      alert(
+        'Khảo sát chưa có đủ dữ liệu kỹ thuật (công suất hệ thống hoặc số tấm pin) để tạo hạng mục.',
+      );
+      return;
+    }
+
+    const currentItems = getValues('items');
+    const hasExistingContent = currentItems.some(
+      (item) =>
+        item.productName?.trim() ||
+        item.description?.trim() ||
+        (Number(item.unitPrice) || 0) > 0,
+    );
+
+    if (
+      hasExistingContent &&
+      !window.confirm(
+        'Thao tác này sẽ thay thế toàn bộ hạng mục hiện tại bằng danh sách tạo từ khảo sát. Tiếp tục?',
+      )
+    ) {
+      return;
+    }
+
+    replace(generateQuotationItemsFromSurvey(parsedTechnical));
+  };
 
   // VAT preset local state — 'custom' means show a free-text number input
   const [vatPreset, setVatPreset] = useState<VatPresetKey>(() =>
@@ -191,13 +232,31 @@ export function QuotationForm(props: Props) {
         </CardContent>
       </Card>
 
+      <SurveyTechnicalSummary survey={survey.technical} />
+
       {/* Line items */}
       <Card>
-        <CardHeader>
+        <CardHeader className="gap-3">
           <CardTitle className="text-sm">
-            Danh sách hàng hóa / dịch vụ{' '}
-            <span className="text-destructive">*</span>
+            Hạng mục báo giá <span className="text-destructive">*</span>
           </CardTitle>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="w-full"
+            onClick={handleGenerateFromSurvey}
+            disabled={!parsedTechnical}
+          >
+            <SparklesIcon className="size-3.5" />
+            Tạo nhanh từ khảo sát
+          </Button>
+          {!parsedTechnical && (
+            <p className="text-xs text-muted-foreground">
+              Cần có công suất hệ thống hoặc số tấm pin trên phiếu khảo sát để tạo hạng mục tự
+              động.
+            </p>
+          )}
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {errors.items?.root && (

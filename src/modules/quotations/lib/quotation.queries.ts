@@ -1,8 +1,8 @@
 import 'server-only';
 
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, ne, notExists, sql } from 'drizzle-orm';
 import { db } from '@/db';
-import { customers, leads, quotations, surveys } from '@/db/schema';
+import { customers, leads, quotationExports, quotations, surveys } from '@/db/schema';
 import type { QuotationFilters } from '../schema/quotation.schema';
 
 /**
@@ -47,7 +47,60 @@ export async function queryQuotationById(id: string) {
       createdByUser: { columns: { id: true, name: true } },
       updatedByUser: { columns: { id: true, name: true } },
       acceptedByUser: { columns: { id: true, name: true } },
+      sentByUser: { columns: { id: true, name: true } },
+      respondedByUser: { columns: { id: true, name: true } },
+      exports: {
+        orderBy: (cols, { desc: descOrder }) => [descOrder(cols.exportedAt)],
+        with: {
+          exportedByUser: { columns: { id: true, name: true } },
+        },
+      },
     },
+  });
+}
+
+export async function queryQuotationExportCount(quotationId: string): Promise<number> {
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(quotationExports)
+    .where(eq(quotationExports.quotationId, quotationId));
+  return row?.count ?? 0;
+}
+
+export async function queryAcceptedQuotationBySurveyId(
+  surveyId: string,
+  excludeQuotationId?: string,
+) {
+  const conditions = [eq(quotations.surveyId, surveyId), eq(quotations.status, 'accepted')];
+  if (excludeQuotationId) {
+    conditions.push(ne(quotations.id, excludeQuotationId));
+  }
+
+  return db.query.quotations.findFirst({
+    where: and(...conditions),
+    columns: { id: true, code: true, revisionNumber: true },
+  });
+}
+
+export async function queryMaxRevisionNumber(surveyId: string): Promise<number> {
+  const [row] = await db
+    .select({ max: sql<number>`coalesce(max(${quotations.revisionNumber}), 0)::int` })
+    .from(quotations)
+    .where(eq(quotations.surveyId, surveyId));
+  return row?.max ?? 0;
+}
+
+export async function queryQuotationsBySurveyId(surveyId: string) {
+  return db.query.quotations.findMany({
+    where: eq(quotations.surveyId, surveyId),
+    columns: {
+      id: true,
+      code: true,
+      status: true,
+      revisionNumber: true,
+      createdAt: true,
+    },
+    orderBy: [desc(quotations.revisionNumber)],
   });
 }
 
@@ -69,16 +122,35 @@ export async function queryCompletedSurveysWithoutQuotation() {
     .from(surveys)
     .leftJoin(customers, eq(customers.id, surveys.customerId))
     .leftJoin(leads, eq(leads.id, surveys.leadId))
-    .leftJoin(quotations, eq(quotations.surveyId, surveys.id))
-    .where(and(eq(surveys.status, 'completed'), isNull(quotations.id)))
+    .where(
+      and(
+        eq(surveys.status, 'completed'),
+        notExists(
+          db
+            .select({ id: quotations.id })
+            .from(quotations)
+            .where(eq(quotations.surveyId, surveys.id)),
+        ),
+      ),
+    )
     .orderBy(desc(surveys.createdAt));
 }
 
+/** Latest revision for a survey (used by survey detail quick-link). */
 export async function queryQuotationBySurveyId(surveyId: string) {
   return db.query.quotations.findFirst({
     where: eq(quotations.surveyId, surveyId),
-    columns: { id: true, code: true, status: true },
+    orderBy: [desc(quotations.revisionNumber)],
+    columns: { id: true, code: true, status: true, revisionNumber: true },
   });
+}
+
+export async function querySurveyHasQuotation(surveyId: string): Promise<boolean> {
+  const row = await db.query.quotations.findFirst({
+    where: eq(quotations.surveyId, surveyId),
+    columns: { id: true },
+  });
+  return row != null;
 }
 
 export type QuotationRow = Awaited<ReturnType<typeof queryQuotations>>[number];

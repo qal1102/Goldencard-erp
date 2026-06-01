@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2Icon, ClockIcon, SendIcon, XCircleIcon } from 'lucide-react';
+import { CheckCircle2Icon, ClockIcon, XCircleIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   QUOTATION_STATUS_TRANSITIONS,
@@ -22,8 +22,8 @@ const ACTION_CONFIG: Partial<
   >
 > = {
   sent: {
-    label: 'Gửi báo giá',
-    icon: <SendIcon className="size-3.5" />,
+    label: 'Đánh dấu đã gửi',
+    icon: <CheckCircle2Icon className="size-3.5" />,
     variant: 'default',
   },
   accepted: {
@@ -69,24 +69,33 @@ export function QuotationStatusSelect({ quotationId, status, canWrite, canApprov
 
   if (visibleTargets.length === 0) return null;
 
+  const showSentHelper = status === 'draft' && visibleTargets.includes('sent');
+
   return (
-    <div className="flex flex-wrap gap-2">
-      {visibleTargets.map((target) => {
-        const config = ACTION_CONFIG[target];
-        if (!config) return null;
-        return (
-          <Button
-            key={target}
-            variant={config.variant}
-            size="sm"
-            onClick={() => handleTransition(target)}
-            disabled={updateStatus.isPending}
-          >
-            {config.icon}
-            {config.label}
-          </Button>
-        );
-      })}
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap gap-2">
+        {visibleTargets.map((target) => {
+          const config = ACTION_CONFIG[target];
+          if (!config) return null;
+          return (
+            <Button
+              key={target}
+              variant={config.variant}
+              size="sm"
+              onClick={() => handleTransition(target)}
+              disabled={updateStatus.isPending}
+            >
+              {config.icon}
+              {config.label}
+            </Button>
+          );
+        })}
+      </div>
+      {showSentHelper && (
+        <p className="text-xs text-muted-foreground">
+          Hãy xuất/tải báo giá và gửi cho khách bên ngoài hệ thống, sau đó đánh dấu đã gửi.
+        </p>
+      )}
     </div>
   );
 }

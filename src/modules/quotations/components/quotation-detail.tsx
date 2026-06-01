@@ -8,6 +8,7 @@ import {
   UserIcon,
 } from 'lucide-react';
 import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -16,7 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { QuotationStatus } from '../schema/quotation.schema';
 import { useQuotation } from '../hooks/use-quotations';
 import { QuotationStatusBadge } from './quotation-status-badge';
-import { QuotationStatusSelect } from './quotation-status-select';
+import { QuotationWorkflowPanel } from './quotation-workflow-panel';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -100,6 +101,9 @@ export function QuotationDetail({ quotationId, canWrite, canApprove }: Props) {
 
   const status = quotation.status as QuotationStatus;
   const isDraft = status === 'draft';
+  const isContentLocked = Boolean(quotation.contentLockedAt);
+  const revisionNumber = quotation.revisionNumber ?? 1;
+  const canEdit = isDraft && canWrite && !isContentLocked;
 
   return (
     <div className="flex flex-col gap-4">
@@ -115,14 +119,17 @@ export function QuotationDetail({ quotationId, canWrite, canApprove }: Props) {
         </Button>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="font-mono text-sm font-semibold">{quotation.code}</p>
+            <p className="font-mono text-sm font-semibold">
+              {quotation.code}
+              <span className="text-muted-foreground"> · v{revisionNumber}</span>
+            </p>
             <QuotationStatusBadge status={status} />
           </div>
           <p className="truncate text-xs text-muted-foreground">
             {quotation.customerNameSnapshot}
           </p>
         </div>
-        {isDraft && canWrite && (
+        {canEdit && (
           <Button
             variant="outline"
             size="sm"
@@ -135,10 +142,8 @@ export function QuotationDetail({ quotationId, canWrite, canApprove }: Props) {
         )}
       </div>
 
-      {/* Status actions */}
-      <QuotationStatusSelect
-        quotationId={quotationId}
-        status={status}
+      <QuotationWorkflowPanel
+        quotation={quotation}
         canWrite={canWrite}
         canApprove={canApprove}
       />
@@ -192,7 +197,7 @@ export function QuotationDetail({ quotationId, canWrite, canApprove }: Props) {
       {/* Line items */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Danh sách hàng hóa</CardTitle>
+          <CardTitle className="text-sm">Hạng mục báo giá</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-0 p-0">
           {(!quotation.items || quotation.items.length === 0) ? (
@@ -264,13 +269,21 @@ export function QuotationDetail({ quotationId, canWrite, canApprove }: Props) {
           {quotation.updatedByUser && (
             <DetailRow label="Cập nhật bởi" value={quotation.updatedByUser.name} />
           )}
+          {quotation.contentLockedAt && (
+            <div className="flex items-center gap-2">
+              <Badge variant="outline">Nội dung đã khóa</Badge>
+              <span className="text-xs text-muted-foreground">
+                {formatDateTime(quotation.contentLockedAt)}
+              </span>
+            </div>
+          )}
           {quotation.acceptedAt && (
             <div className="flex flex-col gap-0.5">
-              <Label className="text-xs text-muted-foreground">Chấp nhận lúc</Label>
+              <Label className="text-xs text-muted-foreground">Khách đồng ý lúc</Label>
               <span className="text-sm">{formatDateTime(quotation.acceptedAt)}</span>
               {quotation.acceptedByUser && (
                 <span className="text-xs text-muted-foreground">
-                  bởi {quotation.acceptedByUser.name}
+                  ghi nhận bởi {quotation.acceptedByUser.name}
                 </span>
               )}
             </div>
