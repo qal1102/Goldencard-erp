@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Lead } from '@/db/schema';
 import { useLeads } from '../hooks/use-leads';
+import { useProjectProgressForLeads } from '../hooks/use-project-progress';
 import {
   LEAD_STATUSES,
   LEAD_STATUS_LABELS,
@@ -53,6 +54,9 @@ export function LeadPipeline() {
     status: statusFilter ?? undefined,
   });
 
+  const leadIds = (leads ?? []).map((l) => l.id);
+  const { data: progressByLeadId } = useProjectProgressForLeads(leadIds);
+
   if (isLoading) {
     return (
       <div className="flex gap-3 overflow-x-auto pb-4">
@@ -88,7 +92,11 @@ export function LeadPipeline() {
                     <p className="py-4 text-center text-xs text-muted-foreground">Trống</p>
                   )}
                   {statusLeads.map((lead) => (
-                    <LeadCard key={lead.id} lead={lead} />
+                    <LeadCard
+                      key={lead.id}
+                      lead={lead}
+                      progress={progressByLeadId?.[lead.id]}
+                    />
                   ))}
                 </div>
               </div>

@@ -23,6 +23,7 @@ import {
 } from '../schema/lead.schema';
 import { ConvertLeadDialog } from './convert-lead-dialog';
 import { LeadActivityFeed } from './lead-activity-feed';
+import { LeadProjectProgressCard } from './lead-project-progress-card';
 import { LeadStatusSelect } from './lead-status-select';
 
 type Props = {
@@ -180,6 +181,8 @@ export function LeadDetail({ leadId, canEdit, canManageSurvey = false }: Props) 
           )}
         </CardContent>
       </Card>
+
+      <LeadProjectProgressCard leadId={leadId} />
 
       {canConvert && (
         <ConvertLeadDialog
