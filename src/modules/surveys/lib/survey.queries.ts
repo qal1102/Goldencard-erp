@@ -15,7 +15,7 @@ export async function querySurveys(filters: SurveyFilters = {}) {
     where: conditions.length > 0 ? and(...conditions) : undefined,
     with: {
       customer: { columns: { id: true, code: true, fullName: true } },
-      lead: { columns: { id: true, code: true } },
+      lead: { columns: { id: true, code: true, fullName: true } },
       assignedUser: { columns: { id: true, name: true } },
       createdByUser: { columns: { id: true, name: true } },
     },
@@ -34,7 +34,7 @@ export async function querySurveysForTechnician(
     where: and(...conditions),
     with: {
       customer: { columns: { id: true, code: true, fullName: true } },
-      lead: { columns: { id: true, code: true } },
+      lead: { columns: { id: true, code: true, fullName: true } },
       assignedUser: { columns: { id: true, name: true } },
       createdByUser: { columns: { id: true, name: true } },
     },
@@ -49,7 +49,7 @@ export async function querySurveyById(id: string) {
       customer: {
         columns: { id: true, code: true, fullName: true, phone: true, address: true },
       },
-      lead: { columns: { id: true, code: true } },
+      lead: { columns: { id: true, code: true, fullName: true, phone: true, address: true } },
       assignedUser: { columns: { id: true, name: true, email: true } },
       createdByUser: { columns: { id: true, name: true } },
     },

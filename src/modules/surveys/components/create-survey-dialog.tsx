@@ -24,26 +24,47 @@ import { Textarea } from '@/components/ui/textarea';
 import { useCreateSurvey, useTechnicianUsers } from '../hooks/use-surveys';
 import { createSurveySchema } from '../schema/survey.schema';
 
-type Props = {
-  customer: {
-    id: string;
-    code: string;
-    fullName: string;
-    address: string;
-    province?: string | null;
-  };
-  leadId?: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+type CustomerContext = {
+  id: string;
+  code: string;
+  fullName: string;
+  address: string;
+  province?: string | null;
 };
 
-export function CreateSurveyDialog({ customer, leadId, open, onOpenChange }: Props) {
+type LeadContext = {
+  id: string;
+  code: string;
+  fullName: string;
+  address: string;
+  province?: string | null;
+};
+
+type Props =
+  | {
+      customer: CustomerContext;
+      lead?: never;
+      leadId?: string;
+      open: boolean;
+      onOpenChange: (open: boolean) => void;
+    }
+  | {
+      customer?: never;
+      lead: LeadContext;
+      leadId?: never;
+      open: boolean;
+      onOpenChange: (open: boolean) => void;
+    };
+
+export function CreateSurveyDialog({ customer, lead, leadId, open, onOpenChange }: Props) {
   const { data: technicians } = useTechnicianUsers();
   const createSurvey = useCreateSurvey();
 
+  const source = customer ?? lead;
+
   const [form, setForm] = useState({
-    address: customer.address,
-    province: customer.province ?? '',
+    address: source?.address ?? '',
+    province: source?.province ?? '',
     scheduledAt: '',
     assignedTo: '',
     notes: '',
@@ -61,8 +82,8 @@ export function CreateSurveyDialog({ customer, leadId, open, onOpenChange }: Pro
     e.preventDefault();
 
     const parsed = createSurveySchema.safeParse({
-      customerId: customer.id,
-      leadId: leadId || undefined,
+      customerId: customer ? customer.id : undefined,
+      leadId: customer ? (leadId || undefined) : lead?.id,
       address: form.address,
       province: form.province || undefined,
       scheduledAt: form.scheduledAt || undefined,
@@ -88,13 +109,20 @@ export function CreateSurveyDialog({ customer, leadId, open, onOpenChange }: Pro
     }
   };
 
+  const descriptionLabel = customer
+    ? `Khảo sát cho khách hàng `
+    : `Khảo sát cho khách hàng tiềm năng `;
+  const entityName = source?.fullName ?? '';
+  const entityCode = source?.code ?? '';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0">
         <DialogHeader className="shrink-0 p-4 pb-3">
           <DialogTitle>Tạo phiếu khảo sát</DialogTitle>
           <DialogDescription>
-            Khảo sát cho khách hàng <strong>{customer.fullName}</strong> ({customer.code})
+            {descriptionLabel}
+            <strong>{entityName}</strong> ({entityCode})
           </DialogDescription>
         </DialogHeader>
 

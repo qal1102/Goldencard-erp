@@ -6,6 +6,8 @@ import {
   CheckCircle2Icon,
   ClipboardListIcon,
   EditIcon,
+  FileTextIcon,
+  PlusIcon,
   UserIcon,
   XCircleIcon,
 } from 'lucide-react';
@@ -24,12 +26,19 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   GRID_VOLTAGE_LABELS,
+  INSTALLATION_DIFFICULTY_LABELS,
+  POWER_PHASE_LABELS,
   ROOF_TYPE_LABELS,
+  SYSTEM_TYPE_LABELS,
   type GridVoltage,
+  type InstallationDifficulty,
+  type PowerPhase,
   type RoofType,
   type SurveyStatus,
+  type SystemType,
   type UpdateSurveyInput,
 } from '../schema/survey.schema';
+import { useQuotationBySurvey } from '@/modules/quotations/hooks/use-quotations';
 import { useSurvey, useTechnicianUsers, useUpdateSurvey, useUpdateSurveyStatus } from '../hooks/use-surveys';
 import { SurveyStatusBadge } from './survey-status-badge';
 import { SurveyForm } from './survey-form';
@@ -39,6 +48,7 @@ type Props = {
   canManage: boolean;
   isTechnician: boolean;
   userId: string;
+  canCreateQuotation: boolean;
 };
 
 function DetailRow({ label, value }: { label: string; value?: string | number | null }) {
@@ -69,14 +79,18 @@ function toDatetimeLocalValue(date: Date | string | null | undefined): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export function SurveyDetail({ surveyId, canManage, isTechnician, userId }: Props) {
+type AssignFeedback = { type: 'success' | 'info'; message: string } | null;
+
+export function SurveyDetail({ surveyId, canManage, isTechnician, userId, canCreateQuotation }: Props) {
   const [editMode, setEditMode] = useState(false);
-  const [selectedTechId, setSelectedTechId] = useState<string>('');
+  const [selectedTechId, setSelectedTechId] = useState<string | null>(null);
+  const [assignFeedback, setAssignFeedback] = useState<AssignFeedback>(null);
 
   const { data: survey, isLoading } = useSurvey(surveyId);
   const { data: technicians } = useTechnicianUsers();
   const updateSurvey = useUpdateSurvey(surveyId);
   const updateStatus = useUpdateSurveyStatus(surveyId);
+  const { data: existingQuotation } = useQuotationBySurvey(surveyId);
 
   if (isLoading) {
     return (
@@ -102,13 +116,36 @@ export function SurveyDetail({ surveyId, canManage, isTechnician, userId }: Prop
     canManage || (isTechnician && survey.assignedTo === userId);
   const canEdit = canFill && !isTerminal;
 
+  const showAssignFeedback = (feedback: AssignFeedback) => {
+    setAssignFeedback(feedback);
+    setTimeout(() => setAssignFeedback(null), 3000);
+  };
+
+  const techSelectValue = survey.assignedTo ?? '';
+
   const handleAssign = async () => {
+    const submitTechId =
+      (selectedTechId !== null ? selectedTechId : techSelectValue) || null;
+    const currentTechId = survey.assignedTo ?? null;
+
+    if (submitTechId && submitTechId === currentTechId) {
+      showAssignFeedback({
+        type: 'info',
+        message: 'Phiếu này đã được phân công cho kỹ thuật viên này',
+      });
+      return;
+    }
+
     const result = await updateStatus.mutateAsync({
       status: 'assigned',
-      assignedTo: selectedTechId || null,
+      assignedTo: submitTechId,
     });
-    if (!result.success) alert(result.error);
-    else setSelectedTechId('');
+    if (!result.success) {
+      alert(result.error);
+    } else {
+      setSelectedTechId(null);
+      showAssignFeedback({ type: 'success', message: 'Đã phân công kỹ thuật viên' });
+    }
   };
 
   const handleCancel = async () => {
@@ -131,8 +168,6 @@ export function SurveyDetail({ surveyId, canManage, isTechnician, userId }: Prop
     }
   };
 
-  const techSelectValue = survey.assignedTo ?? '';
-
   return (
     <div className="flex flex-col gap-4">
       {/* Header */}
@@ -146,7 +181,7 @@ export function SurveyDetail({ surveyId, canManage, isTechnician, userId }: Prop
             <SurveyStatusBadge status={status} />
           </div>
           <p className="text-xs text-muted-foreground truncate">
-            {survey.customer?.fullName}
+            {survey.customer?.fullName ?? survey.lead?.fullName}
           </p>
         </div>
       </div>
@@ -162,7 +197,7 @@ export function SurveyDetail({ surveyId, canManage, isTechnician, userId }: Prop
               </Label>
               <div className="flex gap-2">
                 <Select
-                  value={selectedTechId || techSelectValue}
+                  value={selectedTechId !== null ? selectedTechId : techSelectValue}
                   onValueChange={(v) => setSelectedTechId(v ?? '')}
                 >
                   <SelectTrigger className="flex-1">
@@ -190,6 +225,11 @@ export function SurveyDetail({ surveyId, canManage, isTechnician, userId }: Prop
                   Phân công
                 </Button>
               </div>
+              {assignFeedback && (
+                <p className={`text-xs ${assignFeedback.type === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                  {assignFeedback.message}
+                </p>
+              )}
             </div>
 
             {/* Cancel */}
@@ -228,16 +268,31 @@ export function SurveyDetail({ surveyId, canManage, isTechnician, userId }: Prop
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <UserIcon className="size-3.5 shrink-0 text-muted-foreground" />
-            <Link
-              href={`/crm/customers/${survey.customer?.id}`}
-              className="text-sm text-primary hover:underline"
-            >
-              {survey.customer?.fullName} ({survey.customer?.code})
-            </Link>
-          </div>
-          {survey.lead && (
+          {survey.customer ? (
+            <div className="flex items-center gap-2">
+              <UserIcon className="size-3.5 shrink-0 text-muted-foreground" />
+              <Link
+                href={`/crm/customers/${survey.customer.id}`}
+                className="text-sm text-primary hover:underline"
+              >
+                {survey.customer.fullName} ({survey.customer.code})
+              </Link>
+            </div>
+          ) : survey.lead ? (
+            <div className="flex items-center gap-2">
+              <UserIcon className="size-3.5 shrink-0 text-muted-foreground" />
+              <Link
+                href={`/crm/leads/${survey.lead.id}`}
+                className="text-sm text-primary hover:underline"
+              >
+                {survey.lead.fullName} ({survey.lead.code})
+              </Link>
+              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                Khách tiềm năng
+              </span>
+            </div>
+          ) : null}
+          {survey.customer && survey.lead && (
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">Lead gốc:</span>
               <Link
@@ -295,7 +350,8 @@ export function SurveyDetail({ surveyId, canManage, isTechnician, userId }: Prop
               {!survey.roofType &&
                 !survey.siteNotes &&
                 !survey.meterCapacityA &&
-                !survey.floors && (
+                !survey.floors &&
+                !survey.recommendedSystemKw && (
                   <p className="text-sm text-muted-foreground">
                     {canEdit
                       ? 'Chưa có dữ liệu khảo sát. Nhấn "Nhập liệu" để bắt đầu.'
@@ -352,6 +408,157 @@ export function SurveyDetail({ surveyId, canManage, isTechnician, userId }: Prop
               )}
             </CardContent>
           </Card>
+
+          {/* Technical Proposal */}
+          {(survey.recommendedSystemKw ||
+            survey.systemType ||
+            survey.inverterType ||
+            survey.installationDifficulty) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Đề xuất kỹ thuật &amp; vật tư</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                {/* System sizing */}
+                {(survey.recommendedSystemKw ||
+                  survey.panelWattageW ||
+                  survey.recommendedPanelQuantity) && (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-xs font-medium text-muted-foreground">Hệ thống</p>
+                    <DetailRow
+                      label="Công suất hệ thống"
+                      value={
+                        survey.recommendedSystemKw ? `${survey.recommendedSystemKw} kWp` : null
+                      }
+                    />
+                    <DetailRow
+                      label="Công suất tấm pin"
+                      value={survey.panelWattageW ? `${survey.panelWattageW} W/tấm` : null}
+                    />
+                    <DetailRow
+                      label="Số tấm pin"
+                      value={
+                        survey.recommendedPanelQuantity
+                          ? `${survey.recommendedPanelQuantity} tấm`
+                          : null
+                      }
+                    />
+                    <DetailRow
+                      label="Loại hệ thống"
+                      value={
+                        survey.systemType
+                          ? (SYSTEM_TYPE_LABELS[survey.systemType as SystemType] ??
+                            survey.systemType)
+                          : null
+                      }
+                    />
+                    <DetailRow
+                      label="Pha điện"
+                      value={
+                        survey.powerPhase
+                          ? (POWER_PHASE_LABELS[survey.powerPhase as PowerPhase] ??
+                            survey.powerPhase)
+                          : null
+                      }
+                    />
+                  </div>
+                )}
+
+                {/* Inverter */}
+                {(survey.inverterType || survey.inverterQuantity || survey.inverterLocation) && (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-xs font-medium text-muted-foreground">Inverter</p>
+                    <DetailRow label="Loại inverter" value={survey.inverterType} />
+                    <DetailRow
+                      label="Số lượng"
+                      value={survey.inverterQuantity != null ? `${survey.inverterQuantity} bộ` : null}
+                    />
+                    <DetailRow label="Vị trí lắp" value={survey.inverterLocation} />
+                  </div>
+                )}
+
+                {/* Roof & electrical */}
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs font-medium text-muted-foreground">Thi công</p>
+                  {survey.roofStructureCondition && (
+                    <DetailRow
+                      label="Kết cấu mái"
+                      value={survey.roofStructureCondition}
+                    />
+                  )}
+                  <DetailRow
+                    label="Gia cố mái"
+                    value={
+                      survey.needsRoofReinforcement != null
+                        ? survey.needsRoofReinforcement
+                          ? 'Cần gia cố'
+                          : 'Không cần'
+                        : null
+                    }
+                  />
+                  <DetailRow
+                    label="Khoảng cách đi dây"
+                    value={
+                      survey.cableRouteDistanceM != null
+                        ? `${survey.cableRouteDistanceM} m`
+                        : null
+                    }
+                  />
+                  <DetailRow
+                    label="CB chính"
+                    value={
+                      survey.mainBreakerCapacityA != null
+                        ? `${survey.mainBreakerCapacityA} A`
+                        : null
+                    }
+                  />
+                  {survey.mainElectricalCabinetCondition && (
+                    <DetailRow
+                      label="Tủ điện chính"
+                      value={survey.mainElectricalCabinetCondition}
+                    />
+                  )}
+                  <DetailRow
+                    label="Nâng cấp tủ điện"
+                    value={
+                      survey.needsElectricalCabinetUpgrade != null
+                        ? survey.needsElectricalCabinetUpgrade
+                          ? 'Cần nâng cấp'
+                          : 'Không cần'
+                        : null
+                    }
+                  />
+                  <DetailRow
+                    label="Tiếp địa"
+                    value={
+                      survey.hasGrounding != null
+                        ? survey.hasGrounding
+                          ? 'Đã có'
+                          : 'Chưa có'
+                        : null
+                    }
+                  />
+                  <DetailRow
+                    label="Độ khó thi công"
+                    value={
+                      survey.installationDifficulty
+                        ? (INSTALLATION_DIFFICULTY_LABELS[
+                            survey.installationDifficulty as InstallationDifficulty
+                          ] ?? survey.installationDifficulty)
+                        : null
+                    }
+                  />
+                </div>
+
+                {survey.extraMaterialsNote && (
+                  <DetailRow label="Vật tư phụ" value={survey.extraMaterialsNote} />
+                )}
+                {survey.installationPlanNote && (
+                  <DetailRow label="Kế hoạch thi công" value={survey.installationPlanNote} />
+                )}
+              </CardContent>
+            </Card>
+          )}
         </>
       ) : (
         <SurveyForm
@@ -371,6 +578,34 @@ export function SurveyDetail({ surveyId, canManage, isTechnician, userId }: Prop
             siteNotes: survey.siteNotes ?? '',
             internalNotes: survey.internalNotes ?? '',
             photosNote: survey.photosNote ?? '',
+            // Technical proposal fields
+            recommendedSystemKw: survey.recommendedSystemKw ?? '',
+            panelWattageW:
+              survey.panelWattageW != null ? String(survey.panelWattageW) : '550',
+            recommendedPanelQuantity:
+              survey.recommendedPanelQuantity != null
+                ? String(survey.recommendedPanelQuantity)
+                : '',
+            inverterType: survey.inverterType ?? '',
+            inverterQuantity:
+              survey.inverterQuantity != null ? String(survey.inverterQuantity) : '1',
+            systemType: (survey.systemType as UpdateSurveyInput['systemType']) ?? undefined,
+            powerPhase: (survey.powerPhase as UpdateSurveyInput['powerPhase']) ?? undefined,
+            roofStructureCondition: survey.roofStructureCondition ?? '',
+            needsRoofReinforcement: survey.needsRoofReinforcement ?? false,
+            inverterLocation: survey.inverterLocation ?? '',
+            cableRouteDistanceM:
+              survey.cableRouteDistanceM != null ? String(survey.cableRouteDistanceM) : '',
+            mainBreakerCapacityA:
+              survey.mainBreakerCapacityA != null ? String(survey.mainBreakerCapacityA) : '',
+            mainElectricalCabinetCondition: survey.mainElectricalCabinetCondition ?? '',
+            needsElectricalCabinetUpgrade: survey.needsElectricalCabinetUpgrade ?? false,
+            hasGrounding: survey.hasGrounding ?? false,
+            installationDifficulty:
+              (survey.installationDifficulty as UpdateSurveyInput['installationDifficulty']) ??
+              undefined,
+            extraMaterialsNote: survey.extraMaterialsNote ?? '',
+            installationPlanNote: survey.installationPlanNote ?? '',
           }}
           onSubmit={handleFormSubmit}
           onCancel={() => setEditMode(false)}
@@ -378,20 +613,43 @@ export function SurveyDetail({ surveyId, canManage, isTechnician, userId }: Prop
         />
       )}
 
-      {/* Completed state banner */}
+      {/* Completed state banner + quotation action */}
       {status === 'completed' && (
-        <div className="flex items-center gap-2 rounded-lg bg-emerald-50 p-3 dark:bg-emerald-950/30">
-          <CheckCircle2Icon className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-          <div>
-            <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
-              Khảo sát hoàn thành
-            </p>
-            {survey.completedAt && (
-              <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                {formatDate(survey.completedAt)}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2 rounded-lg bg-emerald-50 p-3 dark:bg-emerald-950/30">
+            <CheckCircle2Icon className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <div>
+              <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                Khảo sát hoàn thành
               </p>
-            )}
+              {survey.completedAt && (
+                <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                  {formatDate(survey.completedAt)}
+                </p>
+              )}
+            </div>
           </div>
+
+          {existingQuotation ? (
+            <Button
+              variant="outline"
+              className="w-full"
+              nativeButton={false}
+              render={<Link href={`/quotations/${existingQuotation.id}`} />}
+            >
+              <FileTextIcon className="size-4" />
+              Xem báo giá
+            </Button>
+          ) : canCreateQuotation ? (
+            <Button
+              className="w-full"
+              nativeButton={false}
+              render={<Link href={`/quotations/new?surveyId=${surveyId}`} />}
+            >
+              <PlusIcon className="size-4" />
+              Tạo báo giá
+            </Button>
+          ) : null}
         </div>
       )}
 

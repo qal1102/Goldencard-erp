@@ -3,6 +3,8 @@ export * from './customers';
 export * from './lead-activities';
 export * from './leads';
 export * from './permissions';
+export * from './quotation-items';
+export * from './quotations';
 export * from './relations';
 export * from './role-permissions';
 export * from './roles';

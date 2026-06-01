@@ -3,7 +3,7 @@
 import { ArrowRightCircleIcon, MessageSquareIcon, PhoneIcon, RefreshCwIcon, UserIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -72,22 +72,36 @@ export function LeadActivityFeed({ leadId, readOnly = false }: Props) {
     <Card>
       <CardHeader>
         <CardTitle className="text-sm">Lịch sử hoạt động</CardTitle>
+        {!readOnly && (
+          <CardDescription className="text-xs">
+            Ghi nhận thủ công — không thực hiện cuộc gọi hay tương tác thật từ hệ thống
+          </CardDescription>
+        )}
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {!readOnly && <form onSubmit={handleSubmit} className="flex flex-col gap-2">
           <div className="flex gap-2">
             <Select value={type} onValueChange={(v) => setType(v as 'note' | 'call')}>
-              <SelectTrigger className="w-[130px] shrink-0">
+              <SelectTrigger className="w-auto min-w-[11rem] shrink-0">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="note">Ghi chú</SelectItem>
-                <SelectItem value="call">Cuộc gọi</SelectItem>
+                <SelectItem value="note">{ACTIVITY_TYPE_LABELS.note}</SelectItem>
+                <SelectItem value="call">{ACTIVITY_TYPE_LABELS.call}</SelectItem>
               </SelectContent>
             </Select>
             <div className="flex flex-1 flex-col gap-1">
+              {type === 'call' && (
+                <p className="text-[10px] text-muted-foreground">
+                  Chỉ ghi lại cuộc gọi đã diễn ra bên ngoài hệ thống
+                </p>
+              )}
               <Textarea
-                placeholder="Nhập nội dung..."
+                placeholder={
+                  type === 'call'
+                    ? 'Ví dụ: Đã gọi lúc 14h, khách hẹn khảo sát thứ Sáu...'
+                    : 'Nhập nội dung...'
+                }
                 value={content}
                 onChange={(e) => {
                   setContent(e.target.value);

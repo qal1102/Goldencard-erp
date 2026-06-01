@@ -2,6 +2,8 @@ import { relations } from 'drizzle-orm';
 import { customers } from './customers';
 import { leadActivities } from './lead-activities';
 import { leads } from './leads';
+import { quotationItems } from './quotation-items';
+import { quotations } from './quotations';
 import { surveys } from './surveys';
 import { users } from './users';
 
@@ -53,6 +55,7 @@ export const customersRelations = relations(customers, ({ one, many }) => ({
     relationName: 'customer_converted_by_user',
   }),
   surveys: many(surveys),
+  quotations: many(quotations),
 }));
 
 export const surveysRelations = relations(surveys, ({ one }) => ({
@@ -75,5 +78,46 @@ export const surveysRelations = relations(surveys, ({ one }) => ({
     fields: [surveys.createdBy],
     references: [users.id],
     relationName: 'survey_created_by_user',
+  }),
+  quotation: one(quotations, {
+    fields: [surveys.id],
+    references: [quotations.surveyId],
+    relationName: 'survey_quotation',
+  }),
+}));
+
+export const quotationsRelations = relations(quotations, ({ one, many }) => ({
+  customer: one(customers, {
+    fields: [quotations.customerId],
+    references: [customers.id],
+    relationName: 'quotation_customer',
+  }),
+  survey: one(surveys, {
+    fields: [quotations.surveyId],
+    references: [surveys.id],
+    relationName: 'survey_quotation',
+  }),
+  createdByUser: one(users, {
+    fields: [quotations.createdBy],
+    references: [users.id],
+    relationName: 'quotation_created_by_user',
+  }),
+  updatedByUser: one(users, {
+    fields: [quotations.updatedBy],
+    references: [users.id],
+    relationName: 'quotation_updated_by_user',
+  }),
+  acceptedByUser: one(users, {
+    fields: [quotations.acceptedBy],
+    references: [users.id],
+    relationName: 'quotation_accepted_by_user',
+  }),
+  items: many(quotationItems),
+}));
+
+export const quotationItemsRelations = relations(quotationItems, ({ one }) => ({
+  quotation: one(quotations, {
+    fields: [quotationItems.quotationId],
+    references: [quotations.id],
   }),
 }));

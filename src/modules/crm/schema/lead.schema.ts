@@ -53,7 +53,7 @@ export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 
 export const ACTIVITY_TYPE_LABELS: Record<ActivityType, string> = {
   note: 'Ghi chú',
-  call: 'Cuộc gọi',
+  call: 'Ghi nhận cuộc gọi',
   status_change: 'Cập nhật trạng thái',
   assignment_change: 'Phân công',
   conversion: 'Chuyển đổi khách hàng',

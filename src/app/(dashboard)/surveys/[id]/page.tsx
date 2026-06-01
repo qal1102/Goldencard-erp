@@ -23,6 +23,7 @@ export default async function SurveyDetailPage({ params }: Props) {
   if (isTechnician && survey.assignedTo !== userId) notFound();
 
   const canManage = hasRole(roles, 'admin', 'director', 'sales');
+  const canCreateQuotation = hasRole(roles, 'admin', 'director', 'sales', 'chief_accountant');
 
   return (
     <div className="mx-auto w-full max-w-xl">
@@ -31,6 +32,7 @@ export default async function SurveyDetailPage({ params }: Props) {
         canManage={canManage}
         isTechnician={isTechnician}
         userId={userId}
+        canCreateQuotation={canCreateQuotation}
       />
     </div>
   );

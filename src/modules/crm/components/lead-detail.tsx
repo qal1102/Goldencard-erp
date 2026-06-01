@@ -76,8 +76,14 @@ export function LeadDetail({ leadId, canEdit, canManageSurvey = false }: Props) 
   const isTerminal = leadTyped.status === 'won' || leadTyped.status === 'lost';
   const isConverted = Boolean(leadTyped.convertedAt);
   const canConvert = canEdit && leadTyped.status === 'won' && !isConverted;
-  // Survey can only be created if lead has been converted to a customer
-  const canCreateSurvey = canManageSurvey && isConverted && Boolean(leadTyped.customer);
+  // Survey can be created when lead is consulting or awaiting_survey (before conversion)
+  const canCreateSurveyFromLead =
+    canManageSurvey &&
+    (leadTyped.status === 'consulting' || leadTyped.status === 'awaiting_survey');
+  // After conversion, survey can still be created from the customer page; keep button here too
+  const canCreateSurveyFromCustomer =
+    canManageSurvey && isConverted && Boolean(leadTyped.customer);
+  const canCreateSurvey = canCreateSurveyFromLead || canCreateSurveyFromCustomer;
 
   const handleStatusChange = async (status: LeadStatus, lostReason?: string) => {
     const result = await updateStatus.mutateAsync({ status, lostReason });
@@ -184,19 +190,33 @@ export function LeadDetail({ leadId, canEdit, canManageSurvey = false }: Props) 
         />
       )}
 
-      {canCreateSurvey && leadTyped.customer && (
-        <CreateSurveyDialog
-          customer={{
-            id: leadTyped.customer.id,
-            code: leadTyped.customer.code,
-            fullName: leadTyped.fullName,
-            address: leadTyped.address,
-            province: leadTyped.province,
-          }}
-          leadId={leadId}
-          open={surveyDialogOpen}
-          onOpenChange={setSurveyDialogOpen}
-        />
+      {canCreateSurvey && (
+        canCreateSurveyFromCustomer && leadTyped.customer ? (
+          <CreateSurveyDialog
+            customer={{
+              id: leadTyped.customer.id,
+              code: leadTyped.customer.code,
+              fullName: leadTyped.fullName,
+              address: leadTyped.address,
+              province: leadTyped.province,
+            }}
+            leadId={leadId}
+            open={surveyDialogOpen}
+            onOpenChange={setSurveyDialogOpen}
+          />
+        ) : (
+          <CreateSurveyDialog
+            lead={{
+              id: leadId,
+              code: leadTyped.code,
+              fullName: leadTyped.fullName,
+              address: leadTyped.address,
+              province: leadTyped.province,
+            }}
+            open={surveyDialogOpen}
+            onOpenChange={setSurveyDialogOpen}
+          />
+        )
       )}
 
       <LeadActivityFeed leadId={leadId} />

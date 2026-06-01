@@ -64,7 +64,7 @@ export async function createSurveyAction(
       .insert(surveys)
       .values({
         code,
-        customerId: d.customerId,
+        customerId: d.customerId ?? null,
         leadId: d.leadId ?? null,
         status,
         assignedTo,
@@ -79,7 +79,8 @@ export async function createSurveyAction(
     if (!survey) throw new Error('Không thể tạo phiếu khảo sát');
 
     revalidatePath('/surveys');
-    revalidatePath(`/crm/customers/${d.customerId}`);
+    if (d.customerId) revalidatePath(`/crm/customers/${d.customerId}`);
+    if (d.leadId) revalidatePath(`/crm/leads/${d.leadId}`);
     return { success: true, data: { id: survey.id, code: survey.code } };
   } catch (e) {
     console.error('[createSurveyAction]', e);
@@ -214,6 +215,49 @@ export async function updateSurveyAction(
         ...(d.siteNotes !== undefined && { siteNotes: toNull(d.siteNotes) }),
         ...(d.internalNotes !== undefined && { internalNotes: toNull(d.internalNotes) }),
         ...(d.photosNote !== undefined && { photosNote: toNull(d.photosNote) }),
+        // Technical proposal fields
+        ...(d.recommendedSystemKw !== undefined && {
+          recommendedSystemKw: toNull(d.recommendedSystemKw),
+        }),
+        ...(d.panelWattageW !== undefined && { panelWattageW: toIntOrNull(d.panelWattageW) }),
+        ...(d.recommendedPanelQuantity !== undefined && {
+          recommendedPanelQuantity: toIntOrNull(d.recommendedPanelQuantity),
+        }),
+        ...(d.inverterType !== undefined && { inverterType: toNull(d.inverterType) }),
+        ...(d.inverterQuantity !== undefined && {
+          inverterQuantity: toIntOrNull(d.inverterQuantity),
+        }),
+        ...(d.systemType !== undefined && { systemType: toNull(d.systemType) }),
+        ...(d.powerPhase !== undefined && { powerPhase: toNull(d.powerPhase) }),
+        ...(d.roofStructureCondition !== undefined && {
+          roofStructureCondition: toNull(d.roofStructureCondition),
+        }),
+        ...(d.needsRoofReinforcement !== undefined && {
+          needsRoofReinforcement: d.needsRoofReinforcement,
+        }),
+        ...(d.inverterLocation !== undefined && { inverterLocation: toNull(d.inverterLocation) }),
+        ...(d.cableRouteDistanceM !== undefined && {
+          cableRouteDistanceM: toIntOrNull(d.cableRouteDistanceM),
+        }),
+        ...(d.mainBreakerCapacityA !== undefined && {
+          mainBreakerCapacityA: toIntOrNull(d.mainBreakerCapacityA),
+        }),
+        ...(d.mainElectricalCabinetCondition !== undefined && {
+          mainElectricalCabinetCondition: toNull(d.mainElectricalCabinetCondition),
+        }),
+        ...(d.needsElectricalCabinetUpgrade !== undefined && {
+          needsElectricalCabinetUpgrade: d.needsElectricalCabinetUpgrade,
+        }),
+        ...(d.hasGrounding !== undefined && { hasGrounding: d.hasGrounding }),
+        ...(d.installationDifficulty !== undefined && {
+          installationDifficulty: toNull(d.installationDifficulty),
+        }),
+        ...(d.extraMaterialsNote !== undefined && {
+          extraMaterialsNote: toNull(d.extraMaterialsNote),
+        }),
+        ...(d.installationPlanNote !== undefined && {
+          installationPlanNote: toNull(d.installationPlanNote),
+        }),
         updatedAt: new Date(),
       })
       .where(eq(surveys.id, id));

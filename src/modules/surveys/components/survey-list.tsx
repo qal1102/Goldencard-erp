@@ -92,10 +92,11 @@ export function SurveyList({ isTechnician }: Props) {
                       <SurveyStatusBadge status={survey.status as SurveyStatus} />
                     </div>
                     <p className="text-sm font-medium truncate">
-                      {survey.customer?.fullName ?? '—'}
+                      {survey.customer?.fullName ?? survey.lead?.fullName ?? '—'}
                     </p>
                     <p className="text-xs text-muted-foreground truncate">
-                      {survey.customer?.code}
+                      {survey.customer?.code ??
+                        (survey.lead ? `Lead: ${survey.lead.code}` : null)}
                     </p>
                   </div>
                   <Button
