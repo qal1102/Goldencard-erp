@@ -7,6 +7,12 @@ import { db } from '@/db';
 import { surveyEditLogs, surveyZones, surveys } from '@/db/schema';
 import { createAuditLog } from '@/lib/audit/create-audit-log';
 import { hasRole, requireRole } from '@/lib/auth/roles';
+import { safeNotify } from '@/lib/notifications/create-notification';
+import {
+  notifySurveyAssigned,
+  notifySurveyCompleted,
+  notifySurveyCorrectedAfterQuotation,
+} from '@/lib/notifications/events/survey-events';
 import {
   queryAcceptedQuotationBySurveyId,
   queryQuotationsBySurveyId,
@@ -22,6 +28,8 @@ import {
   surveyFiltersSchema,
   updateSurveySchema,
   updateSurveyStatusSchema,
+  checkInSurveyLocationSchema,
+  type CheckInSurveyLocationInput,
 } from '../schema/survey.schema';
 import {
   hasValidSurveyZonesForCompletion,
@@ -148,6 +156,17 @@ export async function createSurveyAction(
       .returning({ id: surveys.id, code: surveys.code });
 
     if (!survey) throw new Error('Không thể tạo phiếu khảo sát');
+
+    if (assignedTo) {
+      await safeNotify(() =>
+        notifySurveyAssigned({
+          surveyId: survey.id,
+          surveyCode: survey.code,
+          assignedTo,
+          actorUserId: session.user.id,
+        }),
+      );
+    }
 
     revalidatePath('/surveys');
     if (d.customerId) revalidatePath(`/crm/customers/${d.customerId}`);
@@ -443,6 +462,21 @@ export async function updateSurveyAction(
         before: { status: beforeStatus, code: existing.code },
         after: { status: beforeStatus, code: existing.code },
       });
+
+      const linkedQuotations = await queryQuotationsBySurveyId(id);
+      if (linkedQuotations.length > 0) {
+        const primaryQuotation = linkedQuotations[0];
+        await safeNotify(() =>
+          notifySurveyCorrectedAfterQuotation({
+            surveyId: id,
+            surveyCode: existing.code,
+            leadId: existing.leadId,
+            quotationId: primaryQuotation.id,
+            quotationCreatedBy: primaryQuotation.createdBy,
+            actorUserId: session.user.id,
+          }),
+        );
+      }
     }
 
     revalidatePath('/surveys');
@@ -557,6 +591,23 @@ export async function updateSurveyAddressAction(
       after: { address: d.address, province: newProvince },
     });
 
+    if (isCompletedEdit) {
+      const linkedQuotations = await queryQuotationsBySurveyId(id);
+      if (linkedQuotations.length > 0) {
+        const primaryQuotation = linkedQuotations[0];
+        await safeNotify(() =>
+          notifySurveyCorrectedAfterQuotation({
+            surveyId: id,
+            surveyCode: existing.code,
+            leadId: existing.leadId,
+            quotationId: primaryQuotation.id,
+            quotationCreatedBy: primaryQuotation.createdBy,
+            actorUserId: session.user.id,
+          }),
+        );
+      }
+    }
+
     revalidatePath('/surveys');
     revalidatePath(`/surveys/${id}`);
     revalidatePath('/quotations');
@@ -574,6 +625,100 @@ export async function updateSurveyAddressAction(
     return { success: true, data: undefined };
   } catch (e) {
     console.error('[updateSurveyAddressAction]', e);
+    return { success: false, error: e instanceof Error ? e.message : 'Lỗi hệ thống' };
+  }
+}
+
+export async function checkInSurveyLocationAction(
+  id: string,
+  input: CheckInSurveyLocationInput,
+): Promise<ActionResult> {
+  try {
+    const session = await getSessionOrThrow();
+    const sessionRoles = session.user.roles ?? [];
+
+    const parsed = checkInSurveyLocationSchema.safeParse(input);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0]?.message ?? 'Dữ liệu không hợp lệ' };
+    }
+
+    const existing = await querySurveyById(id);
+    if (!existing) return { success: false, error: 'Không tìm thấy phiếu khảo sát' };
+
+    if (existing.status === 'cancelled') {
+      return { success: false, error: 'Không thể ghim vị trí cho phiếu đã hủy' };
+    }
+
+    const acceptedQuotation = await queryAcceptedQuotationBySurveyId(id);
+    if (acceptedQuotation) {
+      if (!hasRole(sessionRoles, ...SURVEY_ACCEPTED_QUOTATION_EDIT_ROLES)) {
+        return {
+          success: false,
+          error:
+            'Phiếu khảo sát đã có báo giá được khách chấp nhận — chỉ quản trị viên hoặc giám đốc mới được chỉnh sửa',
+        };
+      }
+    }
+
+    const isTech =
+      hasRole(sessionRoles, 'technician') &&
+      !hasRole(sessionRoles, 'admin', 'director', 'sales');
+
+    if (isTech) {
+      if (existing.assignedTo !== session.user.id) {
+        return { success: false, error: 'Không có quyền ghim vị trí phiếu khảo sát này' };
+      }
+    } else {
+      requireRole(sessionRoles, ...SURVEY_MANAGE_ROLES);
+    }
+
+    const d = parsed.data;
+    const now = new Date();
+    const note = toNull(d.note);
+
+    await db
+      .update(surveys)
+      .set({
+        checkedInLatitude: String(d.latitude),
+        checkedInLongitude: String(d.longitude),
+        checkedInAccuracyM: d.accuracy != null ? String(d.accuracy) : null,
+        checkedInAt: now,
+        checkedInBy: session.user.id,
+        checkInNote: note,
+        updatedAt: now,
+      })
+      .where(eq(surveys.id, id));
+
+    await createAuditLog({
+      userId: session.user.id,
+      action: 'survey.location.check_in',
+      resource: 'survey',
+      resourceId: id,
+      summary: 'Kỹ thuật viên ghim vị trí khảo sát thực tế',
+      before: {
+        checkedInLatitude: existing.checkedInLatitude,
+        checkedInLongitude: existing.checkedInLongitude,
+      },
+      after: {
+        checkedInLatitude: String(d.latitude),
+        checkedInLongitude: String(d.longitude),
+        checkedInAccuracyM: d.accuracy ?? null,
+        checkInNote: note,
+      },
+    });
+
+    revalidatePath('/surveys');
+    revalidatePath(`/surveys/${id}`);
+    if (existing.customerId) {
+      revalidatePath(`/crm/customers/${existing.customerId}`);
+    }
+    if (existing.leadId) {
+      revalidatePath(`/crm/leads/${existing.leadId}`);
+    }
+
+    return { success: true, data: undefined };
+  } catch (e) {
+    console.error('[checkInSurveyLocationAction]', e);
     return { success: false, error: e instanceof Error ? e.message : 'Lỗi hệ thống' };
   }
 }
@@ -637,6 +782,28 @@ export async function updateSurveyStatusAction(
     }
 
     await db.update(surveys).set(updates).where(eq(surveys.id, id));
+
+    if (status === 'assigned' && assignedTo) {
+      await safeNotify(() =>
+        notifySurveyAssigned({
+          surveyId: id,
+          surveyCode: existing.code,
+          assignedTo,
+          actorUserId: session.user.id,
+        }),
+      );
+    }
+
+    if (status === 'completed') {
+      await safeNotify(() =>
+        notifySurveyCompleted({
+          surveyId: id,
+          surveyCode: existing.code,
+          leadId: existing.leadId,
+          actorUserId: session.user.id,
+        }),
+      );
+    }
 
     revalidatePath('/surveys');
     revalidatePath(`/surveys/${id}`);

@@ -6,6 +6,13 @@ import { auth } from '@/auth';
 import { db } from '@/db';
 import { quotationEditLogs, quotationExports, quotationItems, quotations, surveys } from '@/db/schema';
 import { requireRole } from '@/lib/auth/roles';
+import { safeNotify } from '@/lib/notifications/create-notification';
+import {
+  notifyQuotationCreated,
+  notifyQuotationEditedAfterSent,
+  notifyQuotationResponse,
+  notifyQuotationSent,
+} from '@/lib/notifications/events/quotation-events';
 import {
   QUOTATION_STATUS_LABELS,
   QUOTATION_STATUS_TRANSITIONS,
@@ -221,6 +228,16 @@ export async function createQuotationAction(
     });
 
     revalidateQuotationPaths(quotation.id, d.surveyId);
+
+    await safeNotify(() =>
+      notifyQuotationCreated({
+        quotationId: quotation.id,
+        quotationCode: quotation.code,
+        leadId: survey.leadId,
+        actorUserId: session.user.id,
+      }),
+    );
+
     return { success: true, data: { id: quotation.id, code: quotation.code } };
   } catch (e) {
     console.error('[createQuotationAction]', e);
@@ -368,6 +385,22 @@ export async function updateQuotationAction(
       }
     });
 
+    if (isSentEdit) {
+      const survey = await db.query.surveys.findFirst({
+        where: eq(surveys.id, existing.surveyId),
+        columns: { leadId: true },
+      });
+      await safeNotify(() =>
+        notifyQuotationEditedAfterSent({
+          quotationId: id,
+          quotationCode: existing.code,
+          leadId: survey?.leadId,
+          quotationCreatedBy: existing.createdBy,
+          actorUserId: session.user.id,
+        }),
+      );
+    }
+
     revalidateQuotationPaths(id, existing.surveyId);
     return { success: true, data: undefined };
   } catch (e) {
@@ -478,6 +511,20 @@ export async function markQuotationSentAction(
       })
       .where(eq(quotations.id, id));
 
+    const survey = await db.query.surveys.findFirst({
+      where: eq(surveys.id, existing.surveyId),
+      columns: { leadId: true },
+    });
+
+    await safeNotify(() =>
+      notifyQuotationSent({
+        quotationId: id,
+        quotationCode: existing.code,
+        leadId: survey?.leadId,
+        actorUserId: session.user.id,
+      }),
+    );
+
     revalidateQuotationPaths(id, existing.surveyId);
     return { success: true, data: undefined };
   } catch (e) {
@@ -556,6 +603,22 @@ export async function recordQuotationResponseAction(
     }
 
     await db.update(quotations).set(updates).where(eq(quotations.id, id));
+
+    const survey = await db.query.surveys.findFirst({
+      where: eq(surveys.id, existing.surveyId),
+      columns: { leadId: true },
+    });
+
+    await safeNotify(() =>
+      notifyQuotationResponse({
+        quotationId: id,
+        quotationCode: existing.code,
+        leadId: survey?.leadId,
+        quotationCreatedBy: existing.createdBy,
+        responseStatus,
+        actorUserId: session.user.id,
+      }),
+    );
 
     revalidateQuotationPaths(id, existing.surveyId);
     return { success: true, data: undefined };

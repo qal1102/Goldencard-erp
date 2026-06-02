@@ -1,6 +1,7 @@
 import { relations } from 'drizzle-orm';
 import { customers } from './customers';
 import { leadActivities } from './lead-activities';
+import { notifications } from './notifications';
 import { leads } from './leads';
 import { quotationEditLogs } from './quotation-edit-logs';
 import { quotationExports } from './quotation-exports';
@@ -93,6 +94,11 @@ export const surveysRelations = relations(surveys, ({ one, many }) => ({
     fields: [surveys.createdBy],
     references: [users.id],
     relationName: 'survey_created_by_user',
+  }),
+  checkedInByUser: one(users, {
+    fields: [surveys.checkedInBy],
+    references: [users.id],
+    relationName: 'survey_checked_in_by_user',
   }),
   quotations: many(quotations, { relationName: 'survey_quotation' }),
   zones: many(surveyZones, { relationName: 'survey_zone' }),
@@ -188,5 +194,18 @@ export const quotationItemsRelations = relations(quotationItems, ({ one }) => ({
   quotation: one(quotations, {
     fields: [quotationItems.quotationId],
     references: [quotations.id],
+  }),
+}));
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  recipientUser: one(users, {
+    fields: [notifications.recipientUserId],
+    references: [users.id],
+    relationName: 'notification_recipient_user',
+  }),
+  actorUser: one(users, {
+    fields: [notifications.actorUserId],
+    references: [users.id],
+    relationName: 'notification_actor_user',
   }),
 }));

@@ -5,6 +5,7 @@ import { MenuIcon } from 'lucide-react';
 import { AppBrand } from '@/components/layout/app-brand';
 import { NavLinks } from '@/components/layout/nav-links';
 import { UserMenu } from '@/components/auth/user-menu';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -58,6 +59,8 @@ export function AppHeader({ title, user }: AppHeaderProps) {
             {title}
           </p>
         </div>
+
+        <NotificationBell />
       </div>
     </header>
   );

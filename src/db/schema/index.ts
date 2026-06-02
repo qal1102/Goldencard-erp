@@ -1,6 +1,7 @@
 export * from './audit-logs';
 export * from './customers';
 export * from './lead-activities';
+export * from './notifications';
 export * from './leads';
 export * from './permissions';
 export * from './quotation-edit-logs';

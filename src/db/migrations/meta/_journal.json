@@ -120,6 +120,20 @@
       "when": 1749614400000,
       "tag": "0016_phase2c2_lead_call_workflow",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1749700800000,
+      "tag": "0017_phase2c6_survey_gps_checkin",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1749787200000,
+      "tag": "0018_phase2d1_notifications",
+      "breakpoints": true
     }
   ]
 }

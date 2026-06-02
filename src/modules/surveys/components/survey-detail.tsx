@@ -55,6 +55,8 @@ import {
   useUpdateSurveyAddress,
   useUpdateSurveyStatus,
 } from '../hooks/use-surveys';
+import { SurveyLocationCheckIn } from './survey-location-check-in';
+import { SurveyPinnedLocationInfo } from './survey-pinned-location-info';
 import { SurveyAggregationSummary } from './survey-aggregation-summary';
 import { SurveyInfrastructureReadCard } from './survey-infrastructure-read-card';
 import { SurveyStatusBadge } from './survey-status-badge';
@@ -146,7 +148,12 @@ export function SurveyDetail({
     !isCancelled &&
     (!acceptedQuotation || canCorrectAcceptedSurvey) &&
     (canManage || (isTechnician && survey.assignedTo === userId));
+  const canCheckInLocation = canEditSurveyAddress;
   const editLogs = survey.editLogs ?? [];
+  const surveyMapCoords = {
+    latitude: survey.checkedInLatitude,
+    longitude: survey.checkedInLongitude,
+  };
 
   const resolvedZones = resolveSurveyZones(survey);
   const aggregates = computeSurveyAggregates(resolvedZones);
@@ -406,6 +413,8 @@ export function SurveyDetail({
                     <MapLinkButton
                       address={survey.address}
                       province={survey.province}
+                      latitude={surveyMapCoords.latitude}
+                      longitude={surveyMapCoords.longitude}
                       label="Chỉ đường khảo sát"
                       direction
                     />
@@ -430,6 +439,8 @@ export function SurveyDetail({
                   <MapLinkButton
                     address={survey.address}
                     province={survey.province}
+                    latitude={surveyMapCoords.latitude}
+                    longitude={surveyMapCoords.longitude}
                     label="Chỉ đường khảo sát"
                     direction
                   />
@@ -449,6 +460,20 @@ export function SurveyDetail({
               )}
             </div>
           )}
+
+          <SurveyPinnedLocationInfo
+            latitude={survey.checkedInLatitude}
+            longitude={survey.checkedInLongitude}
+            accuracy={survey.checkedInAccuracyM}
+            checkedInAt={survey.checkedInAt}
+            checkedInByName={survey.checkedInByUser?.name}
+            checkInNote={survey.checkInNote}
+          />
+
+          {canCheckInLocation && (
+            <SurveyLocationCheckIn surveyId={surveyId} />
+          )}
+
           {survey.scheduledAt && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <CalendarIcon className="size-3 shrink-0" />

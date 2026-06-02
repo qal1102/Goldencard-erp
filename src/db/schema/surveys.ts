@@ -86,6 +86,13 @@ export const surveys = pgTable('surveys', {
   maintenanceAccessNotes: text('maintenance_access_notes'),
   fireSafetyNotes: text('fire_safety_notes'),
   generalTechnicalRiskNotes: text('general_technical_risk_notes'),
+  // GPS check-in — explicit user-triggered pin at survey site (not live tracking)
+  checkedInLatitude: numeric('checked_in_latitude', { precision: 10, scale: 7 }),
+  checkedInLongitude: numeric('checked_in_longitude', { precision: 10, scale: 7 }),
+  checkedInAccuracyM: numeric('checked_in_accuracy_m', { precision: 10, scale: 2 }),
+  checkedInAt: timestamp('checked_in_at'),
+  checkedInBy: uuid('checked_in_by').references(() => users.id, { onDelete: 'set null' }),
+  checkInNote: text('check_in_note'),
   createdBy: uuid('created_by')
     .notNull()
     .references(() => users.id, { onDelete: 'restrict' }),

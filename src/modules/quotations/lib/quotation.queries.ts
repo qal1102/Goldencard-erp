@@ -170,6 +170,7 @@ export async function queryQuotationsBySurveyId(surveyId: string) {
       status: true,
       revisionNumber: true,
       createdAt: true,
+      createdBy: true,
     },
     orderBy: [desc(quotations.revisionNumber)],
   });

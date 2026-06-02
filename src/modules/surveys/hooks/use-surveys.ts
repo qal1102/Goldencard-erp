@@ -10,11 +10,13 @@ import {
   getTechnicianUsersAction,
   updateSurveyAction,
   updateSurveyAddressAction,
+  checkInSurveyLocationAction,
   updateSurveyStatusAction,
 } from '../actions/survey.actions';
 import type {
   CreateSurveyInput,
   SurveyFilters,
+  CheckInSurveyLocationInput,
   UpdateSurveyAddressInput,
   UpdateSurveyInput,
   UpdateSurveyStatusInput,
@@ -117,6 +119,20 @@ export function useUpdateSurveyAddress(id: string) {
         queryClient.invalidateQueries({ queryKey: ['customers'] });
         queryClient.invalidateQueries({ queryKey: ['leads'] });
         queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      }
+    },
+  });
+}
+
+export function useCheckInSurveyLocation(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: CheckInSurveyLocationInput) => checkInSurveyLocationAction(id, input),
+    onSuccess: (result) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: surveyKeys.detail(id) });
+        queryClient.invalidateQueries({ queryKey: surveyKeys.all });
       }
     },
   });

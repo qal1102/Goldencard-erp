@@ -73,6 +73,7 @@ export async function querySurveyById(id: string) {
       },
       assignedUser: { columns: { id: true, name: true, email: true } },
       createdByUser: { columns: { id: true, name: true } },
+      checkedInByUser: { columns: { id: true, name: true } },
       zones: {
         orderBy: (cols, { asc }) => [asc(cols.sortOrder)],
       },

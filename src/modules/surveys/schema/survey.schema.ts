@@ -241,3 +241,14 @@ export type SurveyFilters = z.infer<typeof surveyFiltersSchema>;
 
 export { updateSurveyAddressSchema } from '@/lib/address/address.schema';
 export type { UpdateSurveyAddressInput } from '@/lib/address/address.schema';
+
+export const checkInSurveyLocationSchema = z.object({
+  latitude: z.number().min(-90, 'Vĩ độ không hợp lệ').max(90, 'Vĩ độ không hợp lệ'),
+  longitude: z
+    .number()
+    .min(-180, 'Kinh độ không hợp lệ')
+    .max(180, 'Kinh độ không hợp lệ'),
+  accuracy: z.number().min(0).optional(),
+  note: z.string().max(2000).optional(),
+});
+export type CheckInSurveyLocationInput = z.infer<typeof checkInSurveyLocationSchema>;

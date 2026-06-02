@@ -2,11 +2,13 @@
 
 import { MapPinIcon, NavigationIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { buildGoogleMapsUrl } from '@/lib/address/maps-url';
+import { buildSurveyMapsUrl } from '@/lib/address/survey-location';
 
 type Props = {
   address?: string | null;
   province?: string | null;
+  latitude?: string | number | null;
+  longitude?: string | number | null;
   /** "Mở bản đồ" for general use; "Chỉ đường khảo sát" for survey detail */
   label?: string;
   variant?: 'outline' | 'ghost' | 'default';
@@ -19,13 +21,15 @@ type Props = {
 export function MapLinkButton({
   address,
   province,
+  latitude,
+  longitude,
   label = 'Mở bản đồ',
   variant = 'outline',
   size = 'sm',
   className,
   direction = false,
 }: Props) {
-  const url = buildGoogleMapsUrl(address, province);
+  const url = buildSurveyMapsUrl({ latitude, longitude, address, province });
   if (!url) return null;
 
   const Icon = direction ? NavigationIcon : MapPinIcon;
