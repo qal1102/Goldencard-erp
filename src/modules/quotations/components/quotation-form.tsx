@@ -23,6 +23,8 @@ import {
   type SurveyTechnicalSource,
 } from '../lib/generate-quotation-items';
 import { useCreateQuotation, useUpdateQuotation } from '../hooks/use-quotations';
+import { LeadConsultationContextCard } from '@/modules/crm/components/lead-consultation-context-card';
+import type { LeadConsultationContext } from '@/modules/crm/schema/lead.schema';
 import { SurveyTechnicalSummary } from './survey-technical-summary';
 
 // ---------------------------------------------------------------------------
@@ -36,6 +38,7 @@ type SurveyContext = {
   customerPhone: string | null;
   customerAddress: string | null;
   technical: SurveyTechnicalSource;
+  leadConsultation?: LeadConsultationContext | null;
 };
 
 type ItemRow = {
@@ -247,6 +250,13 @@ export function QuotationForm(props: Props) {
           </p>
         </CardContent>
       </Card>
+
+      {survey.leadConsultation && (
+        <LeadConsultationContextCard
+          consultation={survey.leadConsultation}
+          title="Nhu cầu khách hàng (từ Lead)"
+        />
+      )}
 
       <SurveyTechnicalSummary survey={survey.technical} />
 

@@ -238,3 +238,6 @@ export const surveyFiltersSchema = z.object({
   customerId: z.string().uuid().optional(),
 });
 export type SurveyFilters = z.infer<typeof surveyFiltersSchema>;
+
+export { updateSurveyAddressSchema } from '@/lib/address/address.schema';
+export type { UpdateSurveyAddressInput } from '@/lib/address/address.schema';

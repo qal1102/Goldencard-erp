@@ -30,7 +30,7 @@ export const mainNavItems: NavItem[] = [
   },
   {
     id: "crm-leads",
-    label: "CRM / Lead",
+    label: "CRM / Cơ hội",
     href: "/crm/leads",
     icon: UserPlus,
     phase: "Phase 2",

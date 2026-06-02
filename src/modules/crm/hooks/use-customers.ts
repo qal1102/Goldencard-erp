@@ -5,9 +5,14 @@ import {
   convertLeadToCustomerAction,
   getCustomerAction,
   getCustomersAction,
+  updateCustomerAddressAction,
 } from '../actions/customer.actions';
 import { leadKeys } from './use-leads';
-import type { ConvertLeadInput, CustomerFilters } from '../schema/customer.schema';
+import type {
+  ConvertLeadInput,
+  CustomerFilters,
+  UpdateCustomerAddressInput,
+} from '../schema/customer.schema';
 
 export const customerKeys = {
   all: ['customers'] as const,
@@ -33,6 +38,22 @@ export function useCustomer(id: string) {
       const result = await getCustomerAction(id);
       if (!result.success) throw new Error(result.error);
       return result.data;
+    },
+  });
+}
+
+export function useUpdateCustomerAddress(customerId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: UpdateCustomerAddressInput) =>
+      updateCustomerAddressAction(customerId, input),
+    onSuccess: (result) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: customerKeys.detail(customerId) });
+        queryClient.invalidateQueries({ queryKey: customerKeys.all });
+        queryClient.invalidateQueries({ queryKey: leadKeys.all });
+      }
     },
   });
 }

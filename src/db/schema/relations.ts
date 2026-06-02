@@ -27,11 +27,21 @@ export const leadsRelations = relations(leads, ({ one, many }) => ({
     references: [users.id],
     relationName: 'lead_converted_by_user',
   }),
+  lastContactedByUser: one(users, {
+    fields: [leads.lastContactedBy],
+    references: [users.id],
+    relationName: 'lead_last_contacted_by_user',
+  }),
   activities: many(leadActivities),
+  linkedCustomer: one(customers, {
+    fields: [leads.customerId],
+    references: [customers.id],
+    relationName: 'lead_linked_customer',
+  }),
   customer: one(customers, {
     fields: [leads.id],
     references: [customers.leadId],
-    relationName: 'lead_customer',
+    relationName: 'lead_converted_customer',
   }),
 }));
 
@@ -51,8 +61,9 @@ export const customersRelations = relations(customers, ({ one, many }) => ({
   lead: one(leads, {
     fields: [customers.leadId],
     references: [leads.id],
-    relationName: 'lead_customer',
+    relationName: 'lead_converted_customer',
   }),
+  linkedLeads: many(leads, { relationName: 'lead_linked_customer' }),
   convertedByUser: one(users, {
     fields: [customers.convertedBy],
     references: [users.id],

@@ -6,10 +6,12 @@ import { LeadDetail } from '@/modules/crm/components/lead-detail';
 
 type Props = {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ linkedCustomer?: string; customerCreated?: string }>;
 };
 
-export default async function LeadDetailPage({ params }: Props) {
+export default async function LeadDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const query = await searchParams;
 
   const [session, lead] = await Promise.all([auth(), queryLeadById(id)]);
 
@@ -21,7 +23,13 @@ export default async function LeadDetailPage({ params }: Props) {
 
   return (
     <div className="mx-auto w-full max-w-xl">
-      <LeadDetail leadId={id} canEdit={canEdit} canManageSurvey={canManageSurvey} />
+      <LeadDetail
+        leadId={id}
+        canEdit={canEdit}
+        canManageSurvey={canManageSurvey}
+        linkedCustomerNotice={query.linkedCustomer ?? null}
+        customerCreatedNotice={query.customerCreated ?? null}
+      />
     </div>
   );
 }

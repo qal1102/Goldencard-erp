@@ -49,8 +49,19 @@ export async function queryQuotationById(id: string) {
         columns: { id: true, code: true, fullName: true, phone: true, address: true },
       },
       survey: {
-        columns: { id: true, code: true, status: true, updatedAt: true },
+        columns: { id: true, code: true, status: true, updatedAt: true, leadId: true },
         with: {
+          lead: {
+            columns: {
+              id: true,
+              code: true,
+              consultationNote: true,
+              customerRequirements: true,
+              preferredInstallTime: true,
+              followUpAt: true,
+              lastCallResult: true,
+            },
+          },
           editLogs: {
             columns: { editedAt: true },
             orderBy: (cols, { desc: descOrder }) => [descOrder(cols.editedAt)],

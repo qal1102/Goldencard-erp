@@ -56,7 +56,21 @@ export async function querySurveyById(id: string) {
       customer: {
         columns: { id: true, code: true, fullName: true, phone: true, address: true },
       },
-      lead: { columns: { id: true, code: true, fullName: true, phone: true, address: true } },
+      lead: {
+        columns: {
+          id: true,
+          code: true,
+          fullName: true,
+          phone: true,
+          address: true,
+          province: true,
+          consultationNote: true,
+          customerRequirements: true,
+          preferredInstallTime: true,
+          followUpAt: true,
+          lastCallResult: true,
+        },
+      },
       assignedUser: { columns: { id: true, name: true, email: true } },
       createdByUser: { columns: { id: true, name: true } },
       zones: {

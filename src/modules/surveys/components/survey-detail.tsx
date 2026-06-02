@@ -1,18 +1,22 @@
 'use client';
 
 import {
-  ArrowLeftIcon,
   CalendarIcon,
   CheckCircle2Icon,
   ClipboardListIcon,
   EditIcon,
   FileTextIcon,
+  MapPinIcon,
+  PencilIcon,
   PlusIcon,
   UserIcon,
   XCircleIcon,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
+import { EditAddressDialog } from '@/components/address/edit-address-dialog';
+import { MapLinkButton } from '@/components/address/map-link-button';
+import { BackButton } from '@/components/navigation/back-button';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -40,8 +44,17 @@ import {
 } from '../schema/survey.schema';
 import { computeSurveyAggregates, resolveSurveyZones } from '../lib/survey-aggregates';
 import { buildSurveyFormDefaults } from '../lib/survey-form-defaults';
+import { addressesAreSame, buildFullAddress } from '@/lib/address/format-address';
 import { useQuotationBySurvey } from '@/modules/quotations/hooks/use-quotations';
-import { useSurvey, useTechnicianUsers, useUpdateSurvey, useUpdateSurveyStatus } from '../hooks/use-surveys';
+import { LeadConsultationContextCard } from '@/modules/crm/components/lead-consultation-context-card';
+import type { LeadConsultationContext } from '@/modules/crm/schema/lead.schema';
+import {
+  useSurvey,
+  useTechnicianUsers,
+  useUpdateSurvey,
+  useUpdateSurveyAddress,
+  useUpdateSurveyStatus,
+} from '../hooks/use-surveys';
 import { SurveyAggregationSummary } from './survey-aggregation-summary';
 import { SurveyInfrastructureReadCard } from './survey-infrastructure-read-card';
 import { SurveyStatusBadge } from './survey-status-badge';
@@ -91,12 +104,14 @@ export function SurveyDetail({
   canCreateQuotation,
 }: Props) {
   const [editMode, setEditMode] = useState(false);
+  const [surveyAddressEditOpen, setSurveyAddressEditOpen] = useState(false);
   const [selectedTechId, setSelectedTechId] = useState<string | null>(null);
   const [assignFeedback, setAssignFeedback] = useState<AssignFeedback>(null);
 
   const { data: survey, isLoading } = useSurvey(surveyId);
   const { data: technicians } = useTechnicianUsers();
   const updateSurvey = useUpdateSurvey(surveyId);
+  const updateSurveyAddress = useUpdateSurveyAddress(surveyId);
   const updateStatus = useUpdateSurveyStatus(surveyId);
   const { data: existingQuotation } = useQuotationBySurvey(surveyId);
 
@@ -127,6 +142,10 @@ export function SurveyDetail({
   const canEditCompleted =
     isCompleted && canFill && (!acceptedQuotation || canCorrectAcceptedSurvey);
   const canEdit = canFill && !isCancelled && (!isCompleted || canEditCompleted);
+  const canEditSurveyAddress =
+    !isCancelled &&
+    (!acceptedQuotation || canCorrectAcceptedSurvey) &&
+    (canManage || (isTechnician && survey.assignedTo === userId));
   const editLogs = survey.editLogs ?? [];
 
   const resolvedZones = resolveSurveyZones(survey);
@@ -149,6 +168,25 @@ export function SurveyDetail({
     survey.systemType ||
     survey.plannedInverterArea ||
     survey.mainCabinetLocation;
+
+  const leadConsultation: LeadConsultationContext | null = survey.lead
+    ? {
+        customerRequirements: survey.lead.customerRequirements,
+        consultationNote: survey.lead.consultationNote,
+        preferredInstallTime: survey.lead.preferredInstallTime,
+        followUpAt: survey.lead.followUpAt,
+        lastCallResult: survey.lead.lastCallResult,
+      }
+    : null;
+
+  const installationAddress = survey.lead
+    ? { address: survey.lead.address, province: survey.lead.province }
+    : null;
+  const surveyAddress = { address: survey.address, province: survey.province };
+  const hasInstallation = Boolean(installationAddress?.address?.trim());
+  const addressesMatch =
+    hasInstallation && addressesAreSame(surveyAddress, installationAddress!);
+  const showBothAddresses = hasInstallation && !addressesMatch;
 
   const showAssignFeedback = (feedback: AssignFeedback) => {
     setAssignFeedback(feedback);
@@ -206,9 +244,7 @@ export function SurveyDetail({
     <div className="flex flex-col gap-4">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon-sm" nativeButton={false} render={<Link href="/surveys" />}>
-          <ArrowLeftIcon className="size-4" />
-        </Button>
+        <BackButton fallbackHref="/surveys" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="font-mono text-sm font-semibold">{survey.code}</p>
@@ -346,8 +382,73 @@ export function SurveyDetail({
               </Link>
             </div>
           )}
-          <DetailRow label="Địa chỉ" value={survey.address} />
-          <DetailRow label="Tỉnh/TP" value={survey.province} />
+          {showBothAddresses ? (
+            <>
+              <div className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                    <MapPinIcon className="size-3" />
+                    Địa chỉ lắp đặt dự án
+                  </p>
+                  <MapLinkButton
+                    address={installationAddress!.address}
+                    province={installationAddress!.province}
+                  />
+                </div>
+                <p className="text-sm">
+                  {buildFullAddress(installationAddress!.address, installationAddress!.province)}
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 rounded-lg border p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-medium text-muted-foreground">Địa chỉ khảo sát</p>
+                  <div className="flex items-center gap-1">
+                    <MapLinkButton
+                      address={survey.address}
+                      province={survey.province}
+                      label="Chỉ đường khảo sát"
+                      direction
+                    />
+                    {canEditSurveyAddress && (
+                      <Button variant="ghost" size="sm" onClick={() => setSurveyAddressEditOpen(true)}>
+                        <PencilIcon className="size-3.5" />
+                        Sửa
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <p className="text-sm">{buildFullAddress(survey.address, survey.province)}</p>
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-xs text-muted-foreground">
+                  {addressesMatch ? 'Địa chỉ khảo sát' : 'Địa chỉ'}
+                </Label>
+                <div className="flex items-center gap-1">
+                  <MapLinkButton
+                    address={survey.address}
+                    province={survey.province}
+                    label="Chỉ đường khảo sát"
+                    direction
+                  />
+                  {canEditSurveyAddress && (
+                    <Button variant="ghost" size="sm" onClick={() => setSurveyAddressEditOpen(true)}>
+                      <PencilIcon className="size-3.5" />
+                      Sửa
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <span className="text-sm">
+                {buildFullAddress(survey.address, survey.province) || survey.address}
+              </span>
+              {addressesMatch && (
+                <p className="text-xs text-muted-foreground">Giống địa chỉ lắp đặt</p>
+              )}
+            </div>
+          )}
           {survey.scheduledAt && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <CalendarIcon className="size-3 shrink-0" />
@@ -369,6 +470,34 @@ export function SurveyDetail({
           <DetailRow label="Tạo bởi" value={survey.createdByUser?.name} />
         </CardContent>
       </Card>
+
+      {canEditSurveyAddress && (
+        <EditAddressDialog
+          open={surveyAddressEditOpen}
+          onOpenChange={setSurveyAddressEditOpen}
+          title="Sửa địa chỉ khảo sát"
+          addressFieldLabel="Địa chỉ khảo sát"
+          address={survey.address}
+          province={survey.province}
+          requireEditNote={isCompleted}
+          quotationWarning={Boolean(existingQuotation)}
+          isPending={updateSurveyAddress.isPending}
+          onSubmit={async (data) => {
+            const result = await updateSurveyAddress.mutateAsync({
+              address: data.address,
+              province: data.province,
+              editNote: data.editNote,
+            });
+            return result.success
+              ? { success: true }
+              : { success: false, error: result.error };
+          }}
+        />
+      )}
+
+      {leadConsultation && (
+        <LeadConsultationContextCard consultation={leadConsultation} />
+      )}
 
       {/* Site data — read or edit mode */}
       {!editMode ? (
@@ -497,13 +626,18 @@ export function SurveyDetail({
           <SurveyInfrastructureReadCard survey={survey} />
         </>
       ) : (
-        <SurveyForm
-          defaultValues={buildSurveyFormDefaults(survey)}
-          onSubmit={handleFormSubmit}
-          onCancel={() => setEditMode(false)}
-          isPending={updateSurvey.isPending}
-          requireEditNote={isCompleted}
-        />
+        <>
+          {leadConsultation && (
+            <LeadConsultationContextCard consultation={leadConsultation} />
+          )}
+          <SurveyForm
+            defaultValues={buildSurveyFormDefaults(survey)}
+            onSubmit={handleFormSubmit}
+            onCancel={() => setEditMode(false)}
+            isPending={updateSurvey.isPending}
+            requireEditNote={isCompleted}
+          />
+        </>
       )}
 
       {editLogs.length > 0 && (

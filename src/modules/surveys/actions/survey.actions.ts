@@ -11,6 +11,7 @@ import {
   queryAcceptedQuotationBySurveyId,
   queryQuotationsBySurveyId,
 } from '@/modules/quotations/lib/quotation.queries';
+import { updateSurveyAddressSchema, type UpdateSurveyAddressInput } from '@/lib/address/address.schema';
 import {
   type CreateSurveyInput,
   type SurveyFilters,
@@ -454,6 +455,125 @@ export async function updateSurveyAction(
     return { success: true, data: undefined };
   } catch (e) {
     console.error('[updateSurveyAction]', e);
+    return { success: false, error: e instanceof Error ? e.message : 'Lỗi hệ thống' };
+  }
+}
+
+export async function updateSurveyAddressAction(
+  id: string,
+  input: UpdateSurveyAddressInput,
+): Promise<ActionResult> {
+  try {
+    const session = await getSessionOrThrow();
+    const sessionRoles = session.user.roles ?? [];
+
+    const parsed = updateSurveyAddressSchema.safeParse(input);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0]?.message ?? 'Dữ liệu không hợp lệ' };
+    }
+
+    const existing = await querySurveyById(id);
+    if (!existing) return { success: false, error: 'Không tìm thấy phiếu khảo sát' };
+
+    if (existing.status === 'cancelled') {
+      return { success: false, error: 'Không thể chỉnh sửa phiếu đã hủy' };
+    }
+
+    const acceptedQuotation = await queryAcceptedQuotationBySurveyId(id);
+    if (acceptedQuotation) {
+      if (!hasRole(sessionRoles, ...SURVEY_ACCEPTED_QUOTATION_EDIT_ROLES)) {
+        return {
+          success: false,
+          error:
+            'Phiếu khảo sát đã có báo giá được khách chấp nhận — chỉ quản trị viên hoặc giám đốc mới được chỉnh sửa',
+        };
+      }
+    }
+
+    const isCompletedEdit = existing.status === 'completed';
+    const isTech =
+      hasRole(sessionRoles, 'technician') &&
+      !hasRole(sessionRoles, 'admin', 'director', 'sales');
+
+    if (isTech) {
+      if (existing.assignedTo !== session.user.id) {
+        return { success: false, error: 'Không có quyền chỉnh sửa phiếu khảo sát này' };
+      }
+    } else if (!isCompletedEdit) {
+      requireRole(sessionRoles, ...SURVEY_MANAGE_ROLES);
+    } else if (
+      !hasRole(sessionRoles, ...SURVEY_MANAGE_ROLES) &&
+      !hasRole(sessionRoles, 'technician')
+    ) {
+      return { success: false, error: 'Không có quyền chỉnh sửa phiếu khảo sát này' };
+    }
+
+    const d = parsed.data;
+
+    if (isCompletedEdit) {
+      const editNote = d.editNote?.trim() ?? '';
+      if (editNote.length < 5) {
+        return {
+          success: false,
+          error: 'Cần ghi chú lý do chỉnh sửa (ít nhất 5 ký tự) khi sửa phiếu đã hoàn thành',
+        };
+      }
+    }
+
+    const newProvince = toNull(d.province);
+    const now = new Date();
+    const beforeStatus = existing.status;
+    const summary = `Cập nhật địa chỉ khảo sát: ${d.address}${newProvince ? `, ${newProvince}` : ''}`;
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(surveys)
+        .set({
+          address: d.address,
+          province: newProvince,
+          updatedAt: now,
+        })
+        .where(eq(surveys.id, id));
+
+      if (isCompletedEdit) {
+        await tx.insert(surveyEditLogs).values({
+          surveyId: id,
+          editedBy: session.user.id,
+          editedAt: now,
+          note: d.editNote!.trim(),
+          beforeStatus,
+          afterStatus: beforeStatus,
+        });
+      }
+    });
+
+    await createAuditLog({
+      userId: session.user.id,
+      action: 'survey.address.update',
+      resource: 'survey',
+      resourceId: id,
+      summary: isCompletedEdit ? `${summary} — ${d.editNote!.trim()}` : summary,
+      before: { address: existing.address, province: existing.province },
+      after: { address: d.address, province: newProvince },
+    });
+
+    revalidatePath('/surveys');
+    revalidatePath(`/surveys/${id}`);
+    revalidatePath('/quotations');
+    const linkedQuotations = await queryQuotationsBySurveyId(id);
+    for (const q of linkedQuotations) {
+      revalidatePath(`/quotations/${q.id}`);
+    }
+    if (existing.customerId) {
+      revalidatePath(`/crm/customers/${existing.customerId}`);
+    }
+    if (existing.leadId) {
+      revalidatePath(`/crm/leads/${existing.leadId}`);
+    }
+
+    return { success: true, data: undefined };
+  } catch (e) {
+    console.error('[updateSurveyAddressAction]', e);
     return { success: false, error: e instanceof Error ? e.message : 'Lỗi hệ thống' };
   }
 }

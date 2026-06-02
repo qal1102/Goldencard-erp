@@ -45,6 +45,8 @@ export const LEAD_SOURCE_LABELS: Record<LeadSource, string> = {
 export const ACTIVITY_TYPES = [
   'note',
   'call',
+  'call_attempt',
+  'call_result',
   'status_change',
   'assignment_change',
   'conversion',
@@ -54,9 +56,38 @@ export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 export const ACTIVITY_TYPE_LABELS: Record<ActivityType, string> = {
   note: 'Ghi chú',
   call: 'Ghi nhận cuộc gọi',
+  call_attempt: 'Bấm gọi khách',
+  call_result: 'Kết quả cuộc gọi',
   status_change: 'Cập nhật trạng thái',
   assignment_change: 'Phân công',
   conversion: 'Chuyển đổi khách hàng',
+};
+
+export const CALL_RESULTS = [
+  'no_answer',
+  'consulted',
+  'call_back',
+  'survey_agreed',
+  'not_interested',
+  'wrong_number',
+] as const;
+export type CallResult = (typeof CALL_RESULTS)[number];
+
+export const CALL_RESULT_LABELS: Record<CallResult, string> = {
+  no_answer: 'Không bắt máy',
+  consulted: 'Đã tư vấn',
+  call_back: 'Hẹn gọi lại',
+  survey_agreed: 'Hẹn khảo sát',
+  not_interested: 'Không có nhu cầu',
+  wrong_number: 'Sai số',
+};
+
+export type LeadConsultationContext = {
+  customerRequirements?: string | null;
+  consultationNote?: string | null;
+  preferredInstallTime?: string | null;
+  followUpAt?: Date | string | null;
+  lastCallResult?: string | null;
 };
 
 const phoneSchema = z
@@ -103,6 +134,8 @@ const leadInputBase = z.object({
       'Số điện thoại phải có 9–11 chữ số và chỉ chứa số',
     ),
   referralNote: z.string().max(2000).optional(),
+  /** When set, link new opportunity to this existing customer master (no duplicate customer). */
+  customerId: z.string().uuid('ID khách hàng không hợp lệ').optional(),
 });
 
 export const createLeadSchema = leadInputBase.superRefine((data, ctx) => {
@@ -140,6 +173,14 @@ export const addLeadNoteSchema = z.object({
   type: z.enum(['note', 'call'] as const),
 });
 export type AddLeadNoteInput = z.infer<typeof addLeadNoteSchema>;
+
+export const submitCallResultSchema = z.object({
+  callResult: z.enum(CALL_RESULTS),
+  note: z.string().max(2000).optional(),
+  followUpAt: z.string().optional(),
+  customerRequirements: z.string().max(5000).optional(),
+});
+export type SubmitCallResultInput = z.infer<typeof submitCallResultSchema>;
 
 export const leadFiltersSchema = z.object({
   search: z.string().optional(),

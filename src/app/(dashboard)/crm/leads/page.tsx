@@ -17,13 +17,13 @@ export default async function CrmLeadsPage() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="font-heading text-lg font-medium">CRM / Lead</h1>
+          <h1 className="font-heading text-lg font-medium">CRM / Cơ hội</h1>
           <p className="text-xs text-muted-foreground">Quản lý khách tiềm năng</p>
         </div>
         {canCreate && (
           <Button size="sm" nativeButton={false} render={<Link href="/crm/leads/new" />}>
             <PlusIcon className="size-4" />
-            Thêm lead
+            Thêm cơ hội
           </Button>
         )}
       </div>

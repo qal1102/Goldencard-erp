@@ -48,7 +48,13 @@ export async function queryLeadById(id: string) {
         columns: { id: true, name: true },
       },
       customer: {
-        columns: { id: true, code: true },
+        columns: { id: true, code: true, fullName: true, phone: true },
+      },
+      linkedCustomer: {
+        columns: { id: true, code: true, fullName: true, phone: true },
+      },
+      lastContactedByUser: {
+        columns: { id: true, name: true },
       },
     },
   });

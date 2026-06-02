@@ -16,10 +16,17 @@ export default async function CustomerDetailPage({ params }: Props) {
 
   const roles = session?.user?.roles ?? [];
   const canManageSurvey = hasRole(roles, 'admin', 'director', 'sales');
+  const canCreateLead = hasRole(roles, 'admin', 'director', 'sales', 'chief_accountant');
+  const canEdit = hasRole(roles, 'admin', 'director', 'sales', 'chief_accountant');
 
   return (
     <div className="mx-auto w-full max-w-xl">
-      <CustomerDetail customerId={id} canManageSurvey={canManageSurvey} />
+      <CustomerDetail
+        customerId={id}
+        canManageSurvey={canManageSurvey}
+        canCreateLead={canCreateLead}
+        canEdit={canEdit}
+      />
     </div>
   );
 }

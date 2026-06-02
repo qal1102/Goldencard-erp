@@ -75,7 +75,7 @@ function resolveResponsible(
       userId: leadAssignedTo,
       name: userNames.get(leadAssignedTo) ?? null,
       role: 'sales',
-      roleLabel: 'Phụ trách lead',
+      roleLabel: 'Phụ trách cơ hội',
     };
   }
   return null;

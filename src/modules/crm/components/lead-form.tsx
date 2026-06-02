@@ -1,9 +1,10 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowLeftIcon } from 'lucide-react';
+import { LinkIcon } from 'lucide-react';
 import Link from 'next/link';
 import { Controller, useForm, useWatch } from 'react-hook-form';
+import { BackButton } from '@/components/navigation/back-button';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,6 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { ExistingCustomerPhoneAlert } from './existing-customer-phone-alert';
 import { useCreateLead, useUpdateLead } from '../hooks/use-leads';
 import {
   LEAD_SOURCE_LABELS,
@@ -32,6 +34,7 @@ type Props = {
   leadId?: string;
   defaultValues?: Partial<CreateLeadInput>;
   assignableUsers: AssignableUser[];
+  linkedCustomer?: { id: string; code: string; fullName: string };
 };
 
 function FieldError({ message }: { message?: string }) {
@@ -39,7 +42,7 @@ function FieldError({ message }: { message?: string }) {
   return <p className="text-xs text-destructive">{message}</p>;
 }
 
-export function LeadForm({ mode, leadId, defaultValues, assignableUsers }: Props) {
+export function LeadForm({ mode, leadId, defaultValues, assignableUsers, linkedCustomer }: Props) {
   const createLead = useCreateLead();
   const updateLead = useUpdateLead(leadId ?? '');
 
@@ -57,6 +60,7 @@ export function LeadForm({ mode, leadId, defaultValues, assignableUsers }: Props
   });
 
   const selectedSource = useWatch({ control, name: 'source' });
+  const watchedPhone = useWatch({ control, name: 'phone' }) ?? '';
 
   const onSubmit = async (data: CreateLeadInput) => {
     // zodResolver + z.preprocess already normalised the data (empty strings → undefined).
@@ -64,6 +68,7 @@ export function LeadForm({ mode, leadId, defaultValues, assignableUsers }: Props
     // We only clear referral fields when source is not 'referral' to avoid stale hidden values.
     const payload: CreateLeadInput = {
       ...data,
+      customerId: linkedCustomer?.id ?? data.customerId,
       referrerName: data.source === 'referral' ? data.referrerName : undefined,
       referrerPhone: data.source === 'referral' ? data.referrerPhone : undefined,
       referralNote: data.source === 'referral' ? data.referralNote : undefined,
@@ -94,16 +99,31 @@ export function LeadForm({ mode, leadId, defaultValues, assignableUsers }: Props
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          nativeButton={false}
-          render={<Link href={leadId ? `/crm/leads/${leadId}` : '/crm/leads'} />}
-        >
-          <ArrowLeftIcon className="size-4" />
-        </Button>
-        <h1 className="font-medium">{mode === 'create' ? 'Thêm lead mới' : 'Chỉnh sửa lead'}</h1>
+        <BackButton fallbackHref={leadId ? `/crm/leads/${leadId}` : '/crm/leads'} />
+        <h1 className="font-medium">
+          {mode === 'create'
+            ? linkedCustomer
+              ? 'Tạo cơ hội / dự án mới'
+              : 'Thêm cơ hội mới'
+            : 'Chỉnh sửa cơ hội'}
+        </h1>
       </div>
+
+      {linkedCustomer && mode === 'create' && (
+        <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950/30">
+          <LinkIcon className="mt-0.5 size-4 shrink-0 text-blue-600 dark:text-blue-400" />
+          <p className="text-xs text-blue-800 dark:text-blue-200">
+            Cơ hội mới sẽ liên kết với khách hàng hiện có{' '}
+            <Link
+              href={`/crm/customers/${linkedCustomer.id}`}
+              className="font-mono font-medium hover:underline"
+            >
+              {linkedCustomer.code}
+            </Link>{' '}
+            ({linkedCustomer.fullName}). Nhập địa chỉ lắp đặt cho dự án mới bên dưới.
+          </p>
+        </div>
+      )}
 
       <Card>
         <CardHeader>
@@ -137,6 +157,9 @@ export function LeadForm({ mode, leadId, defaultValues, assignableUsers }: Props
                 aria-invalid={Boolean(errors.phone)}
               />
               <FieldError message={errors.phone?.message} />
+              {mode === 'create' && !linkedCustomer && (
+                <ExistingCustomerPhoneAlert phone={watchedPhone} />
+              )}
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -150,6 +173,9 @@ export function LeadForm({ mode, leadId, defaultValues, assignableUsers }: Props
               />
               <FieldError message={errors.email?.message} />
             </div>
+
+            <div className="rounded-lg border border-dashed p-3 flex flex-col gap-3">
+              <p className="text-xs font-medium text-muted-foreground">Địa chỉ lắp đặt dự án</p>
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="address">
@@ -167,6 +193,7 @@ export function LeadForm({ mode, leadId, defaultValues, assignableUsers }: Props
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="province">Tỉnh / Thành phố</Label>
               <Input id="province" placeholder="Hà Nội" {...register('province')} />
+            </div>
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -249,7 +276,7 @@ export function LeadForm({ mode, leadId, defaultValues, assignableUsers }: Props
 
             {assignableUsers.length > 0 && (
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="assignedTo">Phân công cho</Label>
+                <Label htmlFor="assignedTo">Người phụ trách / Sales phụ trách</Label>
                 <Controller
                   control={control}
                   name="assignedTo"
@@ -298,7 +325,7 @@ export function LeadForm({ mode, leadId, defaultValues, assignableUsers }: Props
                 Hủy
               </Button>
               <Button type="submit" disabled={isPending}>
-                {isPending ? 'Đang lưu...' : mode === 'create' ? 'Tạo lead' : 'Lưu thay đổi'}
+                {isPending ? 'Đang lưu...' : mode === 'create' ? 'Tạo cơ hội' : 'Lưu thay đổi'}
               </Button>
             </div>
           </form>

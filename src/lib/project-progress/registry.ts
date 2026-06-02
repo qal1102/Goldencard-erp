@@ -30,8 +30,8 @@ export function getStageResolvers(): readonly StageResolver[] {
 
 /** Bootstrap built-in stage metadata (labels/orders). */
 export function registerCoreStageDefinitions(): void {
-  defineStage({ key: 'lead_no_survey', order: 10, label: 'Lead', module: 'lead' });
-  defineStage({ key: 'lead_terminal', order: 11, label: 'Lead kết thúc', module: 'lead' });
+  defineStage({ key: 'lead_no_survey', order: 10, label: 'Cơ hội', module: 'lead' });
+  defineStage({ key: 'lead_terminal', order: 11, label: 'Cơ hội kết thúc', module: 'lead' });
   defineStage({ key: 'survey_cancelled', order: 25, label: 'Khảo sát đã hủy', module: 'survey' });
   defineStage({
     key: 'survey_in_progress',

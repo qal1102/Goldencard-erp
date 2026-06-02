@@ -10,13 +10,18 @@ import {
   getLeadActivitiesAction,
   getLeadAction,
   getLeadsAction,
+  recordCallAttemptAction,
+  submitCallResultAction,
   updateLeadAction,
+  updateLeadInstallationAddressAction,
   updateLeadStatusAction,
 } from '../actions/lead.actions';
+import type { UpdateAddressInput } from '@/lib/address/address.schema';
 import type {
   AddLeadNoteInput,
   CreateLeadInput,
   LeadFilters,
+  SubmitCallResultInput,
   UpdateLeadInput,
   UpdateLeadStatusInput,
 } from '../schema/lead.schema';
@@ -76,6 +81,9 @@ export function useAssignableUsers() {
   });
 }
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export function useCreateLead() {
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -83,11 +91,25 @@ export function useCreateLead() {
   return useMutation({
     mutationFn: (input: CreateLeadInput) => createLeadAction(input),
     onSuccess: (result) => {
-      if (result.success) {
-        queryClient.invalidateQueries({ queryKey: leadKeys.all });
-        router.push('/crm/leads');
-        router.refresh();
+      if (!result.success) return;
+
+      const leadId = result.data.id;
+      if (!UUID_RE.test(leadId)) {
+        console.error('[useCreateLead] Invalid lead id after create:', leadId);
+        return;
       }
+
+      queryClient.invalidateQueries({ queryKey: leadKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+
+      const params = new URLSearchParams();
+      if (result.data.linkedExistingCustomer) {
+        params.set('linkedCustomer', result.data.customerCode);
+      } else if (result.data.customerAutoCreated) {
+        params.set('customerCreated', result.data.customerCode);
+      }
+      const query = params.toString();
+      router.push(`/crm/leads/${leadId}${query ? `?${query}` : ''}`);
     },
   });
 }
@@ -100,6 +122,22 @@ export function useUpdateLead(id: string) {
     onSuccess: (result) => {
       if (result.success) {
         queryClient.invalidateQueries({ queryKey: leadKeys.all });
+      }
+    },
+  });
+}
+
+export function useUpdateLeadInstallationAddress(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: UpdateAddressInput) => updateLeadInstallationAddressAction(id, input),
+    onSuccess: (result) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: leadKeys.detail(id) });
+        queryClient.invalidateQueries({ queryKey: leadKeys.all });
+        queryClient.invalidateQueries({ queryKey: ['customers'] });
+        queryClient.invalidateQueries({ queryKey: ['surveys'] });
       }
     },
   });
@@ -147,6 +185,36 @@ export function useAddLeadNote(leadId: string) {
     mutationFn: (input: AddLeadNoteInput) => addLeadNoteAction(leadId, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: leadKeys.activities(leadId) });
+    },
+  });
+}
+
+export function useRecordCallAttempt(leadId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => recordCallAttemptAction(leadId),
+    onSuccess: (result) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: leadKeys.detail(leadId) });
+        queryClient.invalidateQueries({ queryKey: leadKeys.activities(leadId) });
+        queryClient.invalidateQueries({ queryKey: leadKeys.all });
+      }
+    },
+  });
+}
+
+export function useSubmitCallResult(leadId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: SubmitCallResultInput) => submitCallResultAction(leadId, input),
+    onSuccess: (result) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: leadKeys.detail(leadId) });
+        queryClient.invalidateQueries({ queryKey: leadKeys.activities(leadId) });
+        queryClient.invalidateQueries({ queryKey: leadKeys.all });
+      }
     },
   });
 }

@@ -38,3 +38,6 @@ export const customerFiltersSchema = z.object({
   search: z.string().optional(),
 });
 export type CustomerFilters = z.infer<typeof customerFiltersSchema>;
+
+export { updateAddressSchema as updateCustomerAddressSchema } from '@/lib/address/address.schema';
+export type { UpdateAddressInput as UpdateCustomerAddressInput } from '@/lib/address/address.schema';

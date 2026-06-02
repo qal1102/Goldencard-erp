@@ -39,6 +39,16 @@ export default async function NewQuotationPage({ searchParams }: Props) {
   const snapshotPhone = survey.customer?.phone ?? survey.lead?.phone ?? null;
   const snapshotAddress = survey.customer?.address ?? survey.lead?.address ?? null;
 
+  const leadConsultation = survey.lead
+    ? {
+        customerRequirements: survey.lead.customerRequirements,
+        consultationNote: survey.lead.consultationNote,
+        preferredInstallTime: survey.lead.preferredInstallTime,
+        followUpAt: survey.lead.followUpAt,
+        lastCallResult: survey.lead.lastCallResult,
+      }
+    : null;
+
   return (
     <div className="mx-auto w-full max-w-xl">
       <div className="mb-4">
@@ -58,6 +68,7 @@ export default async function NewQuotationPage({ searchParams }: Props) {
           customerPhone: snapshotPhone,
           customerAddress: snapshotAddress,
           technical: buildSurveyTechnicalSource(survey),
+          leadConsultation,
         }}
       />
     </div>

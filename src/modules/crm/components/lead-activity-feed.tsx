@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRightCircleIcon, MessageSquareIcon, PhoneIcon, RefreshCwIcon, UserIcon } from 'lucide-react';
+import { ArrowRightCircleIcon, MessageSquareIcon, PhoneCallIcon, PhoneIcon, RefreshCwIcon, UserIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +20,8 @@ import { ACTIVITY_TYPE_LABELS, type ActivityType } from '../schema/lead.schema';
 const ACTIVITY_ICONS: Record<ActivityType, React.ReactNode> = {
   note: <MessageSquareIcon className="size-3.5" />,
   call: <PhoneIcon className="size-3.5" />,
+  call_attempt: <PhoneCallIcon className="size-3.5" />,
+  call_result: <PhoneIcon className="size-3.5" />,
   status_change: <RefreshCwIcon className="size-3.5" />,
   assignment_change: <UserIcon className="size-3.5" />,
   conversion: <ArrowRightCircleIcon className="size-3.5" />,
@@ -83,7 +85,13 @@ export function LeadActivityFeed({ leadId, readOnly = false }: Props) {
           <div className="flex gap-2">
             <Select value={type} onValueChange={(v) => setType(v as 'note' | 'call')}>
               <SelectTrigger className="w-auto min-w-[11rem] shrink-0">
-                <SelectValue />
+                <SelectValue>
+                  {(value) =>
+                    value === 'call'
+                      ? ACTIVITY_TYPE_LABELS.call
+                      : ACTIVITY_TYPE_LABELS.note
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="note">{ACTIVITY_TYPE_LABELS.note}</SelectItem>

@@ -90,7 +90,7 @@ export function ConvertLeadDialog({ lead, open, onOpenChange, onSuccess }: Props
         <DialogHeader className="shrink-0 p-4 pb-3">
           <DialogTitle>Chuyển thành Khách hàng</DialogTitle>
           <DialogDescription>
-            Xem lại thông tin trước khi tạo hồ sơ khách hàng từ lead{' '}
+            Xem lại thông tin trước khi tạo hồ sơ khách hàng từ cơ hội{' '}
             <strong>{lead.code}</strong>.
           </DialogDescription>
         </DialogHeader>

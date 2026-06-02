@@ -29,7 +29,7 @@ export const PROJECT_DELIVERY_PIPELINE: ProjectModuleKey[] = [
 export const PROJECT_MODULE_CONFIG: Record<ProjectModuleKey, ProjectModuleConfig> = {
   lead: {
     key: 'lead',
-    title: 'Lead',
+    title: 'Cơ hội',
     shortCode: 'LEAD',
     pipelineOrder: 10,
     implemented: true,

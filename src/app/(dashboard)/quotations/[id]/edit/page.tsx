@@ -29,8 +29,9 @@ export default async function EditQuotationPage({ params }: Props) {
     redirect(`/quotations/${id}`);
   }
 
-  const linkedSurvey =
-    quotation.survey?.id != null ? await querySurveyById(quotation.survey.id) : null;
+  const surveyRef = quotation.survey;
+  const surveyId = surveyRef && !Array.isArray(surveyRef) ? surveyRef.id : null;
+  const linkedSurvey = surveyId != null ? await querySurveyById(surveyId) : null;
 
   const isSentEdit = quotation.status === 'sent';
 
@@ -65,8 +66,8 @@ export default async function EditQuotationPage({ params }: Props) {
             quotationId={id}
             isSentEdit={isSentEdit}
             survey={{
-              id: quotation.survey?.id ?? '',
-              code: quotation.survey?.code ?? '',
+              id: surveyId ?? '',
+              code: surveyRef && !Array.isArray(surveyRef) ? surveyRef.code : '',
               customerName: quotation.customerNameSnapshot,
               customerPhone: quotation.customerPhoneSnapshot ?? null,
               customerAddress: quotation.customerAddressSnapshot ?? null,
@@ -90,6 +91,15 @@ export default async function EditQuotationPage({ params }: Props) {
                     projectScale: null,
                     roofAreaM2: null,
                   },
+              leadConsultation: linkedSurvey?.lead
+                ? {
+                    customerRequirements: linkedSurvey.lead.customerRequirements,
+                    consultationNote: linkedSurvey.lead.consultationNote,
+                    preferredInstallTime: linkedSurvey.lead.preferredInstallTime,
+                    followUpAt: linkedSurvey.lead.followUpAt,
+                    lastCallResult: linkedSurvey.lead.lastCallResult,
+                  }
+                : null,
             }}
             defaultValues={{
               validUntil: quotation.validUntil ?? '',

@@ -1,41 +1,59 @@
-import { PhoneIcon } from 'lucide-react';
+import { PhoneIcon, UsersIcon } from 'lucide-react';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
-import type { Customer } from '@/db/schema';
+import type { Customer, Lead } from '@/db/schema';
+import { LeadStatusBadge } from './lead-status-badge';
+import type { LeadStatus } from '../schema/lead.schema';
 
-type CustomerWithLead = Customer & {
+type CustomerWithRelations = Customer & {
   lead: { id: string; code: string } | null;
+  linkedLeads: Pick<Lead, 'id' | 'code' | 'status' | 'createdAt'>[];
+  linkedLeadCount: number;
+  latestLinkedLead: Pick<Lead, 'id' | 'code' | 'status' | 'createdAt'> | null;
 };
 
 type Props = {
-  customer: CustomerWithLead;
+  customer: CustomerWithRelations;
 };
 
 export function CustomerCard({ customer }: Props) {
+  const leadCount = customer.linkedLeadCount ?? customer.linkedLeads?.length ?? 0;
+  const latestLead = customer.latestLinkedLead ?? customer.linkedLeads?.[0] ?? null;
+
   return (
     <Link href={`/crm/customers/${customer.id}`} className="block">
-    <Card className="transition-colors hover:bg-muted/50">
-      <CardContent className="flex flex-col gap-2 p-4">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="font-medium leading-tight">{customer.fullName}</p>
-            <p className="font-mono text-xs text-muted-foreground">{customer.code}</p>
+      <Card className="transition-colors hover:bg-muted/50">
+        <CardContent className="flex flex-col gap-2 p-4">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="font-medium leading-tight">{customer.fullName}</p>
+              <p className="font-mono text-xs text-muted-foreground">{customer.code}</p>
+            </div>
+            {leadCount > 0 && (
+              <span className="flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                <UsersIcon className="size-3" />
+                {leadCount} dự án
+              </span>
+            )}
           </div>
-          {customer.lead && (
-            <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 font-mono text-[11px] text-muted-foreground">
-              {customer.lead.code}
-            </span>
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <PhoneIcon className="size-3.5 shrink-0" />
+            <span>{customer.phone}</span>
+          </div>
+          {customer.province && (
+            <p className="text-xs text-muted-foreground">{customer.province}</p>
           )}
-        </div>
-        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <PhoneIcon className="size-3.5 shrink-0" />
-          <span>{customer.phone}</span>
-        </div>
-        {customer.province && (
-          <p className="text-xs text-muted-foreground">{customer.province}</p>
-        )}
-      </CardContent>
-    </Card>
+          {latestLead && (
+            <div className="flex items-center gap-2 pt-0.5">
+              <span className="font-mono text-[11px] text-muted-foreground">{latestLead.code}</span>
+              <LeadStatusBadge status={latestLead.status as LeadStatus} className="text-[10px]" />
+            </div>
+          )}
+          {!latestLead && customer.lead && (
+            <span className="font-mono text-[11px] text-muted-foreground">{customer.lead.code}</span>
+          )}
+        </CardContent>
+      </Card>
     </Link>
   );
 }

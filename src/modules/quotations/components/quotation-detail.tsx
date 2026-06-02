@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  ArrowLeftIcon,
   CalendarIcon,
   EditIcon,
   FileTextIcon,
@@ -9,6 +8,7 @@ import {
   UserIcon,
 } from 'lucide-react';
 import Link from 'next/link';
+import { BackButton } from '@/components/navigation/back-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +18,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { QuotationStatus } from '../schema/quotation.schema';
 import { isQuotationEditable } from '../lib/quotation-resend';
 import { useQuotation } from '../hooks/use-quotations';
+import { LeadConsultationContextCard } from '@/modules/crm/components/lead-consultation-context-card';
+import type { LeadConsultationContext } from '@/modules/crm/schema/lead.schema';
 import { QuotationStatusBadge } from './quotation-status-badge';
 import { QuotationWorkflowPanel } from './quotation-workflow-panel';
 
@@ -107,18 +109,21 @@ export function QuotationDetail({ quotationId, canWrite, canApprove }: Props) {
   const canEdit = isQuotationEditable(status) && canWrite;
   const editLogs = quotation.editLogs ?? [];
 
+  const leadConsultation: LeadConsultationContext | null = quotation.survey?.lead
+    ? {
+        customerRequirements: quotation.survey.lead.customerRequirements,
+        consultationNote: quotation.survey.lead.consultationNote,
+        preferredInstallTime: quotation.survey.lead.preferredInstallTime,
+        followUpAt: quotation.survey.lead.followUpAt,
+        lastCallResult: quotation.survey.lead.lastCallResult,
+      }
+    : null;
+
   return (
     <div className="flex flex-col gap-4">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          nativeButton={false}
-          render={<Link href="/quotations" />}
-        >
-          <ArrowLeftIcon className="size-4" />
-        </Button>
+        <BackButton fallbackHref="/quotations" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-mono text-sm font-semibold">
@@ -177,6 +182,13 @@ export function QuotationDetail({ quotationId, canWrite, canApprove }: Props) {
         canWrite={canWrite}
         canApprove={canApprove}
       />
+
+      {leadConsultation && (
+        <LeadConsultationContextCard
+          consultation={leadConsultation}
+          title="Nhu cầu khách hàng (từ Lead)"
+        />
+      )}
 
       {/* Customer snapshot */}
       <Card>
