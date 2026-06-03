@@ -43,6 +43,8 @@ import {
   type UpdateSurveyInput,
 } from '../schema/survey.schema';
 import { computeSurveyAggregates, resolveSurveyZones } from '../lib/survey-aggregates';
+import { getSurveyCompletionRequirements } from '../lib/survey-completion-requirements';
+import { SurveyCompletionReadinessPanel } from './survey-completion-readiness';
 import { buildSurveyFormDefaults } from '../lib/survey-form-defaults';
 import { addressesAreSame, buildFullAddress } from '@/lib/address/format-address';
 import { useQuotationBySurvey } from '@/modules/quotations/hooks/use-quotations';
@@ -158,6 +160,7 @@ export function SurveyDetail({
 
   const resolvedZones = resolveSurveyZones(survey);
   const aggregates = computeSurveyAggregates(resolvedZones);
+  const completionRequirements = getSurveyCompletionRequirements(survey);
   const hasDbZones = Boolean(survey.zones && survey.zones.length > 0);
   const projectScale = (survey.projectScale ?? 'single') as ProjectScale;
   const projectType = (survey.projectType ?? 'residential') as ProjectType;
@@ -334,16 +337,25 @@ export function SurveyDetail({
         </Card>
       )}
 
-      {/* Technician complete button */}
+      {/* Technician complete */}
       {isTechnician && !canManage && status === 'assigned' && survey.assignedTo === userId && (
-        <Button
-          className="w-full"
-          onClick={handleComplete}
-          disabled={updateStatus.isPending}
-        >
-          <CheckCircle2Icon className="size-4" />
-          {updateStatus.isPending ? 'Đang lưu...' : 'Đánh dấu hoàn thành'}
-        </Button>
+        <div className="flex flex-col gap-2">
+          {!completionRequirements.canComplete && (
+            <SurveyCompletionReadinessPanel requirements={completionRequirements} />
+          )}
+          {completionRequirements.canComplete &&
+            completionRequirements.warnings.length > 0 && (
+              <SurveyCompletionReadinessPanel requirements={completionRequirements} />
+            )}
+          <Button
+            className="w-full"
+            onClick={handleComplete}
+            disabled={updateStatus.isPending || !completionRequirements.canComplete}
+          >
+            <CheckCircle2Icon className="size-4" />
+            {updateStatus.isPending ? 'Đang lưu...' : 'Đánh dấu hoàn thành'}
+          </Button>
+        </div>
       )}
 
       {/* Survey info */}

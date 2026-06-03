@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { surveyHasTechnicalCompletionGaps } from '../lib/survey-completion-requirements';
 import { useSurveys } from '../hooks/use-surveys';
 import { SURVEY_STATUS_LABELS, SURVEY_STATUSES, type SurveyStatus } from '../schema/survey.schema';
 import { SurveyStatusBadge } from './survey-status-badge';
@@ -126,6 +127,12 @@ export function SurveyList({ isTechnician }: Props) {
                   {!survey.assignedUser && !isTechnician && (
                     <span className="text-amber-600 dark:text-amber-400">Chưa phân công</span>
                   )}
+                  {(survey.status === 'assigned' || survey.status === 'pending') &&
+                    surveyHasTechnicalCompletionGaps(survey) && (
+                      <span className="text-amber-600 dark:text-amber-400">
+                        Thiếu dữ liệu kỹ thuật
+                      </span>
+                    )}
                 </div>
               </CardContent>
             </Card>

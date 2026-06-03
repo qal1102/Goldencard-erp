@@ -32,9 +32,9 @@ import {
   type CheckInSurveyLocationInput,
 } from '../schema/survey.schema';
 import {
-  hasValidSurveyZonesForCompletion,
-  resolveSurveyZones,
-} from '../lib/survey-aggregates';
+  formatSurveyCompletionBlockedMessage,
+  getSurveyCompletionRequirements,
+} from '../lib/survey-completion-requirements';
 import {
   nextSurveyCode,
   querySurveyById,
@@ -758,12 +758,13 @@ export async function updateSurveyStatusAction(
           error: 'Chỉ có thể hoàn thành phiếu ở trạng thái đã phân công',
         };
       }
-      const zones = resolveSurveyZones(existing);
-      if (!hasValidSurveyZonesForCompletion(zones)) {
+      const completionReq = getSurveyCompletionRequirements(existing, {
+        requireAssignedStatus: true,
+      });
+      if (!completionReq.canComplete) {
         return {
           success: false,
-          error:
-            'Phiếu khảo sát cần ít nhất một khu vực hợp lệ (tên khu và công suất hoặc diện tích)',
+          error: formatSurveyCompletionBlockedMessage(completionReq),
         };
       }
     } else {
