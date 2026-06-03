@@ -9,6 +9,12 @@
  */
 
 export { composeProjectProgressView } from './compose';
+export { pickProjectStageResolution } from './pick-stage-resolution';
+export {
+  getDerivedPipelineOrder,
+  hasDownstreamDeliveryRecords,
+  isLeadSalesStatusStale,
+} from './sales-status-staleness';
 export {
   PROJECT_DELIVERY_PIPELINE,
   PROJECT_MODULE_CONFIG,

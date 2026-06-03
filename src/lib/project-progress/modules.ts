@@ -56,7 +56,7 @@ export const PROJECT_MODULE_CONFIG: Record<ProjectModuleKey, ProjectModuleConfig
     title: 'Hợp đồng',
     shortCode: 'HD',
     pipelineOrder: 40,
-    implemented: false,
+    implemented: true,
     buildHref: (id) => `/contracts/${id}`,
   },
   work_order: {
@@ -64,7 +64,7 @@ export const PROJECT_MODULE_CONFIG: Record<ProjectModuleKey, ProjectModuleConfig
     title: 'Lệnh thi công',
     shortCode: 'WO',
     pipelineOrder: 50,
-    implemented: false,
+    implemented: true,
     buildHref: (id) => `/work-orders/${id}`,
   },
   installation: {
@@ -80,7 +80,7 @@ export const PROJECT_MODULE_CONFIG: Record<ProjectModuleKey, ProjectModuleConfig
     title: 'Bàn giao',
     shortCode: 'BGIAO',
     pipelineOrder: 70,
-    implemented: false,
+    implemented: true,
     buildHref: (id) => `/handovers/${id}`,
   },
   warranty: {

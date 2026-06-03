@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Trash2Icon } from 'lucide-react';
 import { Controller, type Control, type UseFormSetValue } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { UpdateQuotationInput } from '../schema/quotation.schema';
-import { getQuotationItemTemplates } from '../lib/quotation-item-templates';
+import {
+  getQuotationItemTemplateLabel,
+  getQuotationItemTemplates,
+} from '../lib/quotation-item-templates';
 import {
   QUOTATION_ITEM_UNIT_CUSTOM,
   QUOTATION_ITEM_UNITS,
@@ -62,6 +66,7 @@ export function QuotationItemRow({
   formatCurrency,
 }: Props) {
   const templates = getQuotationItemTemplates(panelWattageW);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const unitSelectValue = isPresetUnit(unitValue) ? unitValue : QUOTATION_ITEM_UNIT_CUSTOM;
   const showCustomUnit = unitSelectValue === QUOTATION_ITEM_UNIT_CUSTOM;
 
@@ -69,6 +74,7 @@ export function QuotationItemRow({
     if (!templateId) return;
     const template = templates.find((item) => item.id === templateId);
     if (!template) return;
+    setSelectedTemplateId(templateId);
     setValue(`items.${idx}.productName`, template.productName, { shouldValidate: true });
     setValue(`items.${idx}.description`, template.description);
     setValue(`items.${idx}.unit`, template.unit, { shouldValidate: true });
@@ -94,9 +100,13 @@ export function QuotationItemRow({
 
       <div className="flex flex-col gap-1.5">
         <Label className="text-xs">Chọn hạng mục mẫu</Label>
-        <Select onValueChange={applyTemplate}>
+        <Select value={selectedTemplateId} onValueChange={applyTemplate}>
           <SelectTrigger className="w-full">
-            <SelectValue placeholder="Chọn hạng mục mẫu..." />
+            <SelectValue placeholder="Chọn hạng mục mẫu">
+              {(value) =>
+                value ? getQuotationItemTemplateLabel(value, panelWattageW) ?? null : null
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {templates.map((template) => (

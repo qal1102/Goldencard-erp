@@ -1,0 +1,320 @@
+.handoverPrintRoot {
+  min-height: 100vh;
+  background: #ececec;
+  color: #111;
+  padding: 1rem;
+  font-family: var(--font-geist-sans, 'Segoe UI', Arial, sans-serif);
+}
+
+.handoverPrintToolbar {
+  max-width: 210mm;
+  margin: 0 auto 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.handoverPrintPage {
+  max-width: 210mm;
+  margin: 0 auto;
+  background: #fff;
+  color: #111;
+  padding: 16mm 18mm;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.15);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.handoverPrintHeader {
+  text-align: center;
+  border-bottom: 2px solid #111;
+  padding-bottom: 14px;
+  margin-bottom: 20px;
+}
+
+.handoverPrintBrand {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.handoverPrintTitle {
+  margin-top: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.handoverPrintMeta {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #333;
+  line-height: 1.6;
+}
+
+.handoverPrintCancelled {
+  margin-top: 10px;
+  display: inline-block;
+  border: 1px solid #b91c1c;
+  color: #b91c1c;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.handoverPrintSection {
+  margin-bottom: 20px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.handoverPrintSectionTable {
+  break-inside: auto;
+  page-break-inside: auto;
+}
+
+.handoverPrintSectionTitle {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid #999;
+  padding-bottom: 5px;
+  margin-bottom: 10px;
+  color: #222;
+}
+
+.handoverPrintTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.handoverPrintTable td {
+  vertical-align: top;
+  padding: 5px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.handoverPrintTable tr:last-child td {
+  border-bottom: none;
+}
+
+.handoverPrintLabel {
+  width: 42%;
+  color: #444;
+  padding-right: 12px;
+}
+
+.handoverPrintValue {
+  width: 58%;
+  font-weight: 500;
+  color: #111;
+}
+
+.handoverPrintCompanyBlock {
+  font-size: 12px;
+  line-height: 1.65;
+  color: #222;
+}
+
+.handoverPrintBasis {
+  margin: 0;
+  font-size: 12.5px;
+  text-align: justify;
+  color: #222;
+  line-height: 1.65;
+}
+
+.handoverPrintFallbackText {
+  font-size: 12px;
+  font-style: italic;
+  color: #333;
+  margin: 0;
+}
+
+.handoverPrintEquipmentTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.handoverPrintEquipmentTable th,
+.handoverPrintEquipmentTable td {
+  border: 1px solid #bbb;
+  padding: 6px 8px;
+  vertical-align: top;
+  text-align: left;
+}
+
+.handoverPrintEquipmentTable th {
+  background: #f5f5f5;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.handoverPrintEquipmentIndex {
+  width: 36px;
+  text-align: center;
+}
+
+.handoverPrintEquipmentQty {
+  width: 72px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.handoverPrintConfirmation {
+  font-size: 12.5px;
+  text-align: justify;
+  margin: 0 0 10px;
+  color: #222;
+}
+
+.handoverPrintChecklist {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #222;
+}
+
+.handoverPrintChecklist li {
+  margin-bottom: 2px;
+}
+
+.handoverPrintNoteBlock {
+  margin-bottom: 10px;
+}
+
+.handoverPrintNoteBlock:last-child {
+  margin-bottom: 0;
+}
+
+.handoverPrintNoteLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.handoverPrintNoteText {
+  margin: 0;
+  font-size: 12.5px;
+  white-space: pre-wrap;
+}
+
+.handoverPrintLinks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.handoverPrintSignatures {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 28px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.handoverPrintSignatureBox {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.handoverPrintSignatureTitle {
+  font-weight: 700;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.handoverPrintSignatureArea {
+  height: 88px;
+  margin: 10px 0 0;
+}
+
+.handoverPrintSignatureLine {
+  border-top: 1px solid #111;
+  margin: 0 8px;
+}
+
+.handoverPrintSignatureHint {
+  text-align: center;
+  font-size: 11px;
+  padding-top: 6px;
+  color: #333;
+}
+
+.handoverPrintSignaturePrintedName {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: 10px;
+  min-height: 1.2em;
+  color: #111;
+}
+
+.handoverPrintLink {
+  color: #2563eb;
+  text-decoration: underline;
+  word-break: break-all;
+  font-size: 12px;
+}
+
+@media print {
+  .handoverPrintRoot {
+    background: #fff;
+    padding: 0;
+  }
+
+  :global(.noPrint) {
+    display: none !important;
+  }
+
+  .handoverPrintPage {
+    box-shadow: none;
+    max-width: none;
+    width: auto;
+    margin: 0;
+    padding: 0;
+  }
+
+  .handoverPrintLink {
+    color: #111;
+    text-decoration: none;
+  }
+
+  .handoverPrintEquipmentTable th {
+    background: #fff;
+  }
+}
+
+@media screen and (max-width: 640px) {
+  .handoverPrintPage {
+    padding: 12px;
+  }
+
+  .handoverPrintSignatures {
+    grid-template-columns: 1fr;
+  }
+
+  .handoverPrintLabel,
+  .handoverPrintValue {
+    display: block;
+    width: 100%;
+  }
+
+  .handoverPrintEquipmentTable {
+    font-size: 11px;
+  }
+}

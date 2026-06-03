@@ -1,21 +1,19 @@
 import 'server-only';
 
 import ExcelJS from 'exceljs';
+import { GOLDENCARD_COMPANY_ADDRESS, GOLDENCARD_COMPANY_PROFILE } from '@/lib/documents/company-profile';
 import { queryQuotationById } from './quotation.queries';
 
-// ---------------------------------------------------------------------------
-// GoldenCard company profile (quotation export)
-// ---------------------------------------------------------------------------
-
-export const GOLDENCARD_COMPANY_ADDRESS = '3/5B Nguyễn Văn Linh, P.Phú Thuận, Q7, TPHCM';
+// Re-export for existing imports
+export { GOLDENCARD_COMPANY_ADDRESS } from '@/lib/documents/company-profile';
 
 const COMPANY_CONTACT = {
-  email: 'info@goldencard.vn',
-  hotline: '0903 11 72 77',
-  website: 'www.goldencard.vn',
-  bankAccount: '115002807079',
-  bankBeneficiary: 'CÔNG TY TNHH GIẢI PHÁP THẺ VÀNG',
-  bankName: 'VIETIN BANK - CN 4, TPHCM',
+  email: GOLDENCARD_COMPANY_PROFILE.email,
+  hotline: GOLDENCARD_COMPANY_PROFILE.hotline,
+  website: GOLDENCARD_COMPANY_PROFILE.website,
+  bankAccount: GOLDENCARD_COMPANY_PROFILE.bankAccount,
+  bankBeneficiary: GOLDENCARD_COMPANY_PROFILE.bankBeneficiary,
+  bankName: GOLDENCARD_COMPANY_PROFILE.bankName,
   contactPhone: '0903117277',
 } as const;
 

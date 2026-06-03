@@ -13,6 +13,13 @@ export type QuotationItemTemplate = {
   unitPrice: number;
 };
 
+export function getQuotationItemTemplateLabel(
+  templateId: string,
+  panelWattageW = 550,
+): string | undefined {
+  return getQuotationItemTemplates(panelWattageW).find((item) => item.id === templateId)?.label;
+}
+
 export function getQuotationItemTemplates(panelWattageW = 550): QuotationItemTemplate[] {
   const prices = QUOTATION_ITEM_DEFAULT_PRICES;
 

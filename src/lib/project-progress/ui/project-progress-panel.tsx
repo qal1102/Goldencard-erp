@@ -54,8 +54,8 @@ function RecordBlock({ record, showTitle = true }: { record: ProjectRecordRef; s
 
 type Props = {
   progress: ProjectProgressView;
-  /** compact = pipeline card strip; full = lead detail card body */
-  variant?: 'compact' | 'full';
+  /** compact = pipeline card strip; full = detail body; chain = linked records only */
+  variant?: 'compact' | 'full' | 'chain';
 };
 
 /**
@@ -63,6 +63,7 @@ type Props = {
  */
 export function ProjectProgressPanel({ progress, variant = 'full' }: Props) {
   const isCompact = variant === 'compact';
+  const isChainOnly = variant === 'chain';
   const chainModules = ['survey', 'quotation', 'contract', 'work_order'] as const;
   const chainRecords = chainModules
     .map((m) => progress.records[m])
@@ -71,10 +72,12 @@ export function ProjectProgressPanel({ progress, variant = 'full' }: Props) {
   if (isCompact) {
     return (
       <div className="mt-2 space-y-1 border-t border-foreground/5 pt-2">
-        <p className="text-xs font-medium leading-snug text-foreground/90">
+        <p className="text-xs font-semibold leading-snug text-foreground">
           {progress.currentStageLabel}
         </p>
-        <p className="text-[11px] leading-snug text-muted-foreground">{progress.nextAction}</p>
+        <p className="text-[11px] leading-snug text-muted-foreground">
+          Tiếp theo: {progress.nextAction}
+        </p>
         {progress.responsible?.name && (
           <p className="text-[11px] text-muted-foreground">
             {progress.responsible.roleLabel ?? 'Phụ trách'}: {progress.responsible.name}
@@ -108,14 +111,18 @@ export function ProjectProgressPanel({ progress, variant = 'full' }: Props) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-0.5">
-        <Label className="text-xs text-muted-foreground">Giai đoạn hiện tại</Label>
-        <span className="text-sm font-medium">{progress.currentStageLabel}</span>
-      </div>
-      <div className="flex flex-col gap-0.5">
-        <Label className="text-xs text-muted-foreground">Việc cần làm tiếp</Label>
-        <span className="text-sm">{progress.nextAction}</span>
-      </div>
+      {!isChainOnly && (
+        <>
+          <div className="flex flex-col gap-0.5">
+            <Label className="text-xs text-muted-foreground">Chi tiết giai đoạn</Label>
+            <span className="text-sm font-medium">{progress.currentStageLabel}</span>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <Label className="text-xs text-muted-foreground">Việc cần làm tiếp</Label>
+            <span className="text-sm">{progress.nextAction}</span>
+          </div>
+        </>
+      )}
       {progress.responsible?.name && (
         <div className="flex flex-col gap-0.5">
           <Label className="text-xs text-muted-foreground">

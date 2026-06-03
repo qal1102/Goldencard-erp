@@ -88,4 +88,58 @@ export function registerCoreStageDefinitions(): void {
     label: 'Báo giá hết hiệu lực',
     module: 'quotation',
   });
+  defineStage({
+    key: 'contract_draft',
+    order: 65,
+    label: 'Hợp đồng',
+    module: 'contract',
+  });
+  defineStage({
+    key: 'contract_active',
+    order: 70,
+    label: 'Hợp đồng đã ký',
+    module: 'contract',
+  });
+  defineStage({
+    key: 'work_order_created',
+    order: 75,
+    label: 'Lệnh thi công',
+    module: 'work_order',
+  });
+  defineStage({
+    key: 'work_order_in_progress',
+    order: 80,
+    label: 'Đang thi công',
+    module: 'work_order',
+  });
+  defineStage({
+    key: 'work_order_completed',
+    order: 85,
+    label: 'Thi công hoàn thành',
+    module: 'work_order',
+  });
+  defineStage({
+    key: 'work_order_cancelled',
+    order: 74,
+    label: 'Lệnh thi công đã hủy',
+    module: 'work_order',
+  });
+  defineStage({
+    key: 'handover_pending',
+    order: 90,
+    label: 'Chờ bàn giao',
+    module: 'handover',
+  });
+  defineStage({
+    key: 'handover_completed',
+    order: 95,
+    label: 'Đã bàn giao',
+    module: 'handover',
+  });
+  defineStage({
+    key: 'handover_cancelled',
+    order: 89,
+    label: 'Phiếu bàn giao đã hủy',
+    module: 'handover',
+  });
 }

@@ -134,6 +134,27 @@
       "when": 1749787200000,
       "tag": "0018_phase2d1_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1749873600000,
+      "tag": "0019_phase4b_contracts",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1749960000000,
+      "tag": "0020_phase4c_contract_g2_signed_info",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1750046400000,
+      "tag": "0021_phase5a_work_orders",
+      "breakpoints": true
     }
   ]
 }

@@ -2,7 +2,28 @@ import 'server-only';
 
 import { desc, inArray, sql } from 'drizzle-orm';
 import { db } from '@/db';
-import { leads, quotationEditLogs, quotations, surveys, users } from '@/db/schema';
+import {
+  CONTRACT_STATUS_LABELS,
+  type ContractStatus,
+} from '@/modules/contracts/schema/contract.schema';
+import {
+  contracts,
+  handovers,
+  leads,
+  quotationEditLogs,
+  quotations,
+  surveys,
+  users,
+  workOrders,
+} from '@/db/schema';
+import {
+  WORK_ORDER_STATUS_LABELS,
+  type WorkOrderStatus,
+} from '@/modules/work-orders/schema/work-order.schema';
+import {
+  HANDOVER_STATUS_LABELS,
+  type HandoverStatus,
+} from '@/modules/handovers/schema/handover.schema';
 import { getLeadStatusLabel } from '@/modules/crm/lib/lead-labels';
 import { computeNeedsResend } from '@/modules/quotations/lib/quotation-resend';
 import {
@@ -57,6 +78,10 @@ function formatQuotationDetail(revisionNumber: number, grandTotal: string): stri
   return `v${revisionNumber} · ${grandTotal}`;
 }
 
+function formatContractDetail(contractValue: string): string {
+  return contractValue;
+}
+
 function resolveResponsible(
   leadAssignedTo: string | null,
   surveyAssignedTo: string | null,
@@ -79,6 +104,37 @@ function resolveResponsible(
     };
   }
   return null;
+}
+
+function attachWorkOrderAndHandover(
+  records: ProjectContext['records'],
+  workOrderRow: { id: string; code: string; status: string },
+  handoverByWorkOrderId: Map<
+    string,
+    { id: string; code: string; status: string; workOrderId: string }
+  >,
+) {
+  records.work_order = buildRecordRef({
+    module: 'work_order',
+    entityId: workOrderRow.id,
+    code: workOrderRow.code,
+    status: workOrderRow.status,
+    statusLabel:
+      WORK_ORDER_STATUS_LABELS[workOrderRow.status as WorkOrderStatus] ??
+      workOrderRow.status,
+  });
+
+  const handoverRow = handoverByWorkOrderId.get(workOrderRow.id);
+  if (handoverRow) {
+    records.handover = buildRecordRef({
+      module: 'handover',
+      entityId: handoverRow.id,
+      code: handoverRow.code,
+      status: handoverRow.status,
+      statusLabel:
+        HANDOVER_STATUS_LABELS[handoverRow.status as HandoverStatus] ?? handoverRow.status,
+    });
+  }
 }
 
 /**
@@ -137,6 +193,78 @@ export async function loadProjectContextForLeadAnchors(
   const quotationBySurveyId = latestQuotationPerSurvey(quotationRows);
 
   const quotationIds = [...quotationBySurveyId.values()].map((q) => q.id);
+
+  const contractRows =
+    quotationIds.length > 0
+      ? await db.query.contracts.findMany({
+          where: inArray(contracts.quotationId, quotationIds),
+          columns: {
+            id: true,
+            code: true,
+            status: true,
+            quotationId: true,
+            contractValue: true,
+          },
+        })
+      : [];
+  const contractByQuotationId = new Map(
+    contractRows.map((c) => [c.quotationId, c]),
+  );
+
+  const contractIds = contractRows.map((c) => c.id);
+  const [workOrderByContractRows, workOrderByLeadRows] = await Promise.all([
+    contractIds.length > 0
+      ? db.query.workOrders.findMany({
+          where: inArray(workOrders.contractId, contractIds),
+          columns: {
+            id: true,
+            code: true,
+            status: true,
+            contractId: true,
+            leadId: true,
+          },
+        })
+      : Promise.resolve([]),
+    db.query.workOrders.findMany({
+      where: inArray(workOrders.leadId, uniqueIds),
+      columns: {
+        id: true,
+        code: true,
+        status: true,
+        contractId: true,
+        leadId: true,
+      },
+    }),
+  ]);
+  const workOrderByContractId = new Map(
+    workOrderByContractRows.map((wo) => [wo.contractId, wo]),
+  );
+  const workOrderByLeadId = new Map(
+    workOrderByLeadRows
+      .filter((wo): wo is typeof wo & { leadId: string } => Boolean(wo.leadId))
+      .map((wo) => [wo.leadId, wo]),
+  );
+  const workOrderIds = [
+    ...new Set([
+      ...workOrderByContractRows.map((wo) => wo.id),
+      ...workOrderByLeadRows.map((wo) => wo.id),
+    ]),
+  ];
+  const handoverRows =
+    workOrderIds.length > 0
+      ? await db.query.handovers.findMany({
+          where: inArray(handovers.workOrderId, workOrderIds),
+          columns: {
+            id: true,
+            code: true,
+            status: true,
+            workOrderId: true,
+          },
+        })
+      : [];
+  const handoverByWorkOrderId = new Map(
+    handoverRows.map((handover) => [handover.workOrderId, handover]),
+  );
   const latestEditRows =
     quotationIds.length > 0
       ? await db
@@ -229,6 +357,33 @@ export async function loadProjectContextForLeadAnchors(
         ),
         meta: { needsResend, revisionNumber: quotationRow.revisionNumber },
       });
+
+      const contractRow = contractByQuotationId.get(quotationRow.id);
+      if (contractRow) {
+        records.contract = buildRecordRef({
+          module: 'contract',
+          entityId: contractRow.id,
+          code: contractRow.code,
+          status: contractRow.status,
+          statusLabel:
+            CONTRACT_STATUS_LABELS[contractRow.status as ContractStatus] ??
+            contractRow.status,
+          detail: formatContractDetail(contractRow.contractValue),
+        });
+
+        const workOrderRow =
+          workOrderByContractId.get(contractRow.id) ?? workOrderByLeadId.get(lead.id);
+        if (workOrderRow) {
+          attachWorkOrderAndHandover(records, workOrderRow, handoverByWorkOrderId);
+        }
+      }
+    }
+
+    if (!records.work_order) {
+      const workOrderRow = workOrderByLeadId.get(lead.id);
+      if (workOrderRow) {
+        attachWorkOrderAndHandover(records, workOrderRow, handoverByWorkOrderId);
+      }
     }
 
     contextMap.set(lead.id, {

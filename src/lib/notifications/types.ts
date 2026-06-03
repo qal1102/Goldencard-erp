@@ -10,6 +10,9 @@ export const NOTIFICATION_TYPES = {
   QUOTATION_NEEDS_REVISION: 'quotation.needs_revision',
   QUOTATION_NO_RESPONSE: 'quotation.no_response',
   QUOTATION_EXPIRED: 'quotation.expired',
+  CONTRACT_CREATED: 'contract.created',
+  WORK_ORDER_CREATED: 'work_order.created',
+  HANDOVER_CREATED: 'handover.created',
 } as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[keyof typeof NOTIFICATION_TYPES];

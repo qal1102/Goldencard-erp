@@ -38,9 +38,15 @@ export const PROJECT_STAGE_KEYS = [
   // Reserved — wired when modules ship
   'contract_draft',
   'contract_active',
+  'work_order_created',
+  'work_order_in_progress',
+  'work_order_completed',
+  'work_order_cancelled',
   'work_order_planned',
   'installation_in_progress',
   'handover_pending',
+  'handover_completed',
+  'handover_cancelled',
   'warranty_active',
 ] as const;
 

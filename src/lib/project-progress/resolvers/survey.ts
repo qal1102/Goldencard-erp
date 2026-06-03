@@ -16,7 +16,9 @@ export function resolveSurveyStage(ctx: ProjectContext): ProjectStageResolution 
     };
   }
 
-  if (ctx.records.quotation) return null;
+  if (ctx.records.quotation || ctx.records.contract || ctx.records.work_order) {
+    return null;
+  }
 
   if (surveyRef.status === 'pending' || surveyRef.status === 'assigned') {
     const stage = getStageDefinition('survey_in_progress');

@@ -22,6 +22,7 @@ import { LeadConsultationContextCard } from '@/modules/crm/components/lead-consu
 import type { LeadConsultationContext } from '@/modules/crm/schema/lead.schema';
 import { SurveyPhotoLinks } from '@/modules/surveys/components/survey-photo-links';
 import { QuotationStatusBadge } from './quotation-status-badge';
+import { QuotationContractPanel } from '@/modules/contracts/components/quotation-contract-panel';
 import { QuotationWorkflowPanel } from './quotation-workflow-panel';
 
 // ---------------------------------------------------------------------------
@@ -182,6 +183,12 @@ export function QuotationDetail({ quotationId, canWrite, canApprove }: Props) {
         quotation={quotation}
         canWrite={canWrite}
         canApprove={canApprove}
+      />
+
+      <QuotationContractPanel
+        quotationId={quotationId}
+        isAccepted={isAccepted}
+        canWrite={canWrite}
       />
 
       {leadConsultation && (

@@ -1,5 +1,5 @@
 import { splitUpstreamDownstream } from './modules';
-import { getStageResolvers } from './registry';
+import { pickProjectStageResolution } from './pick-stage-resolution';
 import type {
   ProjectContext,
   ProjectProgressView,
@@ -19,12 +19,7 @@ function pickResponsible(
  * Add new stages by registering resolvers — do not fork this function per module.
  */
 export function composeProjectProgressView(ctx: ProjectContext): ProjectProgressView {
-  let resolution: ProjectStageResolution | null = null;
-
-  for (const resolver of getStageResolvers()) {
-    resolution = resolver(ctx);
-    if (resolution) break;
-  }
+  const resolution = pickProjectStageResolution(ctx);
 
   if (!resolution) {
     throw new Error(

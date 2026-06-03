@@ -1,8 +1,10 @@
 import {
   ClipboardList,
   FileText,
+  Handshake,
   LayoutDashboard,
   Package,
+  ScrollText,
   Settings,
   Users,
   UserPlus,
@@ -61,6 +63,14 @@ export const mainNavItems: NavItem[] = [
     description: "Lập báo giá, kiểm tra tồn kho và cảnh báo thiếu hàng.",
   },
   {
+    id: "contracts",
+    label: "Hợp đồng",
+    href: "/contracts",
+    icon: ScrollText,
+    phase: "Phase 4",
+    description: "Hợp đồng tạo từ báo giá đã chấp nhận.",
+  },
+  {
     id: "inventory",
     label: "Kho",
     href: "/inventory",
@@ -75,6 +85,14 @@ export const mainNavItems: NavItem[] = [
     icon: Wrench,
     phase: "Phase 5",
     description: "Lập kế hoạch thi công, giám sát và nhập vật tư thực tế.",
+  },
+  {
+    id: "handovers",
+    label: "Bàn giao",
+    href: "/handovers",
+    icon: Handshake,
+    phase: "Phase 5",
+    description: "Phiếu bàn giao sau khi hoàn thành thi công.",
   },
   {
     id: "settings",

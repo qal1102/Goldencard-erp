@@ -24,6 +24,8 @@ const QUOTATION_NEXT: Record<
 export function resolveQuotationStage(ctx: ProjectContext): ProjectStageResolution | null {
   if (ctx.records.survey?.status === 'cancelled') return null;
 
+  if (ctx.records.contract || ctx.records.work_order) return null;
+
   const quotation = ctx.records.quotation;
   if (!quotation) return null;
 

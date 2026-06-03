@@ -32,7 +32,6 @@ import { useCustomer, useUpdateCustomerAddress } from '../hooks/use-customers';
 import { useProjectProgressForLeads } from '../hooks/use-project-progress';
 import type { LeadSource, LeadStatus } from '../schema/lead.schema';
 import { ACTIVITY_TYPE_LABELS, type ActivityType } from '../schema/lead.schema';
-import { LeadProgressSummary } from './lead-progress-summary';
 import { LeadSourceBadge } from './lead-source-badge';
 import { LeadStatusBadge } from './lead-status-badge';
 
@@ -198,6 +197,9 @@ export function CustomerDetail({
             const progress = progressMap?.[lead.id];
             const latestSurvey = progress ? getProgressRecord(progress, 'survey') : null;
             const latestQuotation = progress ? getProgressRecord(progress, 'quotation') : null;
+            const latestContract = progress ? getProgressRecord(progress, 'contract') : null;
+            const latestWorkOrder = progress ? getProgressRecord(progress, 'work_order') : null;
+            const latestHandover = progress ? getProgressRecord(progress, 'handover') : null;
             const installLine = buildFullAddress(lead.address, lead.province);
 
             return (
@@ -209,7 +211,6 @@ export function CustomerDetail({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-mono text-xs font-semibold text-primary">{lead.code}</span>
-                    <LeadStatusBadge status={lead.status as LeadStatus} />
                     <LeadSourceBadge source={lead.source as LeadSource} />
                   </div>
                   {lead.expectedCapacity && (
@@ -218,6 +219,16 @@ export function CustomerDetail({
                     </span>
                   )}
                 </div>
+                {progress ? (
+                  <div className="rounded-md bg-muted/50 px-2 py-1.5">
+                    <p className="text-sm font-semibold leading-snug">{progress.currentStageLabel}</p>
+                    <p className="text-xs text-muted-foreground">Tiếp theo: {progress.nextAction}</p>
+                  </div>
+                ) : null}
+                <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <span>Bán hàng:</span>
+                  <LeadStatusBadge status={lead.status as LeadStatus} className="opacity-90" />
+                </p>
                 {installLine && (
                   <p className="flex items-start gap-1 text-xs text-muted-foreground">
                     <MapPinIcon className="mt-0.5 size-3 shrink-0" />
@@ -229,7 +240,7 @@ export function CustomerDetail({
                     Phụ trách: {lead.assignedUser.name}
                   </p>
                 )}
-                {(latestSurvey || latestQuotation) && (
+                {(latestSurvey || latestQuotation || latestContract || latestWorkOrder || latestHandover) && (
                   <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                     {latestSurvey && (
                       <span>
@@ -247,9 +258,32 @@ export function CustomerDetail({
                         {latestQuotation.statusLabel}
                       </span>
                     )}
+                    {latestContract && (
+                      <span>
+                        HD:{' '}
+                        <span className="font-mono text-primary">{latestContract.code}</span>
+                        {' · '}
+                        {latestContract.statusLabel}
+                      </span>
+                    )}
+                    {latestWorkOrder && (
+                      <span>
+                        LTC:{' '}
+                        <span className="font-mono text-primary">{latestWorkOrder.code}</span>
+                        {' · '}
+                        {latestWorkOrder.statusLabel}
+                      </span>
+                    )}
+                    {latestHandover && (
+                      <span>
+                        BB:{' '}
+                        <span className="font-mono text-primary">{latestHandover.code}</span>
+                        {' · '}
+                        {latestHandover.statusLabel}
+                      </span>
+                    )}
                   </div>
                 )}
-                {progress && <LeadProgressSummary progress={progress} compact />}
               </Link>
             );
           })}

@@ -171,6 +171,8 @@ export function LeadDetail({
         </Card>
       )}
 
+      <LeadProjectProgressCard leadId={leadId} leadStatus={leadTyped.status as LeadStatus} />
+
       <EditableAddressCard
         title="Địa chỉ lắp đặt dự án"
         addressFieldLabel="Địa chỉ lắp đặt"
@@ -193,12 +195,17 @@ export function LeadDetail({
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">Trạng thái</Label>
+            <Label className="text-xs text-muted-foreground">
+              Trạng thái bán hàng / liên hệ ban đầu
+            </Label>
             <LeadStatusSelect
               currentStatus={leadTyped.status as LeadStatus}
               onStatusChange={handleStatusChange}
               disabled={!canEdit || isTerminal}
             />
+            <p className="text-[11px] leading-snug text-muted-foreground">
+              Tiến độ dự án thực tế được lấy từ khảo sát, báo giá, hợp đồng và lệnh thi công.
+            </p>
           </div>
 
           <DetailRow label="Số điện thoại" value={leadTyped.phone} />
@@ -264,8 +271,6 @@ export function LeadDetail({
           )}
         </CardContent>
       </Card>
-
-      <LeadProjectProgressCard leadId={leadId} />
 
       <LeadConsultationCard lead={leadTyped} />
 
