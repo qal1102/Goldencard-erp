@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { PlusIcon, SparklesIcon, Trash2Icon } from 'lucide-react';
+import { PlusIcon, SparklesIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
+import { SurveyPhotoLinks } from '@/modules/surveys/components/survey-photo-links';
 import {
   VAT_PRESETS,
   type CreateQuotationInput,
@@ -19,9 +20,12 @@ import {
 } from '../schema/quotation.schema';
 import {
   generateQuotationItemsFromSurvey,
+  getQuickGenerateStatus,
   parseSurveyTechnicalForQuotation,
   type SurveyTechnicalSource,
 } from '../lib/generate-quotation-items';
+import { QuotationItemRow } from './quotation-item-row';
+import { QuickGenerateStatusPanel } from './quick-generate-status-panel';
 import { useCreateQuotation, useUpdateQuotation } from '../hooks/use-quotations';
 import { LeadConsultationContextCard } from '@/modules/crm/components/lead-consultation-context-card';
 import type { LeadConsultationContext } from '@/modules/crm/schema/lead.schema';
@@ -38,6 +42,7 @@ type SurveyContext = {
   customerPhone: string | null;
   customerAddress: string | null;
   technical: SurveyTechnicalSource;
+  photosNote?: string | null;
   leadConsultation?: LeadConsultationContext | null;
 };
 
@@ -144,6 +149,17 @@ export function QuotationForm(props: Props) {
     [survey.technical],
   );
 
+  const quickGenerateStatus = useMemo(
+    () => getQuickGenerateStatus(survey.technical),
+    [survey.technical],
+  );
+
+  const panelWattageW =
+    parsedTechnical?.panelWattageW ??
+    survey.technical.zones?.[0]?.panelWattageW ??
+    survey.technical.panelWattageW ??
+    550;
+
   // Watchers
   const watchedItems = useWatch({ control, name: 'items' });
   const watchedDiscountType = useWatch({ control, name: 'discountType' });
@@ -151,9 +167,10 @@ export function QuotationForm(props: Props) {
   const watchedVatRate = useWatch({ control, name: 'vatRate' });
 
   const handleGenerateFromSurvey = () => {
-    if (!parsedTechnical) {
+    if (!quickGenerateStatus.canGenerate || !parsedTechnical) {
       alert(
-        'Khảo sát chưa có đủ dữ liệu kỹ thuật (công suất hệ thống hoặc số tấm pin) để tạo hạng mục.',
+        quickGenerateStatus.reason ??
+          'Khảo sát chưa có đủ dữ liệu kỹ thuật (công suất hệ thống hoặc số tấm pin) để tạo hạng mục.',
       );
       return;
     }
@@ -260,6 +277,17 @@ export function QuotationForm(props: Props) {
 
       <SurveyTechnicalSummary survey={survey.technical} />
 
+      {survey.photosNote?.trim() && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Link ảnh/tài liệu khảo sát</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SurveyPhotoLinks value={survey.photosNote} />
+          </CardContent>
+        </Card>
+      )}
+
       {/* Line items */}
       <Card>
         <CardHeader className="gap-3">
@@ -272,17 +300,12 @@ export function QuotationForm(props: Props) {
             size="sm"
             className="w-full"
             onClick={handleGenerateFromSurvey}
-            disabled={!parsedTechnical}
+            disabled={!quickGenerateStatus.canGenerate}
           >
             <SparklesIcon className="size-3.5" />
             Tạo nhanh từ khảo sát
           </Button>
-          {!parsedTechnical && (
-            <p className="text-xs text-muted-foreground">
-              Cần có công suất hệ thống hoặc số tấm pin trên phiếu khảo sát để tạo hạng mục tự
-              động.
-            </p>
-          )}
+          <QuickGenerateStatusPanel status={quickGenerateStatus} surveyId={survey.id} />
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {errors.items?.root && (
@@ -292,106 +315,26 @@ export function QuotationForm(props: Props) {
             <FieldError message={errors.items.message} />
           )}
 
-          {fields.map((field, idx) => {
-            const itemErrors = errors.items?.[idx];
-            return (
-              <div key={field.id} className="flex flex-col gap-2 rounded-lg border p-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-muted-foreground">
-                    Dòng {idx + 1}
-                  </span>
-                  {fields.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => remove(idx)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2Icon className="size-3.5" />
-                    </Button>
-                  )}
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs">
-                    Tên sản phẩm / dịch vụ <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    placeholder="vd: Tấm pin năng lượng mặt trời 550W"
-                    {...register(`items.${idx}.productName`)}
-                    aria-invalid={Boolean(itemErrors?.productName)}
-                  />
-                  <FieldError message={itemErrors?.productName?.message} />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs">Mô tả</Label>
-                  <Input
-                    placeholder="Thông số kỹ thuật, model..."
-                    {...register(`items.${idx}.description`)}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs">
-                      Số lượng <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      type="number"
-                      inputMode="decimal"
-                      min="0"
-                      step="any"
-                      placeholder="1"
-                      {...register(`items.${idx}.quantity`, { valueAsNumber: true })}
-                      aria-invalid={Boolean(itemErrors?.quantity)}
-                    />
-                    <FieldError message={itemErrors?.quantity?.message} />
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs">
-                      Đơn vị <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      placeholder="tấm, bộ, m, m²..."
-                      {...register(`items.${idx}.unit`)}
-                      aria-invalid={Boolean(itemErrors?.unit)}
-                    />
-                    <FieldError message={itemErrors?.unit?.message} />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs">
-                    Đơn giá (₫) <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    min="0"
-                    step="any"
-                    placeholder="0"
-                    {...register(`items.${idx}.unitPrice`, { valueAsNumber: true })}
-                    aria-invalid={Boolean(itemErrors?.unitPrice)}
-                  />
-                  <FieldError message={itemErrors?.unitPrice?.message} />
-                </div>
-
-                {/* Per-item line total preview */}
-                <div className="text-right text-xs text-muted-foreground">
-                  Thành tiền:{' '}
-                  <span className="font-medium tabular-nums text-foreground">
-                    {formatCurrency(
-                      (Number(watchedItems?.[idx]?.quantity) || 0) *
-                        (Number(watchedItems?.[idx]?.unitPrice) || 0),
-                    )}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
+          {fields.map((field, idx) => (
+            <QuotationItemRow
+              key={field.id}
+              idx={idx}
+              control={control}
+              register={register}
+              setValue={setValue}
+              errors={errors.items?.[idx]}
+              unitValue={watchedItems?.[idx]?.unit ?? ''}
+              unitPrice={Number(watchedItems?.[idx]?.unitPrice) || 0}
+              lineTotal={
+                (Number(watchedItems?.[idx]?.quantity) || 0) *
+                (Number(watchedItems?.[idx]?.unitPrice) || 0)
+              }
+              panelWattageW={panelWattageW}
+              canRemove={fields.length > 1}
+              onRemove={() => remove(idx)}
+              formatCurrency={formatCurrency}
+            />
+          ))}
 
           <Button
             type="button"

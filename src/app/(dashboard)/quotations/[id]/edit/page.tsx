@@ -91,6 +91,7 @@ export default async function EditQuotationPage({ params }: Props) {
                     projectScale: null,
                     roofAreaM2: null,
                   },
+              photosNote: linkedSurvey?.photosNote ?? null,
               leadConsultation: linkedSurvey?.lead
                 ? {
                     customerRequirements: linkedSurvey.lead.customerRequirements,

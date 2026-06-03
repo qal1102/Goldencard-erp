@@ -55,6 +55,7 @@ import {
   useUpdateSurveyAddress,
   useUpdateSurveyStatus,
 } from '../hooks/use-surveys';
+import { SurveyPhotoLinks } from './survey-photo-links';
 import { SurveyLocationCheckIn } from './survey-location-check-in';
 import { SurveyPinnedLocationInfo } from './survey-pinned-location-info';
 import { SurveyAggregationSummary } from './survey-aggregation-summary';
@@ -578,7 +579,12 @@ export function SurveyDetail({
               )}
 
               {survey.siteNotes && <DetailRow label="Ghi chú hiện trường" value={survey.siteNotes} />}
-              {survey.photosNote && <DetailRow label="Ảnh hiện trường" value={survey.photosNote} />}
+              {survey.photosNote && (
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-xs text-muted-foreground">Link ảnh/tài liệu khảo sát</Label>
+                  <SurveyPhotoLinks value={survey.photosNote} />
+                </div>
+              )}
               {survey.internalNotes && (
                 <DetailRow label="Ghi chú nội bộ" value={survey.internalNotes} />
               )}

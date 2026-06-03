@@ -70,7 +70,14 @@ const quotationItemSchema = z.object({
     .max(255, 'Tên sản phẩm quá dài'),
   description: z.string().max(1000, 'Mô tả quá dài').optional(),
   quantity: z.number().positive('Số lượng phải lớn hơn 0'),
-  unit: z.string().min(1, 'Đơn vị là bắt buộc').max(50, 'Đơn vị quá dài'),
+  unit: z
+    .string()
+    .min(1, 'Đơn vị tính là bắt buộc')
+    .max(50, 'Đơn vị tính quá dài')
+    .refine(
+      (value) => !/^\d+([.,]\d+)?$/.test(value.trim()),
+      'Đơn vị tính không được là số. Ví dụ: tấm, bộ, m, m².',
+    ),
   unitPrice: z.number().min(0, 'Đơn giá không được âm'),
 });
 export type QuotationItemInput = z.infer<typeof quotationItemSchema>;

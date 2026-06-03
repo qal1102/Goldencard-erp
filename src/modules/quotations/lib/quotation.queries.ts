@@ -49,7 +49,7 @@ export async function queryQuotationById(id: string) {
         columns: { id: true, code: true, fullName: true, phone: true, address: true },
       },
       survey: {
-        columns: { id: true, code: true, status: true, updatedAt: true, leadId: true },
+        columns: { id: true, code: true, status: true, updatedAt: true, leadId: true, photosNote: true },
         with: {
           lead: {
             columns: {

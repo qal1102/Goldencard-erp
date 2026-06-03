@@ -401,14 +401,15 @@ export function SurveyForm({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="sf-photosNote">Ảnh hiện trường</Label>
-            <Input
+            <Label htmlFor="sf-photosNote">Link ảnh/tài liệu khảo sát</Label>
+            <Textarea
               id="sf-photosNote"
-              placeholder="vd: Đã chụp 10 ảnh mái và tủ điện"
+              rows={3}
+              placeholder={'Mỗi dòng một link — Google Drive, Google Photos, Zalo album, OneDrive...'}
               {...register('photosNote')}
             />
             <p className="text-xs text-muted-foreground">
-              Tính năng upload ảnh sẽ có trong bản cập nhật sau.
+              Dán link ảnh/tài liệu hiện trường. Tính năng upload trực tiếp sẽ có trong bản cập nhật sau.
             </p>
           </div>
 

@@ -20,6 +20,7 @@ import { isQuotationEditable } from '../lib/quotation-resend';
 import { useQuotation } from '../hooks/use-quotations';
 import { LeadConsultationContextCard } from '@/modules/crm/components/lead-consultation-context-card';
 import type { LeadConsultationContext } from '@/modules/crm/schema/lead.schema';
+import { SurveyPhotoLinks } from '@/modules/surveys/components/survey-photo-links';
 import { QuotationStatusBadge } from './quotation-status-badge';
 import { QuotationWorkflowPanel } from './quotation-workflow-panel';
 
@@ -222,7 +223,7 @@ export function QuotationDetail({ quotationId, canWrite, canApprove }: Props) {
             Phiếu khảo sát
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-3">
           {quotation.survey ? (
             <Link
               href={`/surveys/${quotation.survey.id}`}
@@ -232,6 +233,12 @@ export function QuotationDetail({ quotationId, canWrite, canApprove }: Props) {
             </Link>
           ) : (
             <span className="text-sm text-muted-foreground">—</span>
+          )}
+          {quotation.survey?.photosNote?.trim() && (
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs text-muted-foreground">Link ảnh/tài liệu khảo sát</Label>
+              <SurveyPhotoLinks value={quotation.survey.photosNote} />
+            </div>
           )}
         </CardContent>
       </Card>

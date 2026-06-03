@@ -166,7 +166,7 @@ export const updateSurveySchema = z
   gridVoltage: z.enum(GRID_VOLTAGES).optional(),
   siteNotes: z.string().max(5000).optional(),
   internalNotes: z.string().max(2000).optional(),
-  photosNote: z.string().max(500).optional(),
+  photosNote: z.string().max(2000).optional(),
   // Technical proposal fields
   recommendedSystemKw: z.string().max(10).optional(),
   panelWattageW: intStringOptional,

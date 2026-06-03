@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChevronDownIcon, Trash2Icon } from 'lucide-react';
 import {
   Controller,
@@ -21,6 +21,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  calcEstimatedKwFromPanels,
+  calcPanelQuantityFromKw,
+  parsePositiveFloat,
+  parsePositiveInt,
+} from '../lib/survey-sizing-calc';
 import {
   INSTALLATION_DIFFICULTIES,
   INSTALLATION_DIFFICULTY_LABELS,
@@ -59,19 +65,38 @@ export function SurveyZoneFormCard({
   const zoneName = useWatch({ control, name: `zones.${index}.zoneName` });
   const recommendedSystemKw = useWatch({ control, name: `zones.${index}.recommendedSystemKw` });
   const panelWattageW = useWatch({ control, name: `zones.${index}.panelWattageW` });
+  const recommendedPanelQuantity = useWatch({
+    control,
+    name: `zones.${index}.recommendedPanelQuantity`,
+  });
+  const [panelQtyManual, setPanelQtyManual] = useState(false);
 
   useEffect(() => {
-    const kw = parseFloat(recommendedSystemKw ?? '');
-    const w = parseInt(panelWattageW ?? '550', 10);
-    if (kw > 0 && w > 0) {
-      setValue(`zones.${index}.recommendedPanelQuantity`, String(Math.ceil((kw * 1000) / w)));
+    if (panelQtyManual) return;
+
+    const kw = parsePositiveFloat(recommendedSystemKw);
+    const panelW = parsePositiveInt(panelWattageW, 550);
+    if (kw > 0 && panelW > 0) {
+      setValue(
+        `zones.${index}.recommendedPanelQuantity`,
+        String(calcPanelQuantityFromKw(kw, panelW)),
+      );
     }
-  }, [recommendedSystemKw, panelWattageW, index, setValue]);
+  }, [recommendedSystemKw, panelWattageW, panelQtyManual, index, setValue]);
+
+  const estimatedSystemKw = useMemo(() => {
+    const qty = parsePositiveInt(recommendedPanelQuantity ?? '');
+    const panelW = parsePositiveInt(panelWattageW, 550);
+    if (qty <= 0 || panelW <= 0) return null;
+    return calcEstimatedKwFromPanels(qty, panelW);
+  }, [recommendedPanelQuantity, panelWattageW]);
 
   const subtitle =
     recommendedSystemKw && parseFloat(recommendedSystemKw) > 0
       ? `${recommendedSystemKw} kWp`
-      : 'Nhập dữ liệu khu vực';
+      : estimatedSystemKw != null
+        ? `~${estimatedSystemKw.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} kWp`
+        : 'Nhập dữ liệu khu vực';
 
   return (
     <details className="group rounded-lg border bg-card" open={defaultOpen}>
@@ -231,7 +256,11 @@ export function SurveyZoneFormCard({
               inputMode="decimal"
               step="0.1"
               min="0"
-              {...register(`zones.${index}.recommendedSystemKw`)}
+              {...register(`zones.${index}.recommendedSystemKw`, {
+                onChange: () => {
+                  setPanelQtyManual(false);
+                },
+              })}
             />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -242,22 +271,40 @@ export function SurveyZoneFormCard({
               inputMode="numeric"
               min="1"
               placeholder="550"
-              {...register(`zones.${index}.panelWattageW`)}
+              {...register(`zones.${index}.panelWattageW`, {
+                onChange: () => {
+                  setPanelQtyManual(false);
+                },
+              })}
             />
             <FieldError message={zoneErrors?.panelWattageW?.message} />
           </div>
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`zone-${index}-recommendedPanelQuantity`}>Số tấm pin (tự tính)</Label>
+          <Label htmlFor={`zone-${index}-recommendedPanelQuantity`}>Số tấm pin</Label>
           <Input
             id={`zone-${index}-recommendedPanelQuantity`}
             type="number"
             inputMode="numeric"
             min="1"
-            {...register(`zones.${index}.recommendedPanelQuantity`)}
+            {...register(`zones.${index}.recommendedPanelQuantity`, {
+              onChange: () => {
+                setPanelQtyManual(true);
+              },
+            })}
           />
-          <p className="text-xs text-muted-foreground">Tự động = ⌈kWp × 1000 ÷ W/tấm⌉</p>
+          <p className="text-xs text-muted-foreground">
+            Tự động tính từ công suất hệ thống và công suất tấm pin. Có thể chỉnh tay.
+          </p>
+          {estimatedSystemKw != null && (
+            <p className="text-xs text-muted-foreground">
+              Công suất ước tính:{' '}
+              <span className="font-medium text-foreground">
+                {estimatedSystemKw.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} kWp
+              </span>
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col gap-1.5">

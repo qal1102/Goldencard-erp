@@ -68,6 +68,7 @@ export default async function NewQuotationPage({ searchParams }: Props) {
           customerPhone: snapshotPhone,
           customerAddress: snapshotAddress,
           technical: buildSurveyTechnicalSource(survey),
+          photosNote: survey.photosNote,
           leadConsultation,
         }}
       />

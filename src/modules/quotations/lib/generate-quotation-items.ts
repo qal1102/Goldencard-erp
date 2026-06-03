@@ -311,13 +311,131 @@ export function parseSurveyTechnicalForQuotation(
   };
 }
 
+export type QuickGenerateStatus = {
+  canGenerate: boolean;
+  reason: string | null;
+  systemKw: string | null;
+  panelQuantity: string | null;
+  panelWattageW: string | null;
+  inverterQuantity: string | null;
+  zoneCount: string | null;
+  missingFields: string[];
+};
+
+function hasPanelWattageOnly(survey: SurveyTechnicalSource): boolean {
+  const zones = survey.zones ?? [];
+  const hasPanelW =
+    (survey.panelWattageW ?? 0) > 0 || zones.some((zone) => (zone.panelWattageW ?? 0) > 0);
+  if (!hasPanelW) return false;
+
+  if (zones.length > 0) {
+    const aggregates = computeSurveyAggregates(zones);
+    return aggregates.totalRecommendedSystemKw <= 0 && aggregates.totalPanelQuantity <= 0;
+  }
+
+  const hasKw = parsePositiveNumber(survey.recommendedSystemKw) > 0;
+  const hasQty = (survey.recommendedPanelQuantity ?? 0) > 0;
+  return !hasKw && !hasQty;
+}
+
+export function getQuickGenerateStatus(survey: SurveyTechnicalSource): QuickGenerateStatus {
+  const parsed = parseSurveyTechnicalForQuotation(survey);
+  const zones = survey.zones ?? [];
+  const aggregates = zones.length > 0 ? computeSurveyAggregates(zones) : null;
+
+  const systemKw =
+    parsed != null
+      ? `${parsed.recommendedSystemKw} kWp`
+      : aggregates && aggregates.totalRecommendedSystemKw > 0
+        ? `${aggregates.totalRecommendedSystemKw} kWp`
+        : survey.recommendedSystemKw
+          ? `${survey.recommendedSystemKw} kWp`
+          : null;
+
+  const panelQuantity =
+    parsed != null
+      ? `${parsed.recommendedPanelQuantity} tấm`
+      : aggregates && aggregates.totalPanelQuantity > 0
+        ? `${aggregates.totalPanelQuantity} tấm`
+        : survey.recommendedPanelQuantity != null && survey.recommendedPanelQuantity > 0
+          ? `${survey.recommendedPanelQuantity} tấm`
+          : null;
+
+  const panelW =
+    parsed?.panelWattageW ??
+    zones[0]?.panelWattageW ??
+    survey.panelWattageW ??
+    null;
+  const panelWattageW = panelW != null && panelW > 0 ? `${panelW} W` : null;
+
+  const inverterQuantity =
+    survey.inverterQuantity != null && survey.inverterQuantity > 0
+      ? `${survey.inverterQuantity} bộ`
+      : null;
+
+  const zoneCount =
+    aggregates != null
+      ? `${aggregates.zoneCount} khu`
+      : zones.length > 0
+        ? `${zones.length} khu`
+        : null;
+
+  const missingFields: string[] = [];
+  if (!systemKw && !panelQuantity) {
+    missingFields.push('Công suất hệ thống hoặc số tấm pin');
+  }
+  if (!panelWattageW) {
+    missingFields.push('Công suất tấm pin');
+  }
+
+  if (parsed) {
+    return {
+      canGenerate: true,
+      reason: null,
+      systemKw,
+      panelQuantity,
+      panelWattageW,
+      inverterQuantity,
+      zoneCount,
+      missingFields: [],
+    };
+  }
+
+  const zonesMissingSizing = zones.filter(
+    (zone) =>
+      zoneRecommendedSystemKw(zone) <= 0 && resolveZonePanelQuantity(zone) <= 0,
+  );
+
+  let reason: string;
+  if (hasPanelWattageOnly(survey)) {
+    reason =
+      'Đã có công suất tấm pin nhưng chưa có công suất hệ thống hoặc số tấm pin.';
+  } else if (zones.length > 1 && zonesMissingSizing.length > 0) {
+    reason =
+      'Một hoặc nhiều khu vực/mái chưa có công suất đề xuất hoặc số tấm pin.';
+  } else {
+    reason = 'Chưa có công suất đề xuất hoặc số tấm pin trong phiếu khảo sát.';
+  }
+
+  return {
+    canGenerate: false,
+    reason,
+    systemKw,
+    panelQuantity,
+    panelWattageW,
+    inverterQuantity,
+    zoneCount,
+    missingFields,
+  };
+}
+
 export function generateQuotationItemsFromSurvey(
   tech: SurveyTechnicalForQuotation,
 ): GeneratedQuotationItem[] {
   const prices = QUOTATION_ITEM_DEFAULT_PRICES;
   const inverterLabel = tech.inverterType.trim()
-    ? `Inverter ${tech.inverterType}`
-    : 'Inverter';
+    ? `Inverter / Bộ hòa lưới ${tech.inverterType}`
+    : 'Inverter / Bộ hòa lưới';
 
   const zoneNote = tech.zoneBreakdownText;
   const panelDescription = appendZoneBreakdown('Thiết bị chính', zoneNote);
