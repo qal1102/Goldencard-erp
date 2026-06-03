@@ -1,12 +1,12 @@
 import 'server-only';
 
-import { createNotificationsForUsers } from './create-notification';
+import { createNotificationsForUsers } from '../create-notification';
 import {
   collectAdminDirectorRecipients,
   collectRecipients,
   queryLeadOwnerUserId,
-} from './recipients';
-import { NOTIFICATION_TYPES } from './types';
+} from '../recipients';
+import { NOTIFICATION_TYPES } from '../types';
 
 type SurveyAssignedParams = {
   surveyId: string;
