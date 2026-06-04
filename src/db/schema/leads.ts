@@ -52,6 +52,9 @@ export const leads = pgTable(
   (table) => [
     index('leads_customer_id_idx').on(table.customerId),
     index('leads_phone_idx').on(table.phone),
+    index('leads_status_idx').on(table.status),
+    index('leads_created_at_idx').on(table.createdAt),
+    index('leads_assigned_to_idx').on(table.assignedTo),
   ],
 );
 

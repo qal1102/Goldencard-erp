@@ -1,4 +1,4 @@
-import { primaryKey, pgTable, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { index, primaryKey, pgTable, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { roles } from './roles';
 import { users } from './users';
 
@@ -14,7 +14,10 @@ export const userRoles = pgTable(
     assignedAt: timestamp('assigned_at').defaultNow().notNull(),
     assignedBy: uuid('assigned_by').references(() => users.id, { onDelete: 'set null' }),
   },
-  (table) => [primaryKey({ columns: [table.userId, table.roleId] })],
+  (table) => [
+    primaryKey({ columns: [table.userId, table.roleId] }),
+    index('user_roles_user_id_idx').on(table.userId),
+  ],
 );
 
 export type UserRole = typeof userRoles.$inferSelect;

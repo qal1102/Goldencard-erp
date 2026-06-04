@@ -14,7 +14,7 @@ export const notificationKeys = {
   unreadCount: () => ['notifications', 'unread-count'] as const,
 };
 
-export function useNotifications(limit = 20) {
+export function useNotifications(limit = 20, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: notificationKeys.list(limit),
     queryFn: async () => {
@@ -22,7 +22,10 @@ export function useNotifications(limit = 20) {
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
-    refetchInterval: 60_000,
+    enabled: options?.enabled ?? true,
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -34,7 +37,9 @@ export function useUnreadNotificationCount() {
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
-    refetchInterval: 30_000,
+    staleTime: 60_000,
+    refetchInterval: 90_000,
+    refetchOnWindowFocus: true,
   });
 }
 

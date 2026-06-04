@@ -34,6 +34,7 @@ export async function queryLeads(filters: LeadFilters = {}) {
       },
     },
     orderBy: [desc(leads.createdAt)],
+    limit: 500,
   });
 }
 

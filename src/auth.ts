@@ -7,6 +7,7 @@ import { db } from '@/db';
 import { roles } from '@/db/schema/roles';
 import { userRoles } from '@/db/schema/user-roles';
 import { users } from '@/db/schema/users';
+import { USER_STATUS_REFRESH_MS } from '@/lib/auth/session-refresh';
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -68,10 +69,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token['id'] = user.id;
         token['roles'] = user.roles ?? [];
         token['isSuperAdmin'] = user.isSuperAdmin ?? false;
+        token['isActive'] = true;
+        token['userStatusCheckedAt'] = Date.now();
       }
 
       const userId = token['id'] as string | undefined;
-      if (userId) {
+      if (!userId) return token;
+
+      const checkedAt = (token['userStatusCheckedAt'] as number | undefined) ?? 0;
+      const shouldRefresh = Date.now() - checkedAt > USER_STATUS_REFRESH_MS;
+
+      if (shouldRefresh) {
         const dbUser = await db.query.users.findFirst({
           where: eq(users.id, userId),
           columns: {
@@ -79,6 +87,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             isSuperAdmin: true,
           },
         });
+
+        token['userStatusCheckedAt'] = Date.now();
 
         if (!dbUser?.isActive) {
           token['isActive'] = false;

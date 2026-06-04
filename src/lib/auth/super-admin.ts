@@ -2,16 +2,17 @@ import 'server-only';
 
 import { eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
+import { cache } from 'react';
 import type { Session } from 'next-auth';
-import { auth } from '@/auth';
 import { db } from '@/db';
 import { users } from '@/db/schema/users';
 import { createAuditLog } from '@/lib/audit/create-audit-log';
+import { verifySession } from '@/lib/auth/dal';
 
-export async function getSuperAdminStatus(userId: string): Promise<{
+export const getSuperAdminStatus = cache(async (userId: string): Promise<{
   isActive: boolean;
   isSuperAdmin: boolean;
-} | null> {
+} | null> => {
   const user = await db.query.users.findFirst({
     where: eq(users.id, userId),
     columns: {
@@ -26,12 +27,12 @@ export async function getSuperAdminStatus(userId: string): Promise<{
     isActive: user.isActive,
     isSuperAdmin: user.isSuperAdmin,
   };
-}
+});
 
-export async function assertSuperAdminFromDb(userId: string): Promise<boolean> {
+export const assertSuperAdminFromDb = cache(async (userId: string): Promise<boolean> => {
   const status = await getSuperAdminStatus(userId);
   return status?.isActive === true && status.isSuperAdmin === true;
-}
+});
 
 export function isSuperAdminSession(session: {
   user: { isSuperAdmin?: boolean };
@@ -60,9 +61,7 @@ export async function requireSuperAdminAction(
 }
 
 export async function requireSuperAdminPage(): Promise<void> {
-  const session = await auth();
-  if (!session?.user?.id) redirect('/login');
-
+  const session = await verifySession();
   const allowed = await assertSuperAdminFromDb(session.user.id);
   if (!allowed) {
     await createAuditLog({

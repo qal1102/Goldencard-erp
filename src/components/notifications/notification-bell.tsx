@@ -141,7 +141,7 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
-  const { data: notifications, isLoading } = useNotifications(15);
+  const { data: notifications, isLoading } = useNotifications(15, { enabled: open });
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
 

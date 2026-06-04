@@ -1,16 +1,16 @@
 import { PlusIcon } from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
-import { auth } from '@/auth';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { verifySession } from '@/lib/auth/dal';
 import { hasRole } from '@/lib/auth/roles';
 import { LeadFilters } from '@/modules/crm/components/lead-filters';
 import { LeadPipeline } from '@/modules/crm/components/lead-pipeline';
 
 export default async function CrmLeadsPage() {
-  const session = await auth();
-  const roles = session?.user?.roles ?? [];
+  const session = await verifySession();
+  const roles = session.user.roles ?? [];
   const canCreate = hasRole(roles, 'admin', 'director', 'sales', 'chief_accountant');
 
   return (

@@ -197,6 +197,13 @@
       "when": 1750564800000,
       "tag": "0027_users_super_admin",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1750651200000,
+      "tag": "0028_performance_indexes",
+      "breakpoints": true
     }
   ]
 }

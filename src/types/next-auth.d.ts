@@ -22,5 +22,6 @@ declare module 'next-auth/jwt' {
     roles?: string[];
     isSuperAdmin?: boolean;
     isActive?: boolean;
+    userStatusCheckedAt?: number;
   }
 }
