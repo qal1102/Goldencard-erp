@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { stopCardNavigation, TappableListCard } from '@/components/ui/tappable-list-card';
 import {
   Select,
   SelectContent,
@@ -83,8 +83,11 @@ export function QuotationList() {
       {!isLoading && quotationList && quotationList.length > 0 && (
         <div className="flex flex-col gap-3">
           {quotationList.map((q) => (
-            <Card key={q.id} className="transition-colors hover:bg-muted/30">
-              <CardContent className="p-4">
+            <TappableListCard
+              key={q.id}
+              href={`/quotations/${q.id}`}
+              ariaLabel={`Xem báo giá ${q.code}`}
+            >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 flex-col gap-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -110,13 +113,13 @@ export function QuotationList() {
                       size="sm"
                       nativeButton={false}
                       render={<Link href={`/quotations/${q.id}`} />}
+                      onClick={stopCardNavigation}
                     >
                       Xem
                     </Button>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+            </TappableListCard>
           ))}
         </div>
       )}

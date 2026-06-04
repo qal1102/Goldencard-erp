@@ -40,7 +40,7 @@ function NotificationItem({
       type="button"
       onClick={() => onOpen(notification)}
       className={cn(
-        'w-full rounded-lg border px-3 py-2.5 text-left transition-colors hover:bg-muted/70',
+        'w-full cursor-pointer rounded-lg border px-3 py-2.5 text-left transition-colors hover:bg-muted/70 active:bg-muted/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         notification.isRead
           ? 'border-transparent bg-transparent'
           : 'border-primary/15 bg-primary/5',

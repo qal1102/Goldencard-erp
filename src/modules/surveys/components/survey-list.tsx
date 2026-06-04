@@ -4,7 +4,7 @@ import { CalendarIcon, UserIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { stopCardNavigation, TappableListCard } from '@/components/ui/tappable-list-card';
 import {
   Select,
   SelectContent,
@@ -82,8 +82,11 @@ export function SurveyList({ isTechnician }: Props) {
       {!isLoading && surveyList && surveyList.length > 0 && (
         <div className="flex flex-col gap-3">
           {surveyList.map((survey) => (
-            <Card key={survey.id} className="transition-colors hover:bg-muted/30">
-              <CardContent className="p-4">
+            <TappableListCard
+              key={survey.id}
+              href={`/surveys/${survey.id}`}
+              ariaLabel={`Xem phiếu khảo sát ${survey.code}`}
+            >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex flex-col gap-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -106,6 +109,7 @@ export function SurveyList({ isTechnician }: Props) {
                     nativeButton={false}
                     render={<Link href={`/surveys/${survey.id}`} />}
                     className="shrink-0"
+                    onClick={stopCardNavigation}
                   >
                     {isTechnician ? 'Mở phiếu' : 'Xem'}
                   </Button>
@@ -134,8 +138,7 @@ export function SurveyList({ isTechnician }: Props) {
                       </span>
                     )}
                 </div>
-              </CardContent>
-            </Card>
+            </TappableListCard>
           ))}
         </div>
       )}

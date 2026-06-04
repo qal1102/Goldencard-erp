@@ -17,10 +17,12 @@ const COMPANY_CONTACT = {
   contactPhone: '0903117277',
 } as const;
 
-const DEFAULT_WARRANTY_TEXT =
+/** Shared with browser print document (quotation print route). */
+export const QUOTATION_PRINT_WARRANTY_TEXT =
   'Bảo hành Trọn Gói Biến Tần Inverter, Battery  5 năm 1 đổi 1 lỗi đến từ nhà sản xuất. 5 năm tiếp theo miễn phí sữa chữa và hỗ trợ cài đặt. Tấm pin mặt trời bảo hành 15 năm.';
 
-const DEFAULT_TERMS: string[] = [
+/** Shared with browser print document (quotation print route). */
+export const QUOTATION_PRINT_TERMS_LINES: string[] = [
   'Điều kiện bảo hành được nêu rõ trong chính sách bảo hành, Battery dưới 6000 lần xạc xả',
   'Tặng 1 lần bảo trì trong năm đầu tiên.',
   '',
@@ -426,12 +428,12 @@ export async function buildQuotationXlsxBuffer(data: QuotationExportData): Promi
   row += 1;
 
   // Warranty block
-  mergeSet(sheet, `A${row}:H${row}`, data.note?.trim() || DEFAULT_WARRANTY_TEXT, {
+  mergeSet(sheet, `A${row}:H${row}`, data.note?.trim() || QUOTATION_PRINT_WARRANTY_TEXT, {
     alignment: { wrapText: true, vertical: 'top' },
   });
   row += 1;
 
-  for (const term of DEFAULT_TERMS) {
+  for (const term of QUOTATION_PRINT_TERMS_LINES) {
     if (term === '') {
       row += 1;
       continue;

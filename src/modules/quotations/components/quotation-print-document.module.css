@@ -1,0 +1,314 @@
+.quotationPrintRoot {
+  min-height: 100vh;
+  background: #ececec;
+  color: #111;
+  padding: 1rem;
+  font-family: var(--font-geist-sans, 'Segoe UI', Arial, sans-serif);
+}
+
+.quotationPrintToolbar {
+  max-width: 210mm;
+  margin: 0 auto 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.quotationPrintPage {
+  max-width: 210mm;
+  margin: 0 auto;
+  background: #fff;
+  color: #111;
+  padding: 16mm 18mm;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.15);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.quotationPrintHeader {
+  text-align: center;
+  border-bottom: 2px solid #111;
+  padding-bottom: 14px;
+  margin-bottom: 20px;
+}
+
+.quotationPrintBrand {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.quotationPrintTitle {
+  margin-top: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.quotationPrintMeta {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #333;
+  line-height: 1.6;
+}
+
+.quotationPrintSection {
+  margin-bottom: 20px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.quotationPrintSectionTable {
+  break-inside: auto;
+  page-break-inside: auto;
+}
+
+.quotationPrintSectionTitle {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid #999;
+  padding-bottom: 5px;
+  margin-bottom: 10px;
+  color: #222;
+}
+
+.quotationPrintTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.quotationPrintTable td {
+  vertical-align: top;
+  padding: 5px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.quotationPrintTable tr:last-child td {
+  border-bottom: none;
+}
+
+.quotationPrintLabel {
+  width: 38%;
+  color: #444;
+  padding-right: 12px;
+}
+
+.quotationPrintValue {
+  width: 62%;
+  font-weight: 500;
+  color: #111;
+}
+
+.quotationPrintCompanyBlock {
+  font-size: 12px;
+  line-height: 1.65;
+  color: #222;
+}
+
+.quotationPrintNoteText {
+  margin: 0;
+  font-size: 12.5px;
+  white-space: pre-wrap;
+  color: #222;
+}
+
+.quotationPrintContactNote {
+  margin-top: 10px;
+}
+
+.quotationPrintQuotationNote {
+  margin-bottom: 10px;
+}
+
+.quotationPrintZoneSummary {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  color: #333;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  background: #fafafa;
+}
+
+.quotationPrintFallbackText {
+  font-size: 12px;
+  font-style: italic;
+  color: #333;
+  margin: 0;
+}
+
+.quotationPrintItemsTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.quotationPrintItemsTable th,
+.quotationPrintItemsTable td {
+  border: 1px solid #bbb;
+  padding: 5px 6px;
+  vertical-align: top;
+  text-align: left;
+}
+
+.quotationPrintItemsTable th {
+  background: #f5f5f5;
+  font-weight: 700;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.quotationPrintItemsIndex {
+  width: 28px;
+  text-align: center;
+}
+
+.quotationPrintItemsQty {
+  width: 48px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.quotationPrintItemsMoney {
+  width: 88px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.quotationPrintItemDesc {
+  font-size: 10.5px;
+  color: #444;
+  margin-top: 2px;
+}
+
+.quotationPrintTotalsBlock {
+  margin-top: 12px;
+  font-size: 12.5px;
+  max-width: 320px;
+  margin-left: auto;
+}
+
+.quotationPrintTotalsRow {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  color: #333;
+}
+
+.quotationPrintTotalsGrand {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 13px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #999;
+}
+
+.quotationPrintTermsBlock {
+  font-size: 12px;
+  line-height: 1.65;
+  color: #222;
+}
+
+.quotationPrintTermsBlock p {
+  margin: 0 0 6px;
+}
+
+.quotationPrintWarranty {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  text-align: justify;
+}
+
+.quotationPrintSignatures {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 28px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.quotationPrintSignatureBox {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.quotationPrintSignatureTitle {
+  font-weight: 700;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.quotationPrintSignatureArea {
+  height: 88px;
+  margin: 10px 0 0;
+}
+
+.quotationPrintSignatureLine {
+  border-top: 1px solid #111;
+  margin: 0 8px;
+}
+
+.quotationPrintSignatureHint {
+  text-align: center;
+  font-size: 11px;
+  padding-top: 6px;
+  color: #333;
+}
+
+@media print {
+  .quotationPrintRoot {
+    background: #fff;
+    padding: 0;
+  }
+
+  :global(.noPrint) {
+    display: none !important;
+  }
+
+  .quotationPrintPage {
+    box-shadow: none;
+    max-width: none;
+    width: auto;
+    margin: 0;
+    padding: 0;
+  }
+
+  .quotationPrintItemsTable th {
+    background: #fff;
+  }
+
+  .quotationPrintZoneSummary {
+    background: #fff;
+  }
+}
+
+@media screen and (max-width: 640px) {
+  .quotationPrintPage {
+    padding: 12px;
+  }
+
+  .quotationPrintSignatures {
+    grid-template-columns: 1fr;
+  }
+
+  .quotationPrintLabel,
+  .quotationPrintValue {
+    display: block;
+    width: 100%;
+  }
+
+  .quotationPrintItemsTable {
+    font-size: 10px;
+  }
+}

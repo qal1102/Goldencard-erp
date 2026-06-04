@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { stopCardNavigation, TappableListCard } from '@/components/ui/tappable-list-card';
 import {
   Select,
   SelectContent,
@@ -88,8 +88,12 @@ export function WorkOrderList({ isTechnician = false }: Props) {
 
       {!isLoading &&
         workOrderList?.map((wo) => (
-          <Card key={wo.id}>
-            <CardContent className="flex flex-col gap-2 p-4">
+          <TappableListCard
+            key={wo.id}
+            href={`/work-orders/${wo.id}`}
+            ariaLabel={`Xem lệnh thi công ${wo.code}`}
+            contentClassName="flex flex-col gap-2 p-4"
+          >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -100,7 +104,12 @@ export function WorkOrderList({ isTechnician = false }: Props) {
                     <p className="mt-1 truncate text-sm">{wo.customer.fullName}</p>
                   )}
                 </div>
-                <Button size="sm" variant="outline" render={<Link href={`/work-orders/${wo.id}`} />}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  render={<Link href={`/work-orders/${wo.id}`} />}
+                  onClick={stopCardNavigation}
+                >
                   Xem
                 </Button>
               </div>
@@ -125,8 +134,7 @@ export function WorkOrderList({ isTechnician = false }: Props) {
                   <p className="line-clamp-2">{wo.installationAddress}</p>
                 )}
               </div>
-            </CardContent>
-          </Card>
+          </TappableListCard>
         ))}
     </div>
   );

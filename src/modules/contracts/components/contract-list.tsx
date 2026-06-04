@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { stopCardNavigation, TappableListCard } from '@/components/ui/tappable-list-card';
 import {
   Select,
   SelectContent,
@@ -89,8 +89,11 @@ export function ContractList() {
       {!isLoading && contractList && contractList.length > 0 && (
         <div className="flex flex-col gap-3">
           {contractList.map((c) => (
-            <Card key={c.id} className="transition-colors hover:bg-muted/30">
-              <CardContent className="p-4">
+            <TappableListCard
+              key={c.id}
+              href={`/contracts/${c.id}`}
+              ariaLabel={`Xem hợp đồng ${c.code}`}
+            >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 flex-col gap-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -126,10 +129,10 @@ export function ContractList() {
                     size="sm"
                     nativeButton={false}
                     render={<Link href={`/contracts/${c.id}`}>Xem</Link>}
+                    onClick={stopCardNavigation}
                   />
                 </div>
-              </CardContent>
-            </Card>
+            </TappableListCard>
           ))}
         </div>
       )}

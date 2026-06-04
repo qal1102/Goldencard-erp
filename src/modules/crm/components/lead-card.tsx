@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
+import { tappableListCardClassName } from '@/components/ui/tappable-list-card';
 import type { Lead } from '@/db/schema';
 import { cn } from '@/lib/utils';
 import type { ProjectProgressView } from '@/lib/project-progress/types';
@@ -23,14 +24,12 @@ function formatDate(date: Date | string) {
 
 export function LeadCard({ lead, progress, className }: Props) {
   return (
-    <Link href={`/crm/leads/${lead.id}`}>
-      <Card
-        className={cn(
-          'cursor-pointer transition-shadow hover:shadow-md active:scale-[0.99]',
-          className,
-        )}
-        size="sm"
-      >
+    <Link
+      href={`/crm/leads/${lead.id}`}
+      className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      aria-label={`Xem cơ hội ${lead.fullName}`}
+    >
+      <Card className={cn(tappableListCardClassName, 'hover:shadow-md active:scale-[0.99]', className)} size="sm">
         <CardContent className="p-3">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">

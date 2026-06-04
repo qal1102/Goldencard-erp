@@ -5,6 +5,7 @@ import {
   EditIcon,
   FileTextIcon,
   LockIcon,
+  PrinterIcon,
   UserIcon,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -144,17 +145,28 @@ export function QuotationDetail({ quotationId, canWrite, canApprove }: Props) {
             {quotation.customerNameSnapshot}
           </p>
         </div>
-        {canEdit && (
+        <div className="flex shrink-0 flex-wrap gap-2">
           <Button
             variant="outline"
             size="sm"
             nativeButton={false}
-            render={<Link href={`/quotations/${quotationId}/edit`} />}
+            render={<Link href={`/quotations/${quotationId}/print`} />}
           >
-            <EditIcon className="size-3.5" />
-            Chỉnh sửa
+            <PrinterIcon className="size-3.5" />
+            In / Lưu PDF
           </Button>
-        )}
+          {canEdit && (
+            <Button
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              render={<Link href={`/quotations/${quotationId}/edit`} />}
+            >
+              <EditIcon className="size-3.5" />
+              Chỉnh sửa
+            </Button>
+          )}
+        </div>
       </div>
 
       {quotation.needsResend && (

@@ -1,6 +1,6 @@
 'use client';
 
-import { ExternalLinkIcon, FileTextIcon } from 'lucide-react';
+import { ExternalLinkIcon, FileTextIcon, PrinterIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { BackButton } from '@/components/navigation/back-button';
@@ -209,6 +209,16 @@ export function ContractDetail({ contractId, canWrite, canApprove }: Props) {
               Ngày ký: {formatDate(contract.signedAt)}
             </p>
           )}
+          <div className="mt-2">
+            <Button
+              size="sm"
+              variant="outline"
+              render={<Link href={`/contracts/${contractId}/print`} />}
+            >
+              <PrinterIcon className="size-3.5" />
+              In / Lưu PDF
+            </Button>
+          </div>
         </div>
       </div>
 

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { stopCardNavigation, TappableListCard } from '@/components/ui/tappable-list-card';
 import {
   Select,
   SelectContent,
@@ -78,8 +78,12 @@ export function HandoverList() {
 
       {!isLoading &&
         handoverList?.map((handover) => (
-          <Card key={handover.id}>
-            <CardContent className="flex flex-col gap-2 p-4">
+          <TappableListCard
+            key={handover.id}
+            href={`/handovers/${handover.id}`}
+            ariaLabel={`Xem phiếu bàn giao ${handover.code}`}
+            contentClassName="flex flex-col gap-2 p-4"
+          >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -90,7 +94,12 @@ export function HandoverList() {
                     <p className="mt-1 truncate text-sm">{handover.customer.fullName}</p>
                   )}
                 </div>
-                <Button size="sm" variant="outline" render={<Link href={`/handovers/${handover.id}`} />}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  render={<Link href={`/handovers/${handover.id}`} />}
+                  onClick={stopCardNavigation}
+                >
                   Xem
                 </Button>
               </div>
@@ -103,8 +112,7 @@ export function HandoverList() {
                 )}
                 <p>Ngày bàn giao: {formatDate(handover.handoverAt)}</p>
               </div>
-            </CardContent>
-          </Card>
+          </TappableListCard>
         ))}
     </div>
   );

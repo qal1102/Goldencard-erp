@@ -1,6 +1,7 @@
 import { PhoneIcon, UsersIcon } from 'lucide-react';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
+import { tappableListCardClassName } from '@/components/ui/tappable-list-card';
 import type { Customer, Lead } from '@/db/schema';
 import { LeadStatusBadge } from './lead-status-badge';
 import type { LeadStatus } from '../schema/lead.schema';
@@ -21,8 +22,12 @@ export function CustomerCard({ customer }: Props) {
   const latestLead = customer.latestLinkedLead ?? customer.linkedLeads?.[0] ?? null;
 
   return (
-    <Link href={`/crm/customers/${customer.id}`} className="block">
-      <Card className="transition-colors hover:bg-muted/50">
+    <Link
+      href={`/crm/customers/${customer.id}`}
+      className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      aria-label={`Xem khách hàng ${customer.fullName}`}
+    >
+      <Card className={tappableListCardClassName}>
         <CardContent className="flex flex-col gap-2 p-4">
           <div className="flex items-start justify-between gap-2">
             <div>

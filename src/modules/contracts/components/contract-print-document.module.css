@@ -1,0 +1,355 @@
+.contractPrintRoot {
+  min-height: 100vh;
+  background: #ececec;
+  color: #111;
+  padding: 1rem;
+  font-family: var(--font-geist-sans, 'Segoe UI', Arial, sans-serif);
+}
+
+.contractPrintToolbar {
+  max-width: 210mm;
+  margin: 0 auto 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.contractPrintPage {
+  max-width: 210mm;
+  margin: 0 auto;
+  background: #fff;
+  color: #111;
+  padding: 16mm 18mm;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.15);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.contractPrintHeader {
+  text-align: center;
+  border-bottom: 2px solid #111;
+  padding-bottom: 14px;
+  margin-bottom: 20px;
+}
+
+.contractPrintBrand {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.contractPrintTitle {
+  margin-top: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.contractPrintMeta {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #333;
+  line-height: 1.6;
+}
+
+.contractPrintCancelled {
+  margin-top: 10px;
+  display: inline-block;
+  border: 2px solid #b91c1c;
+  color: #b91c1c;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.contractPrintSection {
+  margin-bottom: 20px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.contractPrintSectionTable {
+  break-inside: auto;
+  page-break-inside: auto;
+}
+
+.contractPrintSectionTitle {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid #999;
+  padding-bottom: 5px;
+  margin-bottom: 10px;
+  color: #222;
+}
+
+.contractPrintSubTitle {
+  font-size: 12px;
+  font-weight: 700;
+  margin: 12px 0 6px;
+  color: #222;
+}
+
+.contractPrintTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.contractPrintTable td {
+  vertical-align: top;
+  padding: 5px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.contractPrintTable tr:last-child td {
+  border-bottom: none;
+}
+
+.contractPrintLabel {
+  width: 38%;
+  color: #444;
+  padding-right: 12px;
+}
+
+.contractPrintValue {
+  width: 62%;
+  font-weight: 500;
+  color: #111;
+}
+
+.contractPrintCompanyBlock {
+  font-size: 12px;
+  line-height: 1.65;
+  color: #222;
+}
+
+.contractPrintBasis {
+  margin: 0;
+  font-size: 12.5px;
+  text-align: justify;
+  color: #222;
+  line-height: 1.65;
+}
+
+.contractPrintPartiesBlock {
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: #222;
+}
+
+.contractPrintPartiesBlock p {
+  margin: 0 0 6px;
+}
+
+.contractPrintRepresentativeLine {
+  margin-top: 8px;
+  min-height: 1.2em;
+}
+
+.contractPrintFallbackText {
+  font-size: 12px;
+  font-style: italic;
+  color: #333;
+  margin: 0;
+}
+
+.contractPrintScopeTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.contractPrintScopeTable th,
+.contractPrintScopeTable td {
+  border: 1px solid #bbb;
+  padding: 6px 8px;
+  vertical-align: top;
+  text-align: left;
+}
+
+.contractPrintScopeTable th {
+  background: #f5f5f5;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.contractPrintScopeIndex {
+  width: 36px;
+  text-align: center;
+}
+
+.contractPrintScopeQty {
+  width: 72px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.contractPrintValueBlock {
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+
+.contractPrintValueTotal {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 13px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #999;
+}
+
+.contractPrintValueRow {
+  display: flex;
+  justify-content: space-between;
+  color: #333;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.contractPrintFootnote {
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  font-style: italic;
+  color: #444;
+}
+
+.contractPrintClauseList {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #222;
+}
+
+.contractPrintClauseList li {
+  margin-bottom: 4px;
+}
+
+.contractPrintNoteBlock {
+  margin-bottom: 10px;
+}
+
+.contractPrintNoteLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.contractPrintNoteText {
+  margin: 0;
+  font-size: 12.5px;
+  white-space: pre-wrap;
+}
+
+.contractPrintLink {
+  color: #2563eb;
+  text-decoration: underline;
+  word-break: break-all;
+  font-size: 12px;
+}
+
+.contractPrintSignatures {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 28px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.contractPrintSignatureBox {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.contractPrintSignatureTitle {
+  font-weight: 700;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.contractPrintSignatureArea {
+  height: 88px;
+  margin: 10px 0 0;
+}
+
+.contractPrintSignatureLine {
+  border-top: 1px solid #111;
+  margin: 0 8px;
+}
+
+.contractPrintSignatureHint {
+  text-align: center;
+  font-size: 11px;
+  padding-top: 6px;
+  color: #333;
+}
+
+.contractPrintSignaturePrintedName {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: 10px;
+  min-height: 1.2em;
+  color: #111;
+}
+
+@media print {
+  .contractPrintRoot {
+    background: #fff;
+    padding: 0;
+  }
+
+  :global(.noPrint) {
+    display: none !important;
+  }
+
+  .contractPrintPage {
+    box-shadow: none;
+    max-width: none;
+    width: auto;
+    margin: 0;
+    padding: 0;
+  }
+
+  .contractPrintLink {
+    color: #111;
+    text-decoration: none;
+  }
+
+  .contractPrintScopeTable th {
+    background: #fff;
+  }
+}
+
+@media screen and (max-width: 640px) {
+  .contractPrintPage {
+    padding: 12px;
+  }
+
+  .contractPrintSignatures {
+    grid-template-columns: 1fr;
+  }
+
+  .contractPrintLabel,
+  .contractPrintValue {
+    display: block;
+    width: 100%;
+  }
+
+  .contractPrintScopeTable {
+    font-size: 11px;
+  }
+}
