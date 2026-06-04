@@ -3,6 +3,9 @@ import 'server-only';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { users } from '@/db/schema';
+import { evaluateCanSetActive } from './admin-user-active.rules';
+
+export { evaluateCanSetActive } from './admin-user-active.rules';
 
 export async function userIsSuperAdmin(userId: string): Promise<boolean> {
   const row = await db
@@ -26,21 +29,10 @@ export async function assertCanSetActive(
   isActive: boolean,
   actorUserId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  if (isActive) return { ok: true };
-
-  if (await userIsSuperAdmin(targetUserId)) {
-    return {
-      ok: false,
-      error: 'Không thể khóa tài khoản Super Admin.',
-    };
-  }
-
-  if (targetUserId === actorUserId) {
-    return {
-      ok: false,
-      error: 'Không thể tự khóa tài khoản của chính bạn.',
-    };
-  }
-
-  return { ok: true };
+  return evaluateCanSetActive({
+    isActive,
+    targetIsSuperAdmin: await userIsSuperAdmin(targetUserId),
+    targetUserId,
+    actorUserId,
+  });
 }

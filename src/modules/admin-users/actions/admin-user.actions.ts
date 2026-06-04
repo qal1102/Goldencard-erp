@@ -21,6 +21,8 @@ import {
 } from '../lib/admin-user.queries';
 import { formatRoleNames } from '../lib/role-labels';
 import {
+  ADMIN_USER_VALIDATION_ERROR,
+  USER_ACTIVE_AUDIT_ACTIONS,
   adminUserFiltersSchema,
   createAdminUserSchema,
   resetAdminUserPasswordSchema,
@@ -251,10 +253,7 @@ export async function updateAdminUserAction(
 
     const parsed = updateAdminUserSchema.safeParse(input);
     if (!parsed.success) {
-      return {
-        success: false,
-        error: parsed.error.issues[0]?.message ?? 'Dữ liệu không hợp lệ',
-      };
+      return { success: false, error: ADMIN_USER_VALIDATION_ERROR };
     }
 
     const existing = await queryAdminUserById(id);
@@ -327,7 +326,9 @@ export async function updateAdminUserAction(
     if (d.isActive !== existing.isActive) {
       await createAuditLog({
         userId: session.user.id,
-        action: d.isActive ? 'user.activate' : 'user.deactivate',
+        action: d.isActive
+          ? USER_ACTIVE_AUDIT_ACTIONS.activate
+          : USER_ACTIVE_AUDIT_ACTIONS.deactivate,
         resource: 'user',
         resourceId: id,
         summary: d.isActive
@@ -420,7 +421,9 @@ export async function setAdminUserActiveAction(
 
     await createAuditLog({
       userId: session.user.id,
-      action: parsed.data.isActive ? 'user.activate' : 'user.deactivate',
+      action: parsed.data.isActive
+        ? USER_ACTIVE_AUDIT_ACTIONS.activate
+        : USER_ACTIVE_AUDIT_ACTIONS.deactivate,
       resource: 'user',
       resourceId: id,
       summary: parsed.data.isActive
