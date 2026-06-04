@@ -14,8 +14,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { Role } from '@/db/schema/roles';
+import type { SerializedAdminUserListRow } from '../lib/admin-user-serialize';
 import { getRoleLabel } from '../lib/role-labels';
-import { useAdminRoles, useAdminUsers } from '../hooks/use-admin-users';
+import {
+  ALL_ROLES_FILTER,
+  normalizeAdminUserFilters,
+  useAdminRoles,
+  useAdminUsers,
+} from '../hooks/use-admin-users';
 import { AdminUserStatusBadge } from './admin-user-status-badge';
 
 function formatDate(date: Date | string): string {
@@ -36,25 +43,88 @@ function formatDateTime(date: Date | string): string {
   });
 }
 
-export function AdminUserList() {
+type AdminUserListProps = {
+  initialUsers?: SerializedAdminUserListRow[];
+  initialRoles?: Role[];
+  initialError?: string | null;
+};
+
+function AdminUserListError({
+  message,
+  onRetry,
+  isRetrying,
+}: {
+  message: string;
+  onRetry: () => void;
+  isRetrying: boolean;
+}) {
+  return (
+    <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-6 text-center">
+      <p className="text-sm font-medium text-destructive">{message}</p>
+      <Button
+        type="button"
+        variant="secondary"
+        className="mt-4 min-h-11"
+        disabled={isRetrying}
+        onClick={onRetry}
+      >
+        {isRetrying ? 'Đang thử lại...' : 'Thử lại'}
+      </Button>
+    </div>
+  );
+}
+
+export function AdminUserList({
+  initialUsers,
+  initialRoles,
+  initialError = null,
+}: AdminUserListProps) {
   const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState('');
+  const [roleFilter, setRoleFilter] = useState(ALL_ROLES_FILTER);
   const [debouncedQ, setDebouncedQ] = useState('');
 
   const filters = useMemo(
-    () => ({
-      q: debouncedQ || undefined,
-      roleId: roleFilter || undefined,
-    }),
+    () =>
+      normalizeAdminUserFilters({
+        q: debouncedQ || undefined,
+        roleId: roleFilter === ALL_ROLES_FILTER ? undefined : roleFilter,
+      }),
     [debouncedQ, roleFilter],
   );
 
-  const { data: users, isLoading } = useAdminUsers(filters);
-  const { data: roles } = useAdminRoles();
+  const hasInitialForFilters =
+    !filters.q && !filters.roleId && initialUsers !== undefined && !initialError;
+
+  const {
+    data: users,
+    isPending,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useAdminUsers(filters, {
+    initialData: hasInitialForFilters ? initialUsers : undefined,
+  });
+
+  const { data: roles } = useAdminRoles({
+    initialData: initialRoles,
+  });
+
+  const showSkeleton = isPending && !users;
+  const showError = !users && (Boolean(initialError) || isError);
+  const errorMessage =
+    initialError ??
+    (error instanceof Error
+      ? error.message
+      : 'Không thể tải danh sách tài khoản. Vui lòng thử lại.');
 
   function handleSearchSubmit(e: React.FormEvent) {
     e.preventDefault();
     setDebouncedQ(search.trim());
+  }
+
+  async function handleRetry() {
+    await refetch();
   }
 
   return (
@@ -75,18 +145,18 @@ export function AdminUserList() {
       </form>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v ?? '')}>
+        <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v ?? ALL_ROLES_FILTER)}>
           <SelectTrigger className="w-full sm:w-52">
             <SelectValue placeholder="Tất cả vai trò">
               {(value) => {
-                if (!value) return 'Tất cả vai trò';
+                if (!value || value === ALL_ROLES_FILTER) return 'Tất cả vai trò';
                 const role = roles?.find((r) => r.id === value);
                 return role ? getRoleLabel(role.name) : 'Tất cả vai trò';
               }}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Tất cả vai trò</SelectItem>
+            <SelectItem value={ALL_ROLES_FILTER}>Tất cả vai trò</SelectItem>
             {roles?.map((role) => (
               <SelectItem key={role.id} value={role.id}>
                 {getRoleLabel(role.name)}
@@ -106,20 +176,32 @@ export function AdminUserList() {
         </Button>
       </div>
 
-      {isLoading && (
+      {isFetching && users && users.length > 0 && (
+        <p className="text-xs text-muted-foreground">Đang cập nhật danh sách...</p>
+      )}
+
+      {showError && (
+        <AdminUserListError
+          message={errorMessage}
+          onRetry={handleRetry}
+          isRetrying={isFetching}
+        />
+      )}
+
+      {showSkeleton && !showError && (
         <div className="flex flex-col gap-3">
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
         </div>
       )}
 
-      {!isLoading && users?.length === 0 && (
+      {!showSkeleton && !showError && users?.length === 0 && (
         <p className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
           Không có tài khoản phù hợp.
         </p>
       )}
 
-      {!isLoading && users && users.length > 0 && (
+      {!showSkeleton && !showError && users && users.length > 0 && (
         <div className="flex flex-col gap-3">
           {users.map((user) => (
             <TappableListCard

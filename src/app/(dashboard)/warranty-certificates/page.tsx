@@ -1,6 +1,8 @@
-import { auth } from '@/auth';
+import { AccessDeniedMessage } from '@/components/ui/access-denied-message';
+import { verifySession } from '@/lib/auth/dal';
 import { hasRole } from '@/lib/auth/roles';
 import { WarrantyCertificateList } from '@/modules/warranty-certificates/components/warranty-certificate-list';
+import { loadWarrantyCertificatesList } from '@/modules/warranty-certificates/lib/warranty-certificate-load';
 
 const CERT_VIEW_ROLES = [
   'admin',
@@ -13,12 +15,14 @@ const CERT_VIEW_ROLES = [
 ] as const;
 
 export default async function WarrantyCertificatesPage() {
-  const session = await auth();
-  const roles = session?.user?.roles ?? [];
+  const session = await verifySession();
+  const roles = session.user.roles ?? [];
 
   if (!hasRole(roles, ...CERT_VIEW_ROLES)) {
-    return null;
+    return <AccessDeniedMessage moduleName="phiếu bảo hành" />;
   }
+
+  const loadResult = await loadWarrantyCertificatesList({}, roles);
 
   return (
     <div className="mx-auto w-full max-w-xl">
@@ -28,7 +32,10 @@ export default async function WarrantyCertificatesPage() {
           Phiếu bảo hành khách hàng sau bàn giao, kèm mã QR tra cứu công khai
         </p>
       </div>
-      <WarrantyCertificateList />
+      <WarrantyCertificateList
+        initialData={loadResult.success ? loadResult.data : undefined}
+        initialError={loadResult.success ? null : loadResult.error}
+      />
     </div>
   );
 }

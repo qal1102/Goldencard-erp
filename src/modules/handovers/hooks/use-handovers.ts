@@ -12,6 +12,7 @@ import {
   updateHandoverInfoAction,
   updateHandoverStatusAction,
 } from '../actions/handover.actions';
+import type { HandoverRow } from '../lib/handover.queries';
 import type {
   CreateHandoverFromWorkOrderInput,
   HandoverFilters,
@@ -19,21 +20,45 @@ import type {
   UpdateHandoverStatusInput,
 } from '../schema/handover.schema';
 
+export function normalizeHandoverFilters(filters: HandoverFilters = {}): HandoverFilters {
+  return {
+    status: filters.status || undefined,
+    customerId: filters.customerId || undefined,
+  };
+}
+
+export function handoverListQueryKey(filters: HandoverFilters = {}) {
+  const n = normalizeHandoverFilters(filters);
+  return ['handovers', 'list', n.status ?? '', n.customerId ?? ''] as const;
+}
+
 export const handoverKeys = {
   all: ['handovers'] as const,
-  list: (filters?: HandoverFilters) => ['handovers', 'list', filters ?? {}] as const,
+  list: handoverListQueryKey,
   detail: (id: string) => ['handovers', 'detail', id] as const,
   byWorkOrder: (workOrderId: string) => ['handovers', 'by-work-order', workOrderId] as const,
 };
 
-export function useHandovers(filters: HandoverFilters = {}) {
+type UseHandoversOptions = {
+  initialData?: HandoverRow[];
+  enabled?: boolean;
+};
+
+export function useHandovers(filters: HandoverFilters = {}, options?: UseHandoversOptions) {
+  const normalized = normalizeHandoverFilters(filters);
+
   return useQuery({
-    queryKey: handoverKeys.list(filters),
+    queryKey: handoverKeys.list(normalized),
     queryFn: async () => {
-      const result = await getHandoversAction(filters);
+      const result = await getHandoversAction(normalized);
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
+    initialData: options?.initialData,
+    enabled: options?.enabled ?? true,
+    staleTime: 30_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 }
 

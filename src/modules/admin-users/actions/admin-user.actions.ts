@@ -14,6 +14,10 @@ import {
   assertCanUpdateRoles,
 } from '../lib/admin-user-safety';
 import {
+  serializeAdminUserList,
+  type SerializedAdminUserListRow,
+} from '../lib/admin-user-serialize';
+import {
   queryAdminUserById,
   queryAdminUsers,
   queryAllRoles,
@@ -108,7 +112,7 @@ async function syncUserRolesSafe(
 
 export async function getAdminUsersAction(
   filters: AdminUserFilters = {},
-): Promise<ActionResult<Awaited<ReturnType<typeof queryAdminUsers>>>> {
+): Promise<ActionResult<SerializedAdminUserListRow[]>> {
   try {
     const session = await getSessionOrThrow();
     await requireSuperAdmin(session, 'list_users');
@@ -118,12 +122,18 @@ export async function getAdminUsersAction(
       return { success: false, error: 'Bộ lọc không hợp lệ' };
     }
 
-    const data = await queryAdminUsers(parsed.data);
+    const data = serializeAdminUserList(await queryAdminUsers(parsed.data));
     return { success: true, data };
   } catch (e) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[admin-users] getAdminUsersAction failed', e);
+    }
     return {
       success: false,
-      error: e instanceof Error ? e.message : 'Không thể tải danh sách tài khoản',
+      error:
+        e instanceof Error && e.message === 'Unauthorized'
+          ? 'Bạn không có quyền truy cập trang này.'
+          : 'Không thể tải danh sách tài khoản. Vui lòng thử lại.',
     };
   }
 }

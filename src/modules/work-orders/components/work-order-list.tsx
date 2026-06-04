@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { ModuleListError } from '@/components/ui/module-list-error';
 import { Button } from '@/components/ui/button';
 import { stopCardNavigation, TappableListCard } from '@/components/ui/tappable-list-card';
 import {
@@ -12,12 +13,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ALL_STATUS_FILTER } from '@/lib/filters/status-filter';
+import type { WorkOrderRow } from '../lib/work-order.queries';
 import {
   WORK_ORDER_STATUS_LABELS,
   WORK_ORDER_STATUSES,
   type WorkOrderStatus,
 } from '../schema/work-order.schema';
-import { useWorkOrders } from '../hooks/use-work-orders';
+import { normalizeWorkOrderFilters, useWorkOrders } from '../hooks/use-work-orders';
 import { WorkOrderStatusBadge } from './work-order-status-badge';
 
 function formatDate(date: Date | string | null | undefined): string {
@@ -31,33 +34,62 @@ function formatDate(date: Date | string | null | undefined): string {
 
 type Props = {
   isTechnician?: boolean;
+  initialData?: WorkOrderRow[];
+  initialError?: string | null;
 };
 
-export function WorkOrderList({ isTechnician = false }: Props) {
-  const [statusFilter, setStatusFilter] = useState<WorkOrderStatus | ''>('');
+export function WorkOrderList({
+  isTechnician = false,
+  initialData,
+  initialError = null,
+}: Props) {
+  const [statusFilter, setStatusFilter] = useState<WorkOrderStatus | typeof ALL_STATUS_FILTER>(
+    ALL_STATUS_FILTER,
+  );
 
-  const { data: workOrderList, isLoading } = useWorkOrders({
-    status: statusFilter || undefined,
-  });
+  const filters = useMemo(
+    () =>
+      normalizeWorkOrderFilters({
+        status: statusFilter === ALL_STATUS_FILTER ? undefined : statusFilter,
+      }),
+    [statusFilter],
+  );
+
+  const hasInitial = statusFilter === ALL_STATUS_FILTER && initialData !== undefined && !initialError;
+
+  const {
+    data: workOrderList,
+    isPending,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useWorkOrders(filters, { initialData: hasInitial ? initialData : undefined });
+
+  const showSkeleton = isPending && !workOrderList;
+  const showError = !workOrderList && (Boolean(initialError) || isError);
+  const errorMessage =
+    initialError ??
+    (error instanceof Error ? error.message : 'Không thể tải danh sách lệnh thi công. Vui lòng thử lại.');
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
         <Select
           value={statusFilter}
-          onValueChange={(v) => setStatusFilter(v as WorkOrderStatus | '')}
+          onValueChange={(v) => setStatusFilter((v ?? ALL_STATUS_FILTER) as WorkOrderStatus | typeof ALL_STATUS_FILTER)}
         >
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Tất cả trạng thái">
               {(value) =>
-                value
+                value && value !== ALL_STATUS_FILTER
                   ? WORK_ORDER_STATUS_LABELS[value as WorkOrderStatus]
                   : 'Tất cả trạng thái'
               }
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Tất cả trạng thái</SelectItem>
+            <SelectItem value={ALL_STATUS_FILTER}>Tất cả trạng thái</SelectItem>
             {WORK_ORDER_STATUSES.map((s) => (
               <SelectItem key={s} value={s}>
                 {WORK_ORDER_STATUS_LABELS[s]}
@@ -73,20 +105,36 @@ export function WorkOrderList({ isTechnician = false }: Props) {
         </p>
       )}
 
-      {isLoading && (
+      {isFetching && workOrderList && workOrderList.length > 0 && (
+        <p className="text-xs text-muted-foreground">Đang cập nhật danh sách...</p>
+      )}
+
+      {showError && (
+        <ModuleListError
+          message={errorMessage}
+          onRetry={() => void refetch()}
+          isRetrying={isFetching}
+        />
+      )}
+
+      {showSkeleton && !showError && (
         <div className="flex flex-col gap-3">
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
         </div>
       )}
 
-      {!isLoading && workOrderList?.length === 0 && (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          Chưa có lệnh thi công
-        </p>
+      {!showSkeleton && !showError && workOrderList?.length === 0 && (
+        <div className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+          <p className="font-medium text-foreground">Chưa có lệnh thi công</p>
+          <p className="mt-2">
+            Lệnh thi công được tạo từ hợp đồng đã ký trong quy trình báo giá và thi công.
+          </p>
+        </div>
       )}
 
-      {!isLoading &&
+      {!showSkeleton &&
+        !showError &&
         workOrderList?.map((wo) => (
           <TappableListCard
             key={wo.id}
@@ -94,46 +142,42 @@ export function WorkOrderList({ isTechnician = false }: Props) {
             ariaLabel={`Xem lệnh thi công ${wo.code}`}
             contentClassName="flex flex-col gap-2 p-4"
           >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-sm font-semibold">{wo.code}</span>
-                    <WorkOrderStatusBadge status={wo.status} />
-                  </div>
-                  {wo.customer && (
-                    <p className="mt-1 truncate text-sm">{wo.customer.fullName}</p>
-                  )}
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-sm font-semibold">{wo.code}</span>
+                  <WorkOrderStatusBadge status={wo.status} />
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  render={<Link href={`/work-orders/${wo.id}`} />}
-                  onClick={stopCardNavigation}
-                >
-                  Xem
-                </Button>
+                {wo.customer && (
+                  <p className="mt-1 truncate text-sm">{wo.customer.fullName}</p>
+                )}
               </div>
-              <div className="grid gap-1 text-xs text-muted-foreground">
-                {wo.contract && (
-                  <p>
-                    Hợp đồng:{' '}
-                    <span className="font-mono text-foreground">{wo.contract.code}</span>
-                  </p>
-                )}
-                {wo.assignedUser && (
-                  <p>Kỹ thuật: {wo.assignedUser.name}</p>
-                )}
+              <Button
+                size="sm"
+                variant="outline"
+                render={<Link href={`/work-orders/${wo.id}`} />}
+                onClick={stopCardNavigation}
+              >
+                Xem
+              </Button>
+            </div>
+            <div className="grid gap-1 text-xs text-muted-foreground">
+              {wo.contract && (
                 <p>
-                  Lịch thi công:{' '}
-                  {wo.scheduledStartAt
-                    ? formatDate(wo.scheduledStartAt)
-                    : '—'}
-                  {wo.scheduledEndAt && ` → ${formatDate(wo.scheduledEndAt)}`}
+                  Hợp đồng:{' '}
+                  <span className="font-mono text-foreground">{wo.contract.code}</span>
                 </p>
-                {wo.installationAddress && (
-                  <p className="line-clamp-2">{wo.installationAddress}</p>
-                )}
-              </div>
+              )}
+              {wo.assignedUser && <p>Kỹ thuật: {wo.assignedUser.name}</p>}
+              <p>
+                Lịch thi công:{' '}
+                {wo.scheduledStartAt ? formatDate(wo.scheduledStartAt) : '—'}
+                {wo.scheduledEndAt && ` → ${formatDate(wo.scheduledEndAt)}`}
+              </p>
+              {wo.installationAddress && (
+                <p className="line-clamp-2">{wo.installationAddress}</p>
+              )}
+            </div>
           </TappableListCard>
         ))}
     </div>

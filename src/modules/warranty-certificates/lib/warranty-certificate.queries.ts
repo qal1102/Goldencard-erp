@@ -24,6 +24,7 @@ export async function queryWarrantyCertificates(filters: WarrantyCertificateFilt
       handover: { columns: { id: true, code: true, status: true } },
     },
     orderBy: [desc(warrantyCertificates.createdAt)],
+    limit: 200,
   });
 }
 

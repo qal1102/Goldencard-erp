@@ -27,6 +27,7 @@ export async function queryWarrantyTickets(filters: WarrantyTicketFilters = {}) 
       assignedUser: { columns: { id: true, name: true } },
     },
     orderBy: [desc(warrantyTickets.reportedAt)],
+    limit: 200,
   });
 }
 

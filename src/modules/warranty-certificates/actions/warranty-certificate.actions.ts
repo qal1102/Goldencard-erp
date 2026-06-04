@@ -7,6 +7,8 @@ import { warrantyCertificates } from '@/db/schema';
 import { createAuditLog } from '@/lib/audit/create-audit-log';
 import { WARRANTY_SUPPORT_HOTLINE } from '../lib/support-phone';
 import { requireRole } from '@/lib/auth/roles';
+import { serializeForClient } from '@/lib/serialize/for-client';
+import { devModuleLogError, MODULE_LIST_ERROR } from '@/lib/server/module-list-log';
 import { queryHandoverById } from '@/modules/handovers/lib/handover.queries';
 import {
   DEFAULT_WARRANTY_TERMS,
@@ -88,10 +90,19 @@ export async function getWarrantyCertificatesAction(
       return { success: false, error: 'Bộ lọc không hợp lệ' };
     }
 
-    const data = await queryWarrantyCertificates(parsed.data);
+    const data = serializeForClient(await queryWarrantyCertificates(parsed.data));
     return { success: true, data };
   } catch (e) {
-    return { success: false, error: e instanceof Error ? e.message : 'Lỗi hệ thống' };
+    devModuleLogError('warranty-certificates', 'getWarrantyCertificatesAction failed', e);
+    return {
+      success: false,
+      error:
+        e instanceof Error && e.message !== 'Unauthorized'
+          ? MODULE_LIST_ERROR
+          : e instanceof Error
+            ? e.message
+            : MODULE_LIST_ERROR,
+    };
   }
 }
 

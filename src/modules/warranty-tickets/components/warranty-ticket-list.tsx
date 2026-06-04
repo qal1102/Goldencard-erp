@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { PlusIcon } from 'lucide-react';
-import { useState } from 'react';
-import { stopCardNavigation, TappableListCard } from '@/components/ui/tappable-list-card';
+import { useMemo, useState } from 'react';
+import { ModuleListError } from '@/components/ui/module-list-error';
 import { Button } from '@/components/ui/button';
+import { stopCardNavigation, TappableListCard } from '@/components/ui/tappable-list-card';
 import {
   Select,
   SelectContent,
@@ -13,6 +14,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ALL_STATUS_FILTER } from '@/lib/filters/status-filter';
+import type { WarrantyTicketRow } from '../lib/warranty-ticket.queries';
 import {
   WARRANTY_TICKET_PRIORITIES,
   WARRANTY_TICKET_PRIORITY_LABELS,
@@ -20,17 +23,16 @@ import {
   type WarrantyTicketPriority,
   type WarrantyTicketStatus,
 } from '../schema/warranty-ticket.schema';
-import { useWarrantyTickets } from '../hooks/use-warranty-tickets';
+import { normalizeWarrantyTicketFilters, useWarrantyTickets } from '../hooks/use-warranty-tickets';
 import { WarrantyTicketPriorityBadge } from './warranty-ticket-priority-badge';
 import { WarrantyTicketStatusBadge } from './warranty-ticket-status-badge';
 
 const LIST_STATUS_FILTER = [
-  '',
   'open',
   'assigned',
   'in_progress',
   'resolved',
-] as const;
+] as const satisfies readonly WarrantyTicketStatus[];
 
 function formatDate(date: Date | string): string {
   return new Date(date).toLocaleDateString('vi-VN', {
@@ -42,38 +44,81 @@ function formatDate(date: Date | string): string {
 
 type Props = {
   canWrite?: boolean;
+  initialData?: WarrantyTicketRow[];
+  initialError?: string | null;
 };
 
-export function WarrantyTicketList({ canWrite = false }: Props) {
-  const [statusFilter, setStatusFilter] = useState<(typeof LIST_STATUS_FILTER)[number]>('');
-  const [priorityFilter, setPriorityFilter] = useState<WarrantyTicketPriority | ''>('');
+export function WarrantyTicketList({
+  canWrite = false,
+  initialData,
+  initialError = null,
+}: Props) {
+  const [statusFilter, setStatusFilter] = useState<WarrantyTicketStatus | typeof ALL_STATUS_FILTER>(
+    ALL_STATUS_FILTER,
+  );
+  const [priorityFilter, setPriorityFilter] = useState<
+    WarrantyTicketPriority | typeof ALL_STATUS_FILTER
+  >(ALL_STATUS_FILTER);
 
-  const { data: tickets, isLoading } = useWarrantyTickets({
-    status: statusFilter || undefined,
-    priority: priorityFilter || undefined,
-  });
+  const filters = useMemo(
+    () =>
+      normalizeWarrantyTicketFilters({
+        status: statusFilter === ALL_STATUS_FILTER ? undefined : statusFilter,
+        priority: priorityFilter === ALL_STATUS_FILTER ? undefined : priorityFilter,
+      }),
+    [statusFilter, priorityFilter],
+  );
+
+  const hasInitial =
+    statusFilter === ALL_STATUS_FILTER &&
+    priorityFilter === ALL_STATUS_FILTER &&
+    initialData !== undefined &&
+    !initialError;
+
+  const {
+    data: tickets,
+    isPending,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useWarrantyTickets(filters, { initialData: hasInitial ? initialData : undefined });
+
+  const showSkeleton = isPending && !tickets;
+  const showError = !tickets && (Boolean(initialError) || isError);
+  const errorMessage =
+    initialError ??
+    (error instanceof Error
+      ? error.message
+      : 'Không thể tải yêu cầu bảo hành/CSKH. Vui lòng thử lại.');
+  const hasActiveFilter =
+    statusFilter !== ALL_STATUS_FILTER || priorityFilter !== ALL_STATUS_FILTER;
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
         <Select
           value={statusFilter}
-          onValueChange={(v) => setStatusFilter(v as (typeof LIST_STATUS_FILTER)[number])}
+          onValueChange={(v) =>
+            setStatusFilter(
+              (v ?? ALL_STATUS_FILTER) as WarrantyTicketStatus | typeof ALL_STATUS_FILTER,
+            )
+          }
         >
           <SelectTrigger className="w-52">
             <SelectValue placeholder="Tất cả trạng thái">
               {(value) =>
-                value
+                value && value !== ALL_STATUS_FILTER
                   ? WARRANTY_TICKET_STATUS_LABELS[value as WarrantyTicketStatus]
                   : 'Tất cả trạng thái'
               }
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Tất cả trạng thái</SelectItem>
-            {LIST_STATUS_FILTER.filter(Boolean).map((s) => (
+            <SelectItem value={ALL_STATUS_FILTER}>Tất cả trạng thái</SelectItem>
+            {LIST_STATUS_FILTER.map((s) => (
               <SelectItem key={s} value={s}>
-                {WARRANTY_TICKET_STATUS_LABELS[s as WarrantyTicketStatus]}
+                {WARRANTY_TICKET_STATUS_LABELS[s]}
               </SelectItem>
             ))}
           </SelectContent>
@@ -81,19 +126,23 @@ export function WarrantyTicketList({ canWrite = false }: Props) {
 
         <Select
           value={priorityFilter}
-          onValueChange={(v) => setPriorityFilter(v as WarrantyTicketPriority | '')}
+          onValueChange={(v) =>
+            setPriorityFilter(
+              (v ?? ALL_STATUS_FILTER) as WarrantyTicketPriority | typeof ALL_STATUS_FILTER,
+            )
+          }
         >
           <SelectTrigger className="w-44">
             <SelectValue placeholder="Mức ưu tiên">
               {(value) =>
-                value
+                value && value !== ALL_STATUS_FILTER
                   ? WARRANTY_TICKET_PRIORITY_LABELS[value as WarrantyTicketPriority]
                   : 'Mức ưu tiên'
               }
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Tất cả mức ưu tiên</SelectItem>
+            <SelectItem value={ALL_STATUS_FILTER}>Tất cả mức ưu tiên</SelectItem>
             {WARRANTY_TICKET_PRIORITIES.map((p) => (
               <SelectItem key={p} value={p}>
                 {WARRANTY_TICKET_PRIORITY_LABELS[p]}
@@ -115,22 +164,40 @@ export function WarrantyTicketList({ canWrite = false }: Props) {
         )}
       </div>
 
-      {isLoading && (
+      {isFetching && tickets && tickets.length > 0 && (
+        <p className="text-xs text-muted-foreground">Đang cập nhật danh sách...</p>
+      )}
+
+      {showError && (
+        <ModuleListError
+          message={errorMessage}
+          onRetry={() => void refetch()}
+          isRetrying={isFetching}
+        />
+      )}
+
+      {showSkeleton && !showError && (
         <div className="flex flex-col gap-3">
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
         </div>
       )}
 
-      {!isLoading && (!tickets || tickets.length === 0) && (
-        <p className="py-12 text-center text-sm text-muted-foreground">
-          {statusFilter || priorityFilter
-            ? 'Không có yêu cầu phù hợp bộ lọc'
-            : 'Chưa có yêu cầu bảo hành/CSKH'}
-        </p>
+      {!showSkeleton && !showError && tickets?.length === 0 && (
+        <div className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+          <p className="font-medium text-foreground">
+            {hasActiveFilter
+              ? 'Không có yêu cầu phù hợp bộ lọc'
+              : 'Chưa có yêu cầu bảo hành/CSKH'}
+          </p>
+          {!hasActiveFilter && (
+            <p className="mt-2">Yêu cầu được tạo sau bàn giao hoặc từ CSKH trực tiếp.</p>
+          )}
+        </div>
       )}
 
-      {!isLoading &&
+      {!showSkeleton &&
+        !showError &&
         tickets?.map((ticket) => (
           <TappableListCard
             key={ticket.id}

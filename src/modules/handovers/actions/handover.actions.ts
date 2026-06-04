@@ -7,6 +7,8 @@ import { db } from '@/db';
 import { handovers } from '@/db/schema';
 import { createAuditLog } from '@/lib/audit/create-audit-log';
 import { requireRole } from '@/lib/auth/roles';
+import { serializeForClient } from '@/lib/serialize/for-client';
+import { devModuleLogError, MODULE_LIST_ERROR } from '@/lib/server/module-list-log';
 import { safeNotify } from '@/lib/notifications/create-notification';
 import {
   notifyHandoverCompleted,
@@ -78,10 +80,19 @@ export async function getHandoversAction(
       return { success: false, error: 'Bộ lọc không hợp lệ' };
     }
 
-    const data = await queryHandovers(parsed.data);
+    const data = serializeForClient(await queryHandovers(parsed.data));
     return { success: true, data };
   } catch (e) {
-    return { success: false, error: e instanceof Error ? e.message : 'Lỗi hệ thống' };
+    devModuleLogError('handovers', 'getHandoversAction failed', e);
+    return {
+      success: false,
+      error:
+        e instanceof Error && e.message !== 'Unauthorized'
+          ? MODULE_LIST_ERROR
+          : e instanceof Error
+            ? e.message
+            : MODULE_LIST_ERROR,
+    };
   }
 }
 

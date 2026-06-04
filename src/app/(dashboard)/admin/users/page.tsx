@@ -1,8 +1,21 @@
 import { requireSuperAdminPage } from '@/lib/auth/super-admin';
 import { AdminUserList } from '@/modules/admin-users/components/admin-user-list';
+import { loadAdminRolesList, loadAdminUsersList } from '@/modules/admin-users/lib/admin-user-load';
 
 export default async function AdminUsersPage() {
   await requireSuperAdminPage();
+
+  const [usersResult, rolesResult] = await Promise.all([
+    loadAdminUsersList({}),
+    loadAdminRolesList(),
+  ]);
+
+  const initialError =
+    !usersResult.success
+      ? usersResult.error
+      : !rolesResult.success
+        ? rolesResult.error
+        : null;
 
   return (
     <div className="mx-auto w-full max-w-xl">
@@ -12,7 +25,11 @@ export default async function AdminUsersPage() {
           Tạo và quản lý tài khoản nhân viên ERP (chỉ Super Admin)
         </p>
       </div>
-      <AdminUserList />
+      <AdminUserList
+        initialUsers={usersResult.success ? usersResult.data : undefined}
+        initialRoles={rolesResult.success ? rolesResult.data : undefined}
+        initialError={initialError}
+      />
     </div>
   );
 }

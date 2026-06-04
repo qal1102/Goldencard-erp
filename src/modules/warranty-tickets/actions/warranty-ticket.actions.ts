@@ -7,6 +7,8 @@ import { db } from '@/db';
 import { warrantyTickets } from '@/db/schema';
 import { createAuditLog } from '@/lib/audit/create-audit-log';
 import { requireRole } from '@/lib/auth/roles';
+import { serializeForClient } from '@/lib/serialize/for-client';
+import { devModuleLogError, MODULE_LIST_ERROR } from '@/lib/server/module-list-log';
 import { safeNotify } from '@/lib/notifications/create-notification';
 import {
   notifyWarrantyTicketAssigned,
@@ -101,10 +103,19 @@ export async function getWarrantyTicketsAction(
       return { success: false, error: 'Bộ lọc không hợp lệ' };
     }
 
-    const data = await queryWarrantyTickets(parsed.data);
+    const data = serializeForClient(await queryWarrantyTickets(parsed.data));
     return { success: true, data };
   } catch (e) {
-    return { success: false, error: e instanceof Error ? e.message : 'Lỗi hệ thống' };
+    devModuleLogError('warranty', 'getWarrantyTicketsAction failed', e);
+    return {
+      success: false,
+      error:
+        e instanceof Error && e.message !== 'Unauthorized'
+          ? MODULE_LIST_ERROR
+          : e instanceof Error
+            ? e.message
+            : MODULE_LIST_ERROR,
+    };
   }
 }
 

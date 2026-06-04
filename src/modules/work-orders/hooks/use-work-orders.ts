@@ -13,6 +13,7 @@ import {
   updateWorkOrderInfoAction,
   updateWorkOrderStatusAction,
 } from '../actions/work-order.actions';
+import type { WorkOrderRow } from '../lib/work-order.queries';
 import type {
   CompleteWorkOrderInput,
   CreateWorkOrderFromContractInput,
@@ -21,21 +22,46 @@ import type {
   WorkOrderFilters,
 } from '../schema/work-order.schema';
 
+export function normalizeWorkOrderFilters(filters: WorkOrderFilters = {}): WorkOrderFilters {
+  return {
+    status: filters.status || undefined,
+    customerId: filters.customerId || undefined,
+    assignedTo: filters.assignedTo || undefined,
+  };
+}
+
+export function workOrderListQueryKey(filters: WorkOrderFilters = {}) {
+  const n = normalizeWorkOrderFilters(filters);
+  return ['work-orders', 'list', n.status ?? '', n.customerId ?? '', n.assignedTo ?? ''] as const;
+}
+
 export const workOrderKeys = {
   all: ['work-orders'] as const,
-  list: (filters?: WorkOrderFilters) => ['work-orders', 'list', filters ?? {}] as const,
+  list: workOrderListQueryKey,
   detail: (id: string) => ['work-orders', 'detail', id] as const,
   byContract: (contractId: string) => ['work-orders', 'by-contract', contractId] as const,
 };
 
-export function useWorkOrders(filters: WorkOrderFilters = {}) {
+type UseWorkOrdersOptions = {
+  initialData?: WorkOrderRow[];
+  enabled?: boolean;
+};
+
+export function useWorkOrders(filters: WorkOrderFilters = {}, options?: UseWorkOrdersOptions) {
+  const normalized = normalizeWorkOrderFilters(filters);
+
   return useQuery({
-    queryKey: workOrderKeys.list(filters),
+    queryKey: workOrderKeys.list(normalized),
     queryFn: async () => {
-      const result = await getWorkOrdersAction(filters);
+      const result = await getWorkOrdersAction(normalized);
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
+    initialData: options?.initialData,
+    enabled: options?.enabled ?? true,
+    staleTime: 30_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 }
 

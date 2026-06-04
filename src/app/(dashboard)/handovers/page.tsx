@@ -1,24 +1,27 @@
-import { auth } from '@/auth';
+import { AccessDeniedMessage } from '@/components/ui/access-denied-message';
+import { verifySession } from '@/lib/auth/dal';
 import { hasRole } from '@/lib/auth/roles';
 import { HandoverList } from '@/modules/handovers/components/handover-list';
+import { loadHandoversList } from '@/modules/handovers/lib/handover-load';
+
+const VIEW_ROLES = [
+  'admin',
+  'director',
+  'sales',
+  'chief_accountant',
+  'accountant',
+  'technician',
+] as const;
 
 export default async function HandoversPage() {
-  const session = await auth();
-  const roles = session?.user?.roles ?? [];
+  const session = await verifySession();
+  const roles = session.user.roles ?? [];
 
-  if (
-    !hasRole(
-      roles,
-      'admin',
-      'director',
-      'sales',
-      'chief_accountant',
-      'accountant',
-      'technician',
-    )
-  ) {
-    return null;
+  if (!hasRole(roles, ...VIEW_ROLES)) {
+    return <AccessDeniedMessage moduleName="bàn giao" />;
   }
+
+  const loadResult = await loadHandoversList({}, roles);
 
   return (
     <div className="mx-auto w-full max-w-xl">
@@ -28,7 +31,10 @@ export default async function HandoversPage() {
           Phiếu bàn giao sau khi hoàn thành thi công
         </p>
       </div>
-      <HandoverList />
+      <HandoverList
+        initialData={loadResult.success ? loadResult.data : undefined}
+        initialError={loadResult.success ? null : loadResult.error}
+      />
     </div>
   );
 }

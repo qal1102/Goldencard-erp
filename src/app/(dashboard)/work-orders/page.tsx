@@ -1,28 +1,34 @@
-import { auth } from '@/auth';
+import { AccessDeniedMessage } from '@/components/ui/access-denied-message';
+import { verifySession } from '@/lib/auth/dal';
 import { hasRole } from '@/lib/auth/roles';
 import { WorkOrderList } from '@/modules/work-orders/components/work-order-list';
+import { loadWorkOrdersList } from '@/modules/work-orders/lib/work-order-load';
+
+const VIEW_ROLES = [
+  'admin',
+  'director',
+  'sales',
+  'chief_accountant',
+  'accountant',
+  'technician',
+] as const;
 
 export default async function WorkOrdersPage() {
-  const session = await auth();
-  const roles = session?.user?.roles ?? [];
+  const session = await verifySession();
+  const roles = session.user.roles ?? [];
 
-  if (
-    !hasRole(
-      roles,
-      'admin',
-      'director',
-      'sales',
-      'chief_accountant',
-      'accountant',
-      'technician',
-    )
-  ) {
-    return null;
+  if (!hasRole(roles, ...VIEW_ROLES)) {
+    return <AccessDeniedMessage moduleName="lệnh thi công" />;
   }
 
   const isTechnician =
     hasRole(roles, 'technician') &&
     !hasRole(roles, 'admin', 'director', 'sales', 'chief_accountant', 'accountant');
+
+  const loadResult = await loadWorkOrdersList(
+    {},
+    { userId: session.user.id, roles },
+  );
 
   return (
     <div className="mx-auto w-full max-w-xl">
@@ -34,7 +40,11 @@ export default async function WorkOrdersPage() {
             : 'Danh sách lệnh thi công từ hợp đồng đã ký'}
         </p>
       </div>
-      <WorkOrderList isTechnician={isTechnician} />
+      <WorkOrderList
+        isTechnician={isTechnician}
+        initialData={loadResult.success ? loadResult.data : undefined}
+        initialError={loadResult.success ? null : loadResult.error}
+      />
     </div>
   );
 }

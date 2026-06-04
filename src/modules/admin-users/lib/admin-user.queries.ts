@@ -41,7 +41,8 @@ export async function queryAdminUsers(filters: AdminUserFilters = {}) {
     })
     .from(users)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(desc(users.createdAt));
+    .orderBy(desc(users.createdAt))
+    .limit(200);
 
   if (userRows.length === 0) return [];
 

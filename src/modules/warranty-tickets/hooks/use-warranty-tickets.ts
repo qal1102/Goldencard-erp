@@ -16,6 +16,7 @@ import {
   updateWarrantyTicketAssignmentAction,
   updateWarrantyTicketStatusAction,
 } from '../actions/warranty-ticket.actions';
+import type { WarrantyTicketRow } from '../lib/warranty-ticket.queries';
 import type {
   CreateWarrantyTicketInput,
   ResolveWarrantyTicketInput,
@@ -24,24 +25,63 @@ import type {
   WarrantyTicketFilters,
 } from '../schema/warranty-ticket.schema';
 
+export function normalizeWarrantyTicketFilters(
+  filters: WarrantyTicketFilters = {},
+): WarrantyTicketFilters {
+  return {
+    status: filters.status || undefined,
+    priority: filters.priority || undefined,
+    customerId: filters.customerId || undefined,
+    handoverId: filters.handoverId || undefined,
+    leadId: filters.leadId || undefined,
+  };
+}
+
+export function warrantyTicketListQueryKey(filters: WarrantyTicketFilters = {}) {
+  const n = normalizeWarrantyTicketFilters(filters);
+  return [
+    'warranty-tickets',
+    'list',
+    n.status ?? '',
+    n.priority ?? '',
+    n.customerId ?? '',
+    n.handoverId ?? '',
+    n.leadId ?? '',
+  ] as const;
+}
+
 export const warrantyTicketKeys = {
   all: ['warranty-tickets'] as const,
-  list: (filters?: WarrantyTicketFilters) =>
-    ['warranty-tickets', 'list', filters ?? {}] as const,
+  list: warrantyTicketListQueryKey,
   detail: (id: string) => ['warranty-tickets', 'detail', id] as const,
   byHandover: (handoverId: string) => ['warranty-tickets', 'by-handover', handoverId] as const,
   byCustomer: (customerId: string) => ['warranty-tickets', 'by-customer', customerId] as const,
   assignableUsers: () => ['warranty-tickets', 'assignable-users'] as const,
 };
 
-export function useWarrantyTickets(filters: WarrantyTicketFilters = {}) {
+type UseWarrantyTicketsOptions = {
+  initialData?: WarrantyTicketRow[];
+  enabled?: boolean;
+};
+
+export function useWarrantyTickets(
+  filters: WarrantyTicketFilters = {},
+  options?: UseWarrantyTicketsOptions,
+) {
+  const normalized = normalizeWarrantyTicketFilters(filters);
+
   return useQuery({
-    queryKey: warrantyTicketKeys.list(filters),
+    queryKey: warrantyTicketKeys.list(normalized),
     queryFn: async () => {
-      const result = await getWarrantyTicketsAction(filters);
+      const result = await getWarrantyTicketsAction(normalized);
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
+    initialData: options?.initialData,
+    enabled: options?.enabled ?? true,
+    staleTime: 30_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 }
 

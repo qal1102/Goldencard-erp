@@ -9,12 +9,33 @@ import {
   getWarrantyCertificatesAction,
   getWarrantyCertificatesByCustomerAction,
 } from '../actions/warranty-certificate.actions';
+import type { WarrantyCertificateRow } from '../lib/warranty-certificate.queries';
 import type { WarrantyCertificateFilters } from '../schema/warranty-certificate.schema';
+
+export function normalizeWarrantyCertificateFilters(
+  filters: WarrantyCertificateFilters = {},
+): WarrantyCertificateFilters {
+  return {
+    status: filters.status || undefined,
+    customerId: filters.customerId || undefined,
+    handoverId: filters.handoverId || undefined,
+  };
+}
+
+export function warrantyCertificateListQueryKey(filters: WarrantyCertificateFilters = {}) {
+  const n = normalizeWarrantyCertificateFilters(filters);
+  return [
+    'warranty-certificates',
+    'list',
+    n.status ?? '',
+    n.customerId ?? '',
+    n.handoverId ?? '',
+  ] as const;
+}
 
 export const warrantyCertificateKeys = {
   all: ['warranty-certificates'] as const,
-  list: (filters?: WarrantyCertificateFilters) =>
-    ['warranty-certificates', 'list', filters ?? {}] as const,
+  list: warrantyCertificateListQueryKey,
   detail: (id: string) => ['warranty-certificates', 'detail', id] as const,
   byHandover: (handoverId: string) =>
     ['warranty-certificates', 'by-handover', handoverId] as const,
@@ -22,14 +43,29 @@ export const warrantyCertificateKeys = {
     ['warranty-certificates', 'by-customer', customerId] as const,
 };
 
-export function useWarrantyCertificates(filters: WarrantyCertificateFilters = {}) {
+type UseWarrantyCertificatesOptions = {
+  initialData?: WarrantyCertificateRow[];
+  enabled?: boolean;
+};
+
+export function useWarrantyCertificates(
+  filters: WarrantyCertificateFilters = {},
+  options?: UseWarrantyCertificatesOptions,
+) {
+  const normalized = normalizeWarrantyCertificateFilters(filters);
+
   return useQuery({
-    queryKey: warrantyCertificateKeys.list(filters),
+    queryKey: warrantyCertificateKeys.list(normalized),
     queryFn: async () => {
-      const result = await getWarrantyCertificatesAction(filters);
+      const result = await getWarrantyCertificatesAction(normalized);
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
+    initialData: options?.initialData,
+    enabled: options?.enabled ?? true,
+    staleTime: 30_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 }
 

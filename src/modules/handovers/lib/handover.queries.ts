@@ -23,6 +23,7 @@ export async function queryHandovers(filters: HandoverFilters = {}) {
       workOrder: { columns: { id: true, code: true } },
     },
     orderBy: [desc(handovers.createdAt)],
+    limit: 200,
   });
 }
 

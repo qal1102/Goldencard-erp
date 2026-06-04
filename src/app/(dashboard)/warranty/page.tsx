@@ -1,6 +1,8 @@
-import { auth } from '@/auth';
+import { AccessDeniedMessage } from '@/components/ui/access-denied-message';
+import { verifySession } from '@/lib/auth/dal';
 import { hasRole } from '@/lib/auth/roles';
 import { WarrantyTicketList } from '@/modules/warranty-tickets/components/warranty-ticket-list';
+import { loadWarrantyTicketsList } from '@/modules/warranty-tickets/lib/warranty-ticket-load';
 
 const WARRANTY_VIEW_ROLES = [
   'admin',
@@ -21,14 +23,15 @@ const WARRANTY_WRITE_ROLES = [
 ] as const;
 
 export default async function WarrantyPage() {
-  const session = await auth();
-  const roles = session?.user?.roles ?? [];
+  const session = await verifySession();
+  const roles = session.user.roles ?? [];
 
   if (!hasRole(roles, ...WARRANTY_VIEW_ROLES)) {
-    return null;
+    return <AccessDeniedMessage moduleName="bảo hành / CSKH" />;
   }
 
   const canWrite = hasRole(roles, ...WARRANTY_WRITE_ROLES);
+  const loadResult = await loadWarrantyTicketsList({}, roles);
 
   return (
     <div className="mx-auto w-full max-w-xl">
@@ -38,7 +41,11 @@ export default async function WarrantyPage() {
           Tiếp nhận và xử lý yêu cầu sau bàn giao
         </p>
       </div>
-      <WarrantyTicketList canWrite={canWrite} />
+      <WarrantyTicketList
+        canWrite={canWrite}
+        initialData={loadResult.success ? loadResult.data : undefined}
+        initialError={loadResult.success ? null : loadResult.error}
+      />
     </div>
   );
 }

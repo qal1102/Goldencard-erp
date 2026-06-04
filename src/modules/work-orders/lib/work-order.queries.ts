@@ -25,6 +25,7 @@ export async function queryWorkOrders(filters: WorkOrderFilters = {}) {
       assignedUser: { columns: { id: true, name: true } },
     },
     orderBy: [desc(workOrders.createdAt)],
+    limit: 200,
   });
 }
 

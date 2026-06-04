@@ -1,7 +1,9 @@
 'use client';
 
+import { ModuleListError } from '@/components/ui/module-list-error';
 import { TappableListCard } from '@/components/ui/tappable-list-card';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { WarrantyCertificateRow } from '../lib/warranty-certificate.queries';
 import { useWarrantyCertificates } from '../hooks/use-warranty-certificates';
 import { WarrantyCertificateStatusBadge } from './warranty-certificate-status-badge';
 
@@ -14,10 +16,42 @@ function formatDate(date: Date | string | null | undefined): string {
   });
 }
 
-export function WarrantyCertificateList() {
-  const { data: certificates, isLoading } = useWarrantyCertificates();
+type Props = {
+  initialData?: WarrantyCertificateRow[];
+  initialError?: string | null;
+};
 
-  if (isLoading) {
+export function WarrantyCertificateList({ initialData, initialError = null }: Props) {
+  const {
+    data: certificates,
+    isPending,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useWarrantyCertificates({}, {
+    initialData: initialError ? undefined : initialData,
+  });
+
+  const showSkeleton = isPending && !certificates;
+  const showError = !certificates && (Boolean(initialError) || isError);
+  const errorMessage =
+    initialError ??
+    (error instanceof Error
+      ? error.message
+      : 'Không thể tải phiếu bảo hành. Vui lòng thử lại.');
+
+  if (showError) {
+    return (
+      <ModuleListError
+        message={errorMessage}
+        onRetry={() => void refetch()}
+        isRetrying={isFetching}
+      />
+    );
+  }
+
+  if (showSkeleton) {
     return (
       <div className="flex flex-col gap-2">
         <Skeleton className="h-16 w-full" />
@@ -28,14 +62,20 @@ export function WarrantyCertificateList() {
 
   if (!certificates?.length) {
     return (
-      <p className="py-8 text-center text-sm text-muted-foreground">
-        Chưa có phiếu bảo hành nào.
-      </p>
+      <div className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+        <p className="font-medium text-foreground">Chưa có phiếu bảo hành</p>
+        <p className="mt-2">
+          Phiếu bảo hành được tạo sau bàn giao; khách tra cứu bằng mã QR công khai.
+        </p>
+      </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-2">
+      {isFetching && (
+        <p className="text-xs text-muted-foreground">Đang cập nhật danh sách...</p>
+      )}
       {certificates.map((cert) => (
         <TappableListCard
           key={cert.id}
