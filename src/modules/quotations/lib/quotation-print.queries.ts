@@ -11,7 +11,6 @@ export async function queryQuotationForPrint(id: string) {
       id: true,
       code: true,
       revisionNumber: true,
-      status: true,
       validUntil: true,
       note: true,
       createdAt: true,
@@ -29,36 +28,7 @@ export async function queryQuotationForPrint(id: string) {
         columns: {
           address: true,
           province: true,
-          photosNote: true,
-          recommendedSystemKw: true,
           panelWattageW: true,
-          recommendedPanelQuantity: true,
-          inverterType: true,
-          inverterQuantity: true,
-          systemType: true,
-          powerPhase: true,
-          projectType: true,
-          projectScale: true,
-        },
-        with: {
-          zones: {
-            columns: {
-              zoneName: true,
-              recommendedSystemKw: true,
-              panelWattageW: true,
-              recommendedPanelQuantity: true,
-              usableAreaM2: true,
-              cableRouteDistanceM: true,
-              installationDifficulty: true,
-              needsRoofReinforcement: true,
-            },
-          },
-          lead: {
-            columns: {
-              consultationNote: true,
-              customerRequirements: true,
-            },
-          },
         },
       },
       items: {

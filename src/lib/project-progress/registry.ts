@@ -142,4 +142,16 @@ export function registerCoreStageDefinitions(): void {
     label: 'Phiếu bàn giao đã hủy',
     module: 'handover',
   });
+  defineStage({
+    key: 'warranty_in_progress',
+    order: 100,
+    label: 'Bảo hành / CSKH',
+    module: 'warranty',
+  });
+  defineStage({
+    key: 'warranty_resolved',
+    order: 101,
+    label: 'Đã xử lý bảo hành',
+    module: 'warranty',
+  });
 }

@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { hasRole } from '@/lib/auth/roles';
 import { queryQuotationBySurveyId } from '@/modules/quotations/lib/quotation.queries';
+import { ReplaceLink } from '@/components/navigation/replace-link';
 import { QuotationForm } from '@/modules/quotations/components/quotation-form';
 import { buildSurveyTechnicalSource } from '@/modules/quotations/lib/generate-quotation-items';
 import { querySurveyById } from '@/modules/surveys/lib/survey.queries';
@@ -52,7 +53,13 @@ export default async function NewQuotationPage({ searchParams }: Props) {
   return (
     <div className="mx-auto w-full max-w-xl">
       <div className="mb-4">
-        <h1 className="text-base font-semibold">Tạo báo giá mới</h1>
+        <ReplaceLink
+          href={`/surveys/${survey.id}`}
+          className="text-xs text-primary hover:underline"
+        >
+          ← Quay lại khảo sát
+        </ReplaceLink>
+        <h1 className="mt-2 text-base font-semibold">Tạo báo giá mới</h1>
         <p className="text-xs text-muted-foreground">
           Từ khảo sát{' '}
           <span className="font-mono font-medium text-foreground">{survey.code}</span>

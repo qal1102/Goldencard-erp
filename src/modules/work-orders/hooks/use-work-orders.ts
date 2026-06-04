@@ -81,7 +81,7 @@ export function useCreateWorkOrderFromContract() {
         });
         queryClient.invalidateQueries({ queryKey: contractKeys.all });
         queryClient.invalidateQueries({ queryKey: leadKeys.all });
-        router.push(`/work-orders/${result.data.id}`);
+        router.replace(`/work-orders/${result.data.id}`);
       }
     },
   });

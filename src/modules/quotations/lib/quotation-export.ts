@@ -14,8 +14,18 @@ const COMPANY_CONTACT = {
   bankAccount: GOLDENCARD_COMPANY_PROFILE.bankAccount,
   bankBeneficiary: GOLDENCARD_COMPANY_PROFILE.bankBeneficiary,
   bankName: GOLDENCARD_COMPANY_PROFILE.bankName,
-  contactPhone: '0903117277',
+  contactPhone: '0333314288',
 } as const;
+
+/** Shared with browser print document (quotation print route). */
+export const QUOTATION_PRINT_GENERIC_TERMS =
+  'Các điều kiện chi tiết thực hiện theo thỏa thuận giữa hai bên.';
+
+/** Shared with browser print document (quotation print route). */
+export const QUOTATION_PRINT_PAYMENT_TERMS = [
+  'Thanh toán theo tiến độ thỏa thuận giữa hai bên (thường gồm đặt cọc khi xác nhận và thanh toán số dư sau nghiệm thu, bàn giao).',
+  `Tài khoản nhận thanh toán: ${GOLDENCARD_COMPANY_PROFILE.bankAccount} — ${GOLDENCARD_COMPANY_PROFILE.bankBeneficiary} — ${GOLDENCARD_COMPANY_PROFILE.bankName}.`,
+].join(' ');
 
 /** Shared with browser print document (quotation print route). */
 export const QUOTATION_PRINT_WARRANTY_TEXT =

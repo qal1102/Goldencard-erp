@@ -85,10 +85,10 @@ export const PROJECT_MODULE_CONFIG: Record<ProjectModuleKey, ProjectModuleConfig
   },
   warranty: {
     key: 'warranty',
-    title: 'Bảo hành',
+    title: 'Bảo hành / CSKH',
     shortCode: 'BH',
     pipelineOrder: 80,
-    implemented: false,
+    implemented: true,
     buildHref: (id) => `/warranty/${id}`,
   },
   bom: {

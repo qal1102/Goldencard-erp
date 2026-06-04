@@ -18,6 +18,14 @@ export default async function CustomerDetailPage({ params }: Props) {
   const canManageSurvey = hasRole(roles, 'admin', 'director', 'sales');
   const canCreateLead = hasRole(roles, 'admin', 'director', 'sales', 'chief_accountant');
   const canEdit = hasRole(roles, 'admin', 'director', 'sales', 'chief_accountant');
+  const canCreateWarranty = hasRole(
+    roles,
+    'admin',
+    'director',
+    'sales',
+    'chief_accountant',
+    'customer_service',
+  );
 
   return (
     <div className="mx-auto w-full max-w-xl">
@@ -26,6 +34,7 @@ export default async function CustomerDetailPage({ params }: Props) {
         canManageSurvey={canManageSurvey}
         canCreateLead={canCreateLead}
         canEdit={canEdit}
+        canCreateWarranty={canCreateWarranty}
       />
     </div>
   );

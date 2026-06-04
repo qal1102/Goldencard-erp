@@ -86,7 +86,7 @@ export function useCreateSurvey() {
     onSuccess: (result) => {
       if (result.success) {
         queryClient.invalidateQueries({ queryKey: surveyKeys.all });
-        router.push(`/surveys/${result.data.id}`);
+        router.replace(`/surveys/${result.data.id}`);
         router.refresh();
       }
     },

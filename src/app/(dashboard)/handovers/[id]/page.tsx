@@ -30,10 +30,23 @@ export default async function HandoverDetailPage({ params }: Props) {
   }
 
   const canWrite = hasRole(roles, 'admin', 'director', 'sales', 'chief_accountant');
+  const canCreateWarranty = hasRole(
+    roles,
+    'admin',
+    'director',
+    'sales',
+    'chief_accountant',
+    'customer_service',
+  );
 
   return (
     <div className="mx-auto w-full max-w-xl">
-      <HandoverDetail key={id} handoverId={id} canWrite={canWrite} />
+      <HandoverDetail
+        key={id}
+        handoverId={id}
+        canWrite={canWrite}
+        canCreateWarranty={canCreateWarranty}
+      />
     </div>
   );
 }

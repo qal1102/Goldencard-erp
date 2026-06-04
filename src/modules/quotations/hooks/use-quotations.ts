@@ -82,7 +82,7 @@ export function useCreateQuotation() {
     onSuccess: (result) => {
       if (result.success) {
         queryClient.invalidateQueries({ queryKey: quotationKeys.all });
-        router.push(`/quotations/${result.data.id}`);
+        router.replace(`/quotations/${result.data.id}`);
       }
     },
   });
@@ -98,7 +98,7 @@ export function useUpdateQuotation(id: string) {
       if (result.success) {
         queryClient.invalidateQueries({ queryKey: quotationKeys.detail(id) });
         queryClient.invalidateQueries({ queryKey: quotationKeys.all });
-        router.push(`/quotations/${id}`);
+        router.replace(`/quotations/${id}`);
       }
     },
   });

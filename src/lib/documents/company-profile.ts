@@ -10,7 +10,7 @@ export const GOLDENCARD_COMPANY_PROFILE = {
   legalName: GOLDENCARD_LEGAL_NAME,
   address: GOLDENCARD_COMPANY_ADDRESS,
   email: 'info@goldencard.vn',
-  hotline: '0903 11 72 77',
+  hotline: '0333314288',
   website: 'www.goldencard.vn',
   bankAccount: '115002807079',
   bankBeneficiary: GOLDENCARD_LEGAL_NAME,

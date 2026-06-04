@@ -21,6 +21,8 @@ import {
   useUpdateHandoverInfo,
   useUpdateHandoverStatus,
 } from '../hooks/use-handovers';
+import { HandoverCertificateSection } from '@/modules/warranty-certificates/components/handover-certificate-section';
+import { HandoverWarrantySection } from '@/modules/warranty-tickets/components/handover-warranty-section';
 import { HandoverStatusBadge } from './handover-status-badge';
 
 function formatDateTime(date: Date | string | null | undefined): string | null {
@@ -62,9 +64,10 @@ function DetailRow({ label, value }: { label: string; value?: string | number | 
 type Props = {
   handoverId: string;
   canWrite: boolean;
+  canCreateWarranty?: boolean;
 };
 
-export function HandoverDetail({ handoverId, canWrite }: Props) {
+export function HandoverDetail({ handoverId, canWrite, canCreateWarranty = false }: Props) {
   const { data: handover, isLoading } = useHandover(handoverId);
   const updateStatus = useUpdateHandoverStatus(handoverId);
   const updateInfo = useUpdateHandoverInfo(handoverId);
@@ -268,6 +271,18 @@ export function HandoverDetail({ handoverId, canWrite }: Props) {
           ) : null}
         </CardContent>
       </Card>
+
+      <HandoverCertificateSection
+        handoverId={handoverId}
+        canWrite={canCreateWarranty}
+        showCreate={status === 'completed'}
+      />
+
+      <HandoverWarrantySection
+        handoverId={handoverId}
+        canWrite={canCreateWarranty}
+        showCreate={status === 'completed'}
+      />
 
       <Card>
         <CardHeader>

@@ -6,33 +6,26 @@ import { useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 
 type Props = {
-  /** List page to open when there is no in-app history to go back to. */
+  /** Target route for the in-app back action (module list, source detail, etc.). */
   fallbackHref: string;
   className?: string;
+  /**
+   * `stable` (default): always `router.replace(fallbackHref)` — predictable on mobile.
+   * `history`: opt-in browser back; falls back to replace when history is empty.
+   */
+  variant?: 'stable' | 'history';
 };
 
-function canUseBrowserBack(): boolean {
-  if (typeof window === 'undefined') return false;
-  if (window.history.length > 1) return true;
-  try {
-    const ref = document.referrer;
-    if (!ref) return false;
-    return new URL(ref).origin === window.location.origin;
-  } catch {
-    return false;
-  }
-}
-
-export function BackButton({ fallbackHref, className }: Props) {
+export function BackButton({ fallbackHref, className, variant = 'stable' }: Props) {
   const router = useRouter();
 
   const handleBack = useCallback(() => {
-    if (canUseBrowserBack()) {
+    if (variant === 'history' && typeof window !== 'undefined' && window.history.length > 1) {
       router.back();
-    } else {
-      router.push(fallbackHref);
+      return;
     }
-  }, [fallbackHref, router]);
+    router.replace(fallbackHref);
+  }, [fallbackHref, router, variant]);
 
   return (
     <Button

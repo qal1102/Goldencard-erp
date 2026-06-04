@@ -78,7 +78,7 @@ export function useCreateContractFromQuotation() {
         });
         queryClient.invalidateQueries({ queryKey: leadKeys.all });
         queryClient.invalidateQueries({ queryKey: quotationKeys.detail(variables.quotationId) });
-        router.push(`/contracts/${result.data.id}`);
+        router.replace(`/contracts/${result.data.id}`);
       }
     },
   });

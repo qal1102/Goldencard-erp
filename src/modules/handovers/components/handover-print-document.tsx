@@ -1,7 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { PrintReturnButton } from '@/components/navigation/print-return-button';
 import type { HandoverPrintModel } from '../lib/build-handover-print-model';
 import styles from './handover-print-document.module.css';
 
@@ -77,9 +77,9 @@ export function HandoverPrintDocument({ model, handoverId }: Props) {
         <Button type="button" onClick={handlePrint}>
           In / Lưu PDF
         </Button>
-        <Button type="button" variant="outline" render={<Link href={`/handovers/${handoverId}`} />}>
+        <PrintReturnButton detailHref={`/handovers/${handoverId}`}>
           Quay lại phiếu bàn giao
-        </Button>
+        </PrintReturnButton>
       </div>
 
       <article className={styles.handoverPrintPage}>

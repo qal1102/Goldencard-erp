@@ -1,7 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { PrintReturnButton } from '@/components/navigation/print-return-button';
 import type { ContractPrintModel } from '../lib/build-contract-print-model';
 
 const ITEMS_FALLBACK =
@@ -60,9 +60,9 @@ export function ContractPrintDocument({ model, contractId }: Props) {
         <Button type="button" onClick={handlePrint}>
           In / Lưu PDF
         </Button>
-        <Button type="button" variant="outline" render={<Link href={`/contracts/${contractId}`} />}>
+        <PrintReturnButton detailHref={`/contracts/${contractId}`}>
           Quay lại hợp đồng
-        </Button>
+        </PrintReturnButton>
       </div>
 
       <article className={styles.contractPrintPage}>
@@ -73,10 +73,8 @@ export function ContractPrintDocument({ model, contractId }: Props) {
           </h1>
           <div className={styles.contractPrintMeta}>
             <div>Số hợp đồng: {model.code}</div>
-            <div>Ngày lập: {model.createdAt}</div>
+            <div>Ngày lập hợp đồng: {model.createdAt}</div>
             {model.signedAt && <div>Ngày ký: {model.signedAt}</div>}
-            <div>Ngày in: {model.printedAt}</div>
-            {!model.isCancelled && <div>Trạng thái: {model.statusLabel}</div>}
           </div>
           {model.isCancelled && (
             <div className={styles.contractPrintCancelled}>HỢP ĐỒNG ĐÃ HỦY</div>

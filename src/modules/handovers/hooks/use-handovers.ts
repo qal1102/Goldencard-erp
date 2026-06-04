@@ -79,7 +79,7 @@ export function useCreateHandoverFromWorkOrder() {
           queryKey: workOrderKeys.detail(variables.workOrderId),
         });
         queryClient.invalidateQueries({ queryKey: leadKeys.all });
-        router.push(`/handovers/${result.data.id}`);
+        router.replace(`/handovers/${result.data.id}`);
       }
     },
   });

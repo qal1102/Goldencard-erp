@@ -1,6 +1,8 @@
 import { relations } from 'drizzle-orm';
 import { contracts } from './contracts';
 import { handovers } from './handovers';
+import { warrantyCertificates } from './warranty-certificates';
+import { warrantyTickets } from './warranty-tickets';
 import { workOrders } from './work-orders';
 import { customers } from './customers';
 import { leadActivities } from './lead-activities';
@@ -72,6 +74,10 @@ export const customersRelations = relations(customers, ({ one, many }) => ({
   contracts: many(contracts, { relationName: 'contract_customer' }),
   workOrders: many(workOrders, { relationName: 'work_order_customer' }),
   handovers: many(handovers, { relationName: 'handover_customer' }),
+  warrantyTickets: many(warrantyTickets, { relationName: 'warranty_ticket_customer' }),
+  warrantyCertificates: many(warrantyCertificates, {
+    relationName: 'warranty_certificate_customer',
+  }),
   convertedByUser: one(users, {
     fields: [customers.convertedBy],
     references: [users.id],
@@ -265,7 +271,7 @@ export const workOrdersRelations = relations(workOrders, ({ one }) => ({
   }),
 }));
 
-export const handoversRelations = relations(handovers, ({ one }) => ({
+export const handoversRelations = relations(handovers, ({ one, many }) => ({
   customer: one(customers, {
     fields: [handovers.customerId],
     references: [customers.id],
@@ -305,6 +311,113 @@ export const handoversRelations = relations(handovers, ({ one }) => ({
     fields: [handovers.createdBy],
     references: [users.id],
     relationName: 'handover_created_by_user',
+  }),
+  warrantyTickets: many(warrantyTickets, { relationName: 'warranty_ticket_handover' }),
+  warrantyCertificate: one(warrantyCertificates, {
+    fields: [handovers.id],
+    references: [warrantyCertificates.handoverId],
+    relationName: 'handover_warranty_certificate',
+  }),
+}));
+
+export const warrantyCertificatesRelations = relations(warrantyCertificates, ({ one }) => ({
+  customer: one(customers, {
+    fields: [warrantyCertificates.customerId],
+    references: [customers.id],
+    relationName: 'warranty_certificate_customer',
+  }),
+  lead: one(leads, {
+    fields: [warrantyCertificates.leadId],
+    references: [leads.id],
+    relationName: 'warranty_certificate_lead',
+  }),
+  survey: one(surveys, {
+    fields: [warrantyCertificates.surveyId],
+    references: [surveys.id],
+    relationName: 'warranty_certificate_survey',
+  }),
+  quotation: one(quotations, {
+    fields: [warrantyCertificates.quotationId],
+    references: [quotations.id],
+    relationName: 'warranty_certificate_quotation',
+  }),
+  contract: one(contracts, {
+    fields: [warrantyCertificates.contractId],
+    references: [contracts.id],
+    relationName: 'warranty_certificate_contract',
+  }),
+  workOrder: one(workOrders, {
+    fields: [warrantyCertificates.workOrderId],
+    references: [workOrders.id],
+    relationName: 'warranty_certificate_work_order',
+  }),
+  handover: one(handovers, {
+    fields: [warrantyCertificates.handoverId],
+    references: [handovers.id],
+    relationName: 'warranty_certificate_handover',
+  }),
+  createdByUser: one(users, {
+    fields: [warrantyCertificates.createdBy],
+    references: [users.id],
+    relationName: 'warranty_certificate_created_by_user',
+  }),
+}));
+
+export const warrantyTicketsRelations = relations(warrantyTickets, ({ one }) => ({
+  customer: one(customers, {
+    fields: [warrantyTickets.customerId],
+    references: [customers.id],
+    relationName: 'warranty_ticket_customer',
+  }),
+  lead: one(leads, {
+    fields: [warrantyTickets.leadId],
+    references: [leads.id],
+    relationName: 'warranty_ticket_lead',
+  }),
+  survey: one(surveys, {
+    fields: [warrantyTickets.surveyId],
+    references: [surveys.id],
+    relationName: 'warranty_ticket_survey',
+  }),
+  quotation: one(quotations, {
+    fields: [warrantyTickets.quotationId],
+    references: [quotations.id],
+    relationName: 'warranty_ticket_quotation',
+  }),
+  contract: one(contracts, {
+    fields: [warrantyTickets.contractId],
+    references: [contracts.id],
+    relationName: 'warranty_ticket_contract',
+  }),
+  workOrder: one(workOrders, {
+    fields: [warrantyTickets.workOrderId],
+    references: [workOrders.id],
+    relationName: 'warranty_ticket_work_order',
+  }),
+  handover: one(handovers, {
+    fields: [warrantyTickets.handoverId],
+    references: [handovers.id],
+    relationName: 'warranty_ticket_handover',
+  }),
+  assignedUser: one(users, {
+    fields: [warrantyTickets.assignedTo],
+    references: [users.id],
+    relationName: 'warranty_ticket_assigned_user',
+  }),
+  resolvedByUser: one(users, {
+    fields: [warrantyTickets.resolvedBy],
+    references: [users.id],
+    relationName: 'warranty_ticket_resolved_by_user',
+  }),
+  cancelledByUser: one(users, {
+    fields: [warrantyTickets.cancelledBy],
+    references: [users.id],
+    relationName: 'warranty_ticket_cancelled_by_user',
+  }),
+  createdByUser: one(users, {
+    fields: [warrantyTickets.createdBy],
+    references: [users.id],
+    relationName: 'warranty_ticket_created_by_user',
   }),
 }));
 

@@ -1,0 +1,149 @@
+.warrantyPrintRoot {
+  min-height: 100vh;
+  background: #f4f4f5;
+  padding: 1rem;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: #111;
+}
+
+.warrantyPrintToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.warrantyPrintPage {
+  max-width: 210mm;
+  margin: 0 auto;
+  background: #fff;
+  padding: 14mm 16mm;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
+}
+
+.warrantyPrintHeader {
+  text-align: center;
+  border-bottom: 2px solid #1a1a1a;
+  padding-bottom: 10px;
+  margin-bottom: 16px;
+}
+
+.warrantyPrintBrand {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.warrantyPrintTitle {
+  margin: 8px 0 4px;
+  font-size: 18px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.warrantyPrintMeta {
+  font-size: 11px;
+  color: #444;
+}
+
+.warrantyPrintSection {
+  margin-bottom: 14px;
+}
+
+.warrantyPrintSectionTitle {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin: 0 0 8px;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 4px;
+}
+
+.warrantyPrintTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.warrantyPrintLabel {
+  width: 38%;
+  padding: 4px 8px 4px 0;
+  vertical-align: top;
+  color: #555;
+}
+
+.warrantyPrintValue {
+  padding: 4px 0;
+  vertical-align: top;
+}
+
+.warrantyPrintTerms {
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.warrantyPrintQrBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px dashed #999;
+}
+
+.warrantyPrintQrImage {
+  width: 140px;
+  height: 140px;
+}
+
+.warrantyPrintQrHint {
+  font-size: 10px;
+  text-align: center;
+  color: #444;
+  max-width: 220px;
+}
+
+.warrantyPrintQrUrl {
+  font-size: 9px;
+  word-break: break-all;
+  text-align: center;
+  color: #666;
+}
+
+.warrantyPrintSignature {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  font-size: 11px;
+}
+
+.warrantyPrintSigBox {
+  text-align: center;
+}
+
+.warrantyPrintSigArea {
+  height: 56px;
+  margin: 8px 0;
+}
+
+.warrantyPrintSigLine {
+  border-top: 1px solid #333;
+  padding-top: 4px;
+}
+
+@media print {
+  .warrantyPrintRoot {
+    background: #fff;
+    padding: 0;
+  }
+
+  .warrantyPrintPage {
+    box-shadow: none;
+    max-width: none;
+    margin: 0;
+    padding: 10mm 12mm;
+  }
+}

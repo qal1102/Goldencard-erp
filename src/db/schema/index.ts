@@ -19,3 +19,5 @@ export * from './surveys';
 export * from './user-roles';
 export * from './users';
 export * from './work-orders';
+export * from './warranty-tickets';
+export * from './warranty-certificates';

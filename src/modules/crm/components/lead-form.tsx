@@ -96,10 +96,17 @@ export function LeadForm({ mode, leadId, defaultValues, assignableUsers, linkedC
 
   const isPending = isSubmitting || createLead.isPending || updateLead.isPending;
 
+  const backHref =
+    mode === 'edit' && leadId
+      ? `/crm/leads/${leadId}`
+      : linkedCustomer
+        ? `/crm/customers/${linkedCustomer.id}`
+        : '/crm/leads';
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
-        <BackButton fallbackHref={leadId ? `/crm/leads/${leadId}` : '/crm/leads'} />
+        <BackButton fallbackHref={backHref} />
         <h1 className="font-medium">
           {mode === 'create'
             ? linkedCustomer

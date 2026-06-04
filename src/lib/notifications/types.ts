@@ -17,6 +17,9 @@ export const NOTIFICATION_TYPES = {
   WORK_ORDER_COMPLETED: 'work_order.completed',
   HANDOVER_CREATED: 'handover.created',
   HANDOVER_COMPLETED: 'handover.completed',
+  WARRANTY_TICKET_CREATED: 'warranty_ticket.created',
+  WARRANTY_TICKET_ASSIGNED: 'warranty_ticket.assigned',
+  WARRANTY_TICKET_RESOLVED: 'warranty_ticket.resolved',
 } as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[keyof typeof NOTIFICATION_TYPES];

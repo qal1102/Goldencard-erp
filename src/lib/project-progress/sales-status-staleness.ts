@@ -18,6 +18,19 @@ const LEAD_SALES_STATUS_ORDER: Record<LeadStatus, number> = {
  * Higher = further along delivery (work order > contract > quotation > survey > lead).
  */
 export function getDerivedPipelineOrder(ctx: ProjectContext): number {
+  const warranty = ctx.records.warranty;
+  if (warranty) {
+    if (
+      warranty.status === 'open' ||
+      warranty.status === 'assigned' ||
+      warranty.status === 'scheduled' ||
+      warranty.status === 'in_progress'
+    ) {
+      return 100;
+    }
+    if (warranty.status === 'resolved') return 101;
+  }
+
   const handover = ctx.records.handover;
   if (handover) {
     if (handover.status === 'completed') return 95;
@@ -77,6 +90,7 @@ export function hasDownstreamDeliveryRecords(ctx: ProjectContext): boolean {
       ctx.records.quotation ||
       ctx.records.contract ||
       ctx.records.work_order ||
-      ctx.records.handover,
+      ctx.records.handover ||
+      ctx.records.warranty,
   );
 }

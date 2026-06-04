@@ -9,6 +9,7 @@ import {
 import {
   contracts,
   handovers,
+  warrantyTickets,
   leads,
   quotationEditLogs,
   quotations,
@@ -34,7 +35,12 @@ import {
   SURVEY_STATUS_LABELS,
   type SurveyStatus,
 } from '@/modules/surveys/schema/survey.schema';
+import {
+  WARRANTY_TICKET_STATUS_LABELS,
+  type WarrantyTicketStatus,
+} from '@/modules/warranty-tickets/schema/warranty-ticket.schema';
 import { buildRecordRef } from '../modules';
+import { pickDrivingWarrantyTicket } from '../lib/pick-driving-warranty-ticket';
 import type { ProjectContext, ProjectResponsible } from '../types';
 
 function latestSurveyPerLead<
@@ -265,6 +271,31 @@ export async function loadProjectContextForLeadAnchors(
   const handoverByWorkOrderId = new Map(
     handoverRows.map((handover) => [handover.workOrderId, handover]),
   );
+
+  const warrantyRows =
+    uniqueIds.length > 0
+      ? await db.query.warrantyTickets.findMany({
+          where: inArray(warrantyTickets.leadId, uniqueIds),
+          columns: {
+            id: true,
+            code: true,
+            leadId: true,
+            status: true,
+            priority: true,
+            issueTitle: true,
+            reportedAt: true,
+          },
+          orderBy: [desc(warrantyTickets.reportedAt)],
+        })
+      : [];
+  const warrantyByLeadId = new Map<string, typeof warrantyRows>();
+  for (const row of warrantyRows) {
+    if (!row.leadId) continue;
+    const list = warrantyByLeadId.get(row.leadId) ?? [];
+    list.push(row);
+    warrantyByLeadId.set(row.leadId, list);
+  }
+
   const latestEditRows =
     quotationIds.length > 0
       ? await db
@@ -384,6 +415,22 @@ export async function loadProjectContextForLeadAnchors(
       if (workOrderRow) {
         attachWorkOrderAndHandover(records, workOrderRow, handoverByWorkOrderId);
       }
+    }
+
+    const leadWarrantyTickets = warrantyByLeadId.get(lead.id) ?? [];
+    const drivingWarranty = pickDrivingWarrantyTicket(leadWarrantyTickets);
+    if (drivingWarranty) {
+      records.warranty = buildRecordRef({
+        module: 'warranty',
+        entityId: drivingWarranty.id,
+        code: drivingWarranty.code,
+        status: drivingWarranty.status,
+        statusLabel:
+          WARRANTY_TICKET_STATUS_LABELS[drivingWarranty.status as WarrantyTicketStatus] ??
+          drivingWarranty.status,
+        detail: drivingWarranty.issueTitle,
+        meta: { priority: drivingWarranty.priority },
+      });
     }
 
     contextMap.set(lead.id, {

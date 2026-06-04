@@ -109,7 +109,7 @@ export function useCreateLead() {
         params.set('customerCreated', result.data.customerCode);
       }
       const query = params.toString();
-      router.push(`/crm/leads/${leadId}${query ? `?${query}` : ''}`);
+      router.replace(`/crm/leads/${leadId}${query ? `?${query}` : ''}`);
     },
   });
 }

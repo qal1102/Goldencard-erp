@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { hasRole } from '@/lib/auth/roles';
 import { QuotationForm } from '@/modules/quotations/components/quotation-form';
+import { QuotationFormBack } from '@/modules/quotations/components/quotation-form-back';
 import { queryQuotationById } from '@/modules/quotations/lib/quotation.queries';
 import { buildSurveyTechnicalSource } from '@/modules/quotations/lib/generate-quotation-items';
 import { isQuotationEditable } from '@/modules/quotations/lib/quotation-resend';
@@ -37,13 +38,16 @@ export default async function EditQuotationPage({ params }: Props) {
 
   return (
     <div className="mx-auto w-full max-w-xl">
-      <div className="mb-4">
+      <div className="mb-4 flex items-start gap-3">
+        <QuotationFormBack href={`/quotations/${id}`} />
+        <div className="min-w-0 flex-1">
         <h1 className="text-base font-semibold">Chỉnh sửa báo giá</h1>
         <p className="text-xs text-muted-foreground">
           <span className="font-mono font-medium text-foreground">{quotation.code}</span>
           {' — '}
           {quotation.customerNameSnapshot}
         </p>
+        </div>
       </div>
 
       {(() => {

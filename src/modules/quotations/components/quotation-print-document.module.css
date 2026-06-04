@@ -115,23 +115,10 @@
   color: #222;
 }
 
-.quotationPrintContactNote {
-  margin-top: 10px;
-}
-
-.quotationPrintQuotationNote {
-  margin-bottom: 10px;
-}
-
-.quotationPrintZoneSummary {
-  margin: 10px 0 0;
-  font-size: 12px;
-  line-height: 1.65;
-  white-space: pre-wrap;
+.quotationPrintItemsDesc {
+  font-size: 10.5px;
   color: #333;
-  padding: 8px 10px;
-  border: 1px solid #ddd;
-  background: #fafafa;
+  min-width: 72px;
 }
 
 .quotationPrintFallbackText {
@@ -182,17 +169,13 @@
   white-space: nowrap;
 }
 
-.quotationPrintItemDesc {
-  font-size: 10.5px;
-  color: #444;
-  margin-top: 2px;
-}
-
 .quotationPrintTotalsBlock {
   margin-top: 12px;
   font-size: 12.5px;
   max-width: 320px;
   margin-left: auto;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .quotationPrintTotalsRow {
@@ -218,14 +201,31 @@
   color: #222;
 }
 
-.quotationPrintTermsBlock p {
-  margin: 0 0 6px;
+.quotationPrintTermsItem {
+  margin-bottom: 12px;
 }
 
-.quotationPrintWarranty {
-  margin: 0 0 10px;
-  font-size: 12.5px;
-  text-align: justify;
+.quotationPrintTermsItem:last-child {
+  margin-bottom: 0;
+}
+
+.quotationPrintTermsHeading {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #333;
+}
+
+.quotationPrintFooter {
+  margin-top: 20px;
+  padding-top: 8px;
+  border-top: 1px solid #ddd;
+  text-align: center;
+  font-size: 9px;
+  color: #888;
+  letter-spacing: 0.02em;
 }
 
 .quotationPrintSignatures {
@@ -288,8 +288,8 @@
     background: #fff;
   }
 
-  .quotationPrintZoneSummary {
-    background: #fff;
+  .quotationPrintFooter {
+    color: #666;
   }
 }
 

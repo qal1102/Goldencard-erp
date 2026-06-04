@@ -47,7 +47,8 @@ export const PROJECT_STAGE_KEYS = [
   'handover_pending',
   'handover_completed',
   'handover_cancelled',
-  'warranty_active',
+  'warranty_in_progress',
+  'warranty_resolved',
 ] as const;
 
 export type ProjectStageKey = (typeof PROJECT_STAGE_KEYS)[number];

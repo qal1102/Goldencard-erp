@@ -1,6 +1,7 @@
 import { registerCoreStageDefinitions, registerStageResolver } from '../registry';
 import { resolveContractStage } from './contract';
 import { resolveHandoverStage } from './handover';
+import { resolveWarrantyStage } from './warranty';
 import { resolveWorkOrderStage } from './work-order';
 import { resolveLeadStage } from './lead';
 import { resolveQuotationStage } from './quotation';
@@ -20,8 +21,9 @@ export function ensureProjectProgressRegistry(): void {
 
   /**
    * Highest priority first — furthest downstream linked record is the source of truth:
-   * Handover > WorkOrder > Contract > Quotation > Survey > Lead (manual sales status only when alone).
+   * Warranty > Handover > WorkOrder > Contract > Quotation > Survey > Lead.
    */
+  registerStageResolver(resolveWarrantyStage);
   registerStageResolver(resolveHandoverStage);
   registerStageResolver(resolveWorkOrderStage);
   registerStageResolver(resolveContractStage);

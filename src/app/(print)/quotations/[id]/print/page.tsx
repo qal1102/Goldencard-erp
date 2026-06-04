@@ -16,9 +16,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!quotation) {
     return { title: 'Báo giá' };
   }
-  const revision = quotation.revisionNumber ?? 1;
   return {
-    title: `Báo giá ${quotation.code} v${revision} | GoldenCard ERP`,
+    title: 'Báo giá hệ thống điện mặt trời | GoldenCard',
   };
 }
 

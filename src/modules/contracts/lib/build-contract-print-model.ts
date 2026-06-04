@@ -4,14 +4,10 @@ import { buildFullAddress } from '@/lib/address/format-address';
 import { GOLDENCARD_COMPANY_PROFILE } from '@/lib/documents/company-profile';
 import {
   formatDocumentDate,
-  formatDocumentDateTime,
   formatDocumentValue,
 } from '@/lib/documents/format-document-value';
 import { computeSurveyAggregates } from '@/modules/surveys/lib/survey-aggregates';
-import {
-  CONTRACT_STATUS_LABELS,
-  type ContractStatus,
-} from '../schema/contract.schema';
+import type { ContractStatus } from '../schema/contract.schema';
 import type { ContractPrintSource } from './contract-print.queries';
 
 const AGREEMENT_FALLBACK = 'Theo báo giá đã được hai bên thống nhất';
@@ -37,13 +33,14 @@ export type ContractPrintScopeItem = {
   note: string;
 };
 
+const CONTRACT_BASIS_TEXT =
+  'Căn cứ theo báo giá/phương án thi công đã được hai bên thống nhất, GoldenCard và khách hàng thỏa thuận ký hợp đồng thi công với các nội dung sau.';
+
 export type ContractPrintModel = {
   code: string;
-  statusLabel: string;
   isCancelled: boolean;
   createdAt: string;
   signedAt: string | null;
-  printedAt: string;
   company: typeof GOLDENCARD_COMPANY_PROFILE;
   parties: {
     goldenCardRepresentative: string | null;
@@ -263,9 +260,9 @@ function buildScopeItems(source: ContractPrintSource): ContractPrintScopeItem[] 
 function buildBasisText(source: ContractPrintSource): string {
   const quotationCode = source.quotation?.code?.trim();
   if (quotationCode) {
-    return `Căn cứ theo báo giá số ${quotationCode} đã được hai bên thống nhất, GoldenCard và khách hàng thỏa thuận ký hợp đồng thi công với các nội dung sau.`;
+    return `${CONTRACT_BASIS_TEXT} (tham chiếu: ${quotationCode})`;
   }
-  return 'Căn cứ theo thỏa thuận giữa GoldenCard và khách hàng, hai bên thống nhất ký hợp đồng thi công với các nội dung sau.';
+  return CONTRACT_BASIS_TEXT;
 }
 
 function buildValueSection(source: ContractPrintSource) {
@@ -300,11 +297,12 @@ export function buildContractPrintModel(source: ContractPrintSource): ContractPr
 
   return {
     code: source.code,
-    statusLabel: CONTRACT_STATUS_LABELS[status],
     isCancelled: status === 'cancelled',
     createdAt: formatDocumentDate(source.createdAt),
-    signedAt: source.signedAt ? formatDocumentDate(source.signedAt) : null,
-    printedAt: formatDocumentDateTime(new Date()),
+    signedAt:
+      status === 'signed' && source.signedAt
+        ? formatDocumentDate(source.signedAt)
+        : null,
     company: GOLDENCARD_COMPANY_PROFILE,
     parties: {
       goldenCardRepresentative: resolvePrintSignerName(source.goldenCardSignerName),

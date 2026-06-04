@@ -155,6 +155,34 @@
       "when": 1750046400000,
       "tag": "0021_phase5a_work_orders",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1750132800000,
+      "tag": "0022_phase5b_work_order_completion_handovers",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1750219200000,
+      "tag": "0023_phase6_warranty_tickets",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1750305600000,
+      "tag": "0024_phase6b_warranty_certificates",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1750392000000,
+      "tag": "0025_warranty_certificate_hotline",
+      "breakpoints": true
     }
   ]
 }

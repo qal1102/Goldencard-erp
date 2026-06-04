@@ -33,6 +33,8 @@ import { useProjectProgressForLeads } from '../hooks/use-project-progress';
 import type { LeadSource, LeadStatus } from '../schema/lead.schema';
 import { ACTIVITY_TYPE_LABELS, type ActivityType } from '../schema/lead.schema';
 import { LeadSourceBadge } from './lead-source-badge';
+import { CustomerCertificateLinks } from '@/modules/warranty-certificates/components/customer-certificate-links';
+import { CustomerWarrantySection } from '@/modules/warranty-tickets/components/customer-warranty-section';
 import { LeadStatusBadge } from './lead-status-badge';
 
 type Props = {
@@ -40,6 +42,7 @@ type Props = {
   canManageSurvey?: boolean;
   canCreateLead?: boolean;
   canEdit?: boolean;
+  canCreateWarranty?: boolean;
 };
 
 const ACTIVITY_ICONS: Record<ActivityType, React.ReactNode> = {
@@ -97,6 +100,7 @@ export function CustomerDetail({
   canManageSurvey = false,
   canCreateLead = false,
   canEdit = false,
+  canCreateWarranty = false,
 }: Props) {
   const [surveyDialogOpen, setSurveyDialogOpen] = useState(false);
   const { data: customer, isLoading } = useCustomer(customerId);
@@ -406,6 +410,9 @@ export function CustomerDetail({
           ))}
         </CardContent>
       </Card>
+
+      <CustomerCertificateLinks customerId={customerId} />
+      <CustomerWarrantySection customerId={customerId} canWrite={canCreateWarranty} />
 
       <Card>
         <CardHeader>
