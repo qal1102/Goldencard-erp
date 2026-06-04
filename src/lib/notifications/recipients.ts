@@ -2,7 +2,7 @@ import 'server-only';
 
 import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db';
-import { leads, roles, userRoles, users } from '@/db/schema';
+import { customers, leads, roles, userRoles, users } from '@/db/schema';
 import type { AppRole } from '@/lib/auth/roles';
 import { dedupeRecipients } from './dedupe-recipients';
 
@@ -50,4 +50,36 @@ export async function collectAccountingRecipients(
 ): Promise<string[]> {
   const ids = await queryActiveUserIdsByRoles(['chief_accountant', 'accountant']);
   return dedupeRecipients(ids, actorUserId);
+}
+
+export async function collectCustomerServiceRecipients(
+  actorUserId?: string | null,
+): Promise<string[]> {
+  const ids = await queryActiveUserIdsByRoles(['customer_service']);
+  return dedupeRecipients(ids, actorUserId);
+}
+
+const FALLBACK_CUSTOMER_NAME = 'khách hàng';
+
+export async function queryCustomerDisplayName(options: {
+  leadId?: string | null;
+  customerId?: string | null;
+}): Promise<string> {
+  if (options.leadId) {
+    const lead = await db.query.leads.findFirst({
+      where: eq(leads.id, options.leadId),
+      columns: { fullName: true },
+    });
+    if (lead?.fullName) return lead.fullName;
+  }
+
+  if (options.customerId) {
+    const customer = await db.query.customers.findFirst({
+      where: eq(customers.id, options.customerId),
+      columns: { fullName: true },
+    });
+    if (customer?.fullName) return customer.fullName;
+  }
+
+  return FALLBACK_CUSTOMER_NAME;
 }

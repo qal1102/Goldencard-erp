@@ -8,7 +8,11 @@ import { contracts, workOrders } from '@/db/schema';
 import { createAuditLog } from '@/lib/audit/create-audit-log';
 import { hasRole, requireRole } from '@/lib/auth/roles';
 import { safeNotify } from '@/lib/notifications/create-notification';
-import { notifyWorkOrderCreated } from '@/lib/notifications/events/work-order-events';
+import {
+  notifyWorkOrderAssigned,
+  notifyWorkOrderCompleted,
+  notifyWorkOrderCreated,
+} from '@/lib/notifications/events/work-order-events';
 import {
   WORK_ORDER_STATUS_LABELS,
   WORK_ORDER_STATUS_TRANSITIONS,
@@ -227,6 +231,8 @@ export async function createWorkOrderFromContractAction(
       notifyWorkOrderCreated({
         workOrderId: workOrder.id,
         workOrderCode: workOrder.code,
+        leadId: contract.leadId,
+        customerId: contract.customerId,
         assignedTo: null,
         actorUserId: session.user.id,
       }),
@@ -266,6 +272,7 @@ export async function updateWorkOrderInfoAction(
 
     const data = parsed.data;
     const updates: Record<string, unknown> = { updatedAt: new Date() };
+    const previousAssignedTo = existing.assignedTo ?? null;
 
     if (data.assignedTo !== undefined) updates.assignedTo = data.assignedTo;
     if (data.scheduledStartAt !== undefined) updates.scheduledStartAt = data.scheduledStartAt;
@@ -275,6 +282,25 @@ export async function updateWorkOrderInfoAction(
     }
 
     await db.update(workOrders).set(updates).where(eq(workOrders.id, id));
+
+    const nextAssignedTo =
+      data.assignedTo !== undefined ? (data.assignedTo ?? null) : previousAssignedTo;
+    if (
+      data.assignedTo !== undefined &&
+      nextAssignedTo &&
+      nextAssignedTo !== previousAssignedTo
+    ) {
+      await safeNotify(() =>
+        notifyWorkOrderAssigned({
+          workOrderId: id,
+          workOrderCode: existing.code,
+          leadId: existing.leadId,
+          customerId: existing.customerId,
+          assignedTo: nextAssignedTo,
+          actorUserId: session.user.id,
+        }),
+      );
+    }
 
     await createAuditLog({
       userId: session.user.id,
@@ -413,6 +439,16 @@ export async function completeWorkOrderAction(
         hasDocumentLinks: Boolean(completionDocumentLinks?.trim()),
       },
     });
+
+    await safeNotify(() =>
+      notifyWorkOrderCompleted({
+        workOrderId: id,
+        workOrderCode: existing.code,
+        leadId: existing.leadId,
+        customerId: existing.customerId,
+        actorUserId: session.user.id,
+      }),
+    );
 
     revalidateWorkOrderPaths(id, existing.contractId);
     if (existing.leadId) revalidatePath(`/crm/leads/${existing.leadId}`);

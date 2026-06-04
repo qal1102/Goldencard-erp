@@ -8,7 +8,10 @@ import { contracts, quotations } from '@/db/schema';
 import { createAuditLog } from '@/lib/audit/create-audit-log';
 import { requireRole } from '@/lib/auth/roles';
 import { safeNotify } from '@/lib/notifications/create-notification';
-import { notifyContractCreated } from '@/lib/notifications/events/contract-events';
+import {
+  notifyContractCreated,
+  notifyContractSigned,
+} from '@/lib/notifications/events/contract-events';
 import {
   CONTRACT_STATUS_LABELS,
   CONTRACT_STATUS_TRANSITIONS,
@@ -207,6 +210,8 @@ export async function createContractFromQuotationAction(
       notifyContractCreated({
         contractId: contract.id,
         contractCode: contract.code,
+        leadId,
+        customerId,
         actorUserId: session.user.id,
       }),
     );
@@ -279,6 +284,18 @@ export async function updateContractStatusAction(
       before: { status: currentStatus },
       after: { status: newStatus },
     });
+
+    if (newStatus === 'signed') {
+      await safeNotify(() =>
+        notifyContractSigned({
+          contractId: id,
+          contractCode: existing.code,
+          leadId: existing.leadId,
+          customerId: existing.customerId,
+          actorUserId: session.user.id,
+        }),
+      );
+    }
 
     revalidateContractPaths(id, existing.quotationId);
     if (existing.leadId) revalidatePath(`/crm/leads/${existing.leadId}`);

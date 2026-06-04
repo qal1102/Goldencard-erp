@@ -8,7 +8,10 @@ import { handovers } from '@/db/schema';
 import { createAuditLog } from '@/lib/audit/create-audit-log';
 import { requireRole } from '@/lib/auth/roles';
 import { safeNotify } from '@/lib/notifications/create-notification';
-import { notifyHandoverCreated } from '@/lib/notifications/events/handover-events';
+import {
+  notifyHandoverCompleted,
+  notifyHandoverCreated,
+} from '@/lib/notifications/events/handover-events';
 import { queryWorkOrderById } from '@/modules/work-orders/lib/work-order.queries';
 import {
   HANDOVER_STATUS_LABELS,
@@ -173,6 +176,7 @@ export async function createHandoverFromWorkOrderAction(
         handoverId: handover.id,
         handoverCode: handover.code,
         leadId: workOrder.leadId,
+        customerId: workOrder.customerId,
         actorUserId: session.user.id,
       }),
     );
@@ -294,6 +298,18 @@ export async function updateHandoverStatusAction(
       before: { status: currentStatus },
       after: { status: newStatus },
     });
+
+    if (newStatus === 'completed') {
+      await safeNotify(() =>
+        notifyHandoverCompleted({
+          handoverId: id,
+          handoverCode: existing.code,
+          leadId: existing.leadId,
+          customerId: existing.customerId,
+          actorUserId: session.user.id,
+        }),
+      );
+    }
 
     revalidateHandoverPaths(id, existing.workOrderId, existing.leadId);
 

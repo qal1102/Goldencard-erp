@@ -11,8 +11,12 @@ export const NOTIFICATION_TYPES = {
   QUOTATION_NO_RESPONSE: 'quotation.no_response',
   QUOTATION_EXPIRED: 'quotation.expired',
   CONTRACT_CREATED: 'contract.created',
+  CONTRACT_SIGNED: 'contract.signed',
   WORK_ORDER_CREATED: 'work_order.created',
+  WORK_ORDER_ASSIGNED: 'work_order.assigned',
+  WORK_ORDER_COMPLETED: 'work_order.completed',
   HANDOVER_CREATED: 'handover.created',
+  HANDOVER_COMPLETED: 'handover.completed',
 } as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[keyof typeof NOTIFICATION_TYPES];
