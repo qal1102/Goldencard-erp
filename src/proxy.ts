@@ -9,6 +9,7 @@ const PROTECTED_PREFIXES = [
   '/surveys',
   '/work-orders',
   '/settings',
+  '/admin',
 ];
 
 export default auth((request) => {
@@ -16,6 +17,12 @@ export default auth((request) => {
   const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));
   const isLoginPage = pathname === '/login';
   const isAuthenticated = !!(request.auth?.user?.id);
+  const isActive = request.auth?.user?.isActive !== false;
+
+  if (isProtected && isAuthenticated && !isActive) {
+    const loginUrl = new URL('/login', request.url);
+    return NextResponse.redirect(loginUrl);
+  }
 
   if (isProtected && !isAuthenticated) {
     const loginUrl = new URL('/login', request.url);

@@ -3,13 +3,31 @@ import 'server-only';
 import { eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
-import { auth } from '@/auth';
+import { auth, signOut } from '@/auth';
 import { db } from '@/db';
 import { users } from '@/db/schema/users';
 
 export const verifySession = cache(async () => {
   const session = await auth();
   if (!session?.user?.id) redirect('/login');
+
+  if (session.user.isActive === false) {
+    await signOut({ redirect: false });
+    redirect('/login');
+  }
+
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, session.user.id),
+    columns: {
+      isActive: true,
+    },
+  });
+
+  if (!user?.isActive) {
+    await signOut({ redirect: false });
+    redirect('/login');
+  }
+
   return session;
 });
 
@@ -22,6 +40,7 @@ export const getCurrentUser = cache(async (userId: string) => {
       email: true,
       avatarUrl: true,
       isActive: true,
+      isSuperAdmin: true,
     },
   });
   return user ?? null;

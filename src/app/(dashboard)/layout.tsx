@@ -1,5 +1,4 @@
-import { redirect } from 'next/navigation';
-import { auth } from '@/auth';
+import { verifySession } from '@/lib/auth/dal';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
 
 export default async function DashboardGroupLayout({
@@ -7,14 +6,14 @@ export default async function DashboardGroupLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
-  if (!session?.user?.id) redirect('/login');
+  const session = await verifySession();
 
   const user = {
     id: session.user.id,
     name: session.user.name,
     email: session.user.email,
     roles: session.user.roles ?? [],
+    isSuperAdmin: session.user.isSuperAdmin ?? false,
   };
 
   return <DashboardShell user={user}>{children}</DashboardShell>;

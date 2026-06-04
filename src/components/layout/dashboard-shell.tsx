@@ -10,6 +10,7 @@ export type SessionUser = {
   name?: string | null;
   email?: string | null;
   roles: string[];
+  isSuperAdmin: boolean;
 };
 
 type DashboardShellProps = {

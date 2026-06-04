@@ -25,9 +25,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!parsed.success) return null;
 
         const { email, password } = parsed.data;
+        const normalizedEmail = email.trim().toLowerCase();
 
         const user = await db.query.users.findFirst({
-          where: eq(users.email, email),
+          where: eq(users.email, normalizedEmail),
         });
 
         if (!user || !user.isActive || !user.passwordHash) return null;
@@ -41,12 +42,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           .innerJoin(roles, eq(userRoles.roleId, roles.id))
           .where(eq(userRoles.userId, user.id));
 
+        await db
+          .update(users)
+          .set({ lastLoginAt: new Date(), updatedAt: new Date() })
+          .where(eq(users.id, user.id));
+
         return {
           id: user.id,
           email: user.email,
           name: user.name,
           image: user.avatarUrl ?? null,
           roles: roleRows.map((r) => r.name),
+          isSuperAdmin: user.isSuperAdmin,
         };
       },
     }),
@@ -60,12 +67,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token['id'] = user.id;
         token['roles'] = user.roles ?? [];
+        token['isSuperAdmin'] = user.isSuperAdmin ?? false;
       }
+
+      const userId = token['id'] as string | undefined;
+      if (userId) {
+        const dbUser = await db.query.users.findFirst({
+          where: eq(users.id, userId),
+          columns: {
+            isActive: true,
+            isSuperAdmin: true,
+          },
+        });
+
+        if (!dbUser?.isActive) {
+          token['isActive'] = false;
+        } else {
+          token['isActive'] = true;
+          token['isSuperAdmin'] = dbUser.isSuperAdmin;
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {
       session.user.id = (token['id'] as string | undefined) ?? '';
       session.user.roles = (token['roles'] as string[] | undefined) ?? [];
+      session.user.isSuperAdmin = (token['isSuperAdmin'] as boolean | undefined) ?? false;
+      session.user.isActive = (token['isActive'] as boolean | undefined) ?? true;
       return session;
     },
   },

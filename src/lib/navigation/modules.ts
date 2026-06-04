@@ -8,6 +8,7 @@ import {
   Package,
   ScrollText,
   Settings,
+  Shield,
   Users,
   UserPlus,
   Wrench,
@@ -122,8 +123,21 @@ export const mainNavItems: NavItem[] = [
   },
 ];
 
+export const adminNavItems: NavItem[] = [
+  {
+    id: "admin-users",
+    label: "Quản lý tài khoản",
+    href: "/admin/users",
+    icon: Shield,
+    phase: "Admin",
+    description: "Tạo và quản lý tài khoản nhân viên.",
+  },
+];
+
+const allNavItems = [...mainNavItems, ...adminNavItems];
+
 export function getNavItemByHref(pathname: string): NavItem | undefined {
-  return mainNavItems.find(
+  return allNavItems.find(
     (item) =>
       pathname === item.href ||
       (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`)),

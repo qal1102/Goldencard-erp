@@ -44,7 +44,11 @@ export function AppHeader({ title, user }: AppHeaderProps) {
             </SheetHeader>
             <div className="flex flex-1 flex-col overflow-hidden">
               <div className="flex-1 overflow-y-auto px-3 py-4">
-                <NavLinks onNavigate={() => setMenuOpen(false)} />
+        <NavLinks
+          userRoles={user.roles}
+          isSuperAdmin={user.isSuperAdmin}
+          onNavigate={() => setMenuOpen(false)}
+        />
               </div>
               <UserMenu name={user.name} email={user.email} />
             </div>

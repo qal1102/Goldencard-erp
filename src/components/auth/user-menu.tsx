@@ -1,6 +1,7 @@
 'use client';
 
-import { LogOutIcon } from 'lucide-react';
+import Link from 'next/link';
+import { KeyRoundIcon, LogOutIcon } from 'lucide-react';
 import { signOutAction } from '@/lib/auth/actions';
 import { Button } from '@/components/ui/button';
 
@@ -35,17 +36,31 @@ export function UserMenu({ name, email }: UserMenuProps) {
           </p>
         </div>
       </div>
-      <form action={signOutAction}>
+
+      <div className="flex flex-col gap-1">
         <Button
-          type="submit"
           variant="ghost"
           size="sm"
           className="w-full justify-start gap-2 text-muted-foreground"
+          nativeButton={false}
+          render={<Link href="/settings/security" />}
         >
-          <LogOutIcon className="size-4" />
-          Đăng xuất
+          <KeyRoundIcon className="size-4" />
+          Đổi mật khẩu
         </Button>
-      </form>
+
+        <form action={signOutAction}>
+          <Button
+            type="submit"
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start gap-2 text-muted-foreground"
+          >
+            <LogOutIcon className="size-4" />
+            Đăng xuất
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }
