@@ -51,6 +51,8 @@ export async function querySurveysForTechnician(
   });
 }
 
+export type SurveyRow = Awaited<ReturnType<typeof querySurveys>>[number];
+
 export async function querySurveyById(id: string) {
   return db.query.surveys.findFirst({
     where: eq(surveys.id, id),

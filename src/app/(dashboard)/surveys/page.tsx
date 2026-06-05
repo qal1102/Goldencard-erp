@@ -2,12 +2,14 @@ import { PlusCircleIcon } from 'lucide-react';
 import { verifySession } from '@/lib/auth/dal';
 import { hasRole } from '@/lib/auth/roles';
 import { SurveyList } from '@/modules/surveys/components/survey-list';
+import { loadSurveysList } from '@/modules/surveys/lib/survey-load';
 
 export default async function SurveysPage() {
   const session = await verifySession();
   const roles = session.user.roles ?? [];
   const isTechnician =
     hasRole(roles, 'technician') && !hasRole(roles, 'admin', 'director', 'sales');
+  const loadResult = await loadSurveysList({}, roles, session.user.id);
 
   return (
     <div className="mx-auto w-full max-w-xl">
@@ -28,7 +30,11 @@ export default async function SurveysPage() {
         )}
       </div>
 
-      <SurveyList isTechnician={isTechnician} />
+      <SurveyList
+        isTechnician={isTechnician}
+        initialData={loadResult.success ? loadResult.data : undefined}
+        initialError={loadResult.success ? null : loadResult.error}
+      />
     </div>
   );
 }

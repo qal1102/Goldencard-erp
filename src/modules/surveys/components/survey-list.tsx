@@ -2,7 +2,7 @@
 
 import { CalendarIcon, UserIcon } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ModuleListError } from '@/components/ui/module-list-error';
 import { Button } from '@/components/ui/button';
 import { stopCardNavigation, TappableListCard } from '@/components/ui/tappable-list-card';
@@ -16,7 +16,8 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { ALL_STATUS_FILTER } from '@/lib/filters/status-filter';
 import { surveyHasTechnicalCompletionGaps } from '../lib/survey-completion-requirements';
-import { useSurveys } from '../hooks/use-surveys';
+import { normalizeSurveyFilters, useSurveys } from '../hooks/use-surveys';
+import type { SurveyRow } from '../lib/survey.queries';
 import { SURVEY_STATUS_LABELS, SURVEY_STATUSES, type SurveyStatus } from '../schema/survey.schema';
 import { SurveyStatusBadge } from './survey-status-badge';
 
@@ -31,12 +32,24 @@ function formatDate(date: Date | string | null | undefined): string | null {
 
 type Props = {
   isTechnician: boolean;
+  initialData?: SurveyRow[];
+  initialError?: string | null;
 };
 
-export function SurveyList({ isTechnician }: Props) {
+export function SurveyList({ isTechnician, initialData, initialError = null }: Props) {
   const [statusFilter, setStatusFilter] = useState<SurveyStatus | typeof ALL_STATUS_FILTER>(
     ALL_STATUS_FILTER,
   );
+
+  const filters = useMemo(
+    () =>
+      normalizeSurveyFilters({
+        status: statusFilter === ALL_STATUS_FILTER ? undefined : statusFilter,
+      }),
+    [statusFilter],
+  );
+
+  const hasInitial = statusFilter === ALL_STATUS_FILTER && initialData !== undefined && !initialError;
 
   const {
     data: surveyList,
@@ -45,16 +58,15 @@ export function SurveyList({ isTechnician }: Props) {
     isError,
     error,
     refetch,
-  } = useSurveys({
-    status: statusFilter === ALL_STATUS_FILTER ? undefined : statusFilter,
-  });
+  } = useSurveys(filters, { initialData: hasInitial ? initialData : undefined });
 
   const showSkeleton = isPending && !surveyList;
-  const showError = !surveyList && isError;
+  const showError = !surveyList && (Boolean(initialError) || isError);
   const errorMessage =
-    error instanceof Error
+    initialError ??
+    (error instanceof Error
       ? error.message
-      : 'Không thể tải danh sách phiếu khảo sát. Vui lòng thử lại.';
+      : 'Không thể tải danh sách phiếu khảo sát. Vui lòng thử lại.');
 
   return (
     <div className="flex flex-col gap-4">

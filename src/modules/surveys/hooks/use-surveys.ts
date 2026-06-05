@@ -13,6 +13,7 @@ import {
   checkInSurveyLocationAction,
   updateSurveyStatusAction,
 } from '../actions/survey.actions';
+import type { SurveyRow } from '../lib/survey.queries';
 import type {
   CreateSurveyInput,
   SurveyFilters,
@@ -22,22 +23,45 @@ import type {
   UpdateSurveyStatusInput,
 } from '../schema/survey.schema';
 
+export function normalizeSurveyFilters(filters: SurveyFilters = {}): SurveyFilters {
+  return {
+    status: filters.status || undefined,
+    customerId: filters.customerId || undefined,
+  };
+}
+
+export function surveyListQueryKey(filters: SurveyFilters = {}) {
+  const n = normalizeSurveyFilters(filters);
+  return ['surveys', 'list', n.status ?? '', n.customerId ?? ''] as const;
+}
+
 export const surveyKeys = {
   all: ['surveys'] as const,
-  list: (filters?: SurveyFilters) => ['surveys', 'list', filters ?? {}] as const,
+  list: surveyListQueryKey,
   detail: (id: string) => ['surveys', 'detail', id] as const,
   byCustomer: (customerId: string) => ['surveys', 'by-customer', customerId] as const,
   technicians: () => ['surveys', 'technicians'] as const,
 };
 
-export function useSurveys(filters: SurveyFilters = {}) {
+type UseSurveysOptions = {
+  initialData?: SurveyRow[];
+};
+
+export function useSurveys(filters: SurveyFilters = {}, options?: UseSurveysOptions) {
+  const normalized = normalizeSurveyFilters(filters);
+
   return useQuery({
-    queryKey: surveyKeys.list(filters),
+    queryKey: surveyKeys.list(normalized),
     queryFn: async () => {
-      const result = await getSurveysAction(filters);
+      const result = await getSurveysAction(normalized);
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
+    initialData: options?.initialData,
+    staleTime: 30_000,
+    retry: 1,
+    refetchOnMount: options?.initialData === undefined,
+    refetchOnWindowFocus: false,
   });
 }
 
