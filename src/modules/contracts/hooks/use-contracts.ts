@@ -13,6 +13,7 @@ import {
   updateContractNoteAction,
   updateContractStatusAction,
 } from '../actions/contract.actions';
+import type { ContractRow } from '../lib/contract.queries';
 import type {
   ContractFilters,
   CreateContractFromQuotationInput,
@@ -21,21 +22,46 @@ import type {
   UpdateContractStatusInput,
 } from '../schema/contract.schema';
 
+export function normalizeContractFilters(filters: ContractFilters = {}): ContractFilters {
+  return {
+    status: filters.status || undefined,
+    customerId: filters.customerId || undefined,
+  };
+}
+
+export function contractListQueryKey(filters: ContractFilters = {}) {
+  const n = normalizeContractFilters(filters);
+  return ['contracts', 'list', n.status ?? '', n.customerId ?? ''] as const;
+}
+
 export const contractKeys = {
   all: ['contracts'] as const,
-  list: (filters?: ContractFilters) => ['contracts', 'list', filters ?? {}] as const,
+  list: contractListQueryKey,
   detail: (id: string) => ['contracts', 'detail', id] as const,
   byQuotation: (quotationId: string) => ['contracts', 'by-quotation', quotationId] as const,
 };
 
-export function useContracts(filters: ContractFilters = {}) {
+type UseContractsOptions = {
+  initialData?: ContractRow[];
+  enabled?: boolean;
+};
+
+export function useContracts(filters: ContractFilters = {}, options?: UseContractsOptions) {
+  const normalized = normalizeContractFilters(filters);
+
   return useQuery({
-    queryKey: contractKeys.list(filters),
+    queryKey: contractKeys.list(normalized),
     queryFn: async () => {
-      const result = await getContractsAction(filters);
+      const result = await getContractsAction(normalized);
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
+    initialData: options?.initialData,
+    enabled: options?.enabled ?? true,
+    staleTime: 30_000,
+    retry: 1,
+    refetchOnMount: options?.initialData === undefined,
+    refetchOnWindowFocus: false,
   });
 }
 

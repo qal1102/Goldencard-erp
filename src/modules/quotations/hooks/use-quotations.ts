@@ -11,6 +11,7 @@ import {
   updateQuotationAction,
   updateQuotationStatusAction,
 } from '../actions/quotation.actions';
+import type { QuotationRow } from '../lib/quotation.queries';
 import type {
   CreateQuotationInput,
   QuotationFilters,
@@ -18,22 +19,47 @@ import type {
   UpdateQuotationStatusInput,
 } from '../schema/quotation.schema';
 
+export function normalizeQuotationFilters(filters: QuotationFilters = {}): QuotationFilters {
+  return {
+    status: filters.status || undefined,
+    customerId: filters.customerId || undefined,
+  };
+}
+
+export function quotationListQueryKey(filters: QuotationFilters = {}) {
+  const n = normalizeQuotationFilters(filters);
+  return ['quotations', 'list', n.status ?? '', n.customerId ?? ''] as const;
+}
+
 export const quotationKeys = {
   all: ['quotations'] as const,
-  list: (filters?: QuotationFilters) => ['quotations', 'list', filters ?? {}] as const,
+  list: quotationListQueryKey,
   detail: (id: string) => ['quotations', 'detail', id] as const,
   completedSurveys: () => ['quotations', 'completed-surveys'] as const,
   bySurvey: (surveyId: string) => ['quotations', 'by-survey', surveyId] as const,
 };
 
-export function useQuotations(filters: QuotationFilters = {}) {
+type UseQuotationsOptions = {
+  initialData?: QuotationRow[];
+  enabled?: boolean;
+};
+
+export function useQuotations(filters: QuotationFilters = {}, options?: UseQuotationsOptions) {
+  const normalized = normalizeQuotationFilters(filters);
+
   return useQuery({
-    queryKey: quotationKeys.list(filters),
+    queryKey: quotationKeys.list(normalized),
     queryFn: async () => {
-      const result = await getQuotationsAction(filters);
+      const result = await getQuotationsAction(normalized);
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
+    initialData: options?.initialData,
+    enabled: options?.enabled ?? true,
+    staleTime: 30_000,
+    retry: 1,
+    refetchOnMount: options?.initialData === undefined,
+    refetchOnWindowFocus: false,
   });
 }
 

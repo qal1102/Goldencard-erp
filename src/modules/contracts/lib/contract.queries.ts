@@ -24,6 +24,7 @@ export async function queryContracts(filters: ContractFilters = {}) {
       createdByUser: { columns: { id: true, name: true } },
     },
     orderBy: [desc(contracts.createdAt)],
+    limit: 200,
   });
 }
 

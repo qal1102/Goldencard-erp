@@ -6,6 +6,8 @@ import { auth } from '@/auth';
 import { db } from '@/db';
 import { quotationEditLogs, quotationExports, quotationItems, quotations, surveys } from '@/db/schema';
 import { requireRole } from '@/lib/auth/roles';
+import { serializeForClient } from '@/lib/serialize/for-client';
+import { devModuleLogError, MODULE_LIST_ERROR } from '@/lib/server/module-list-log';
 import { safeNotify } from '@/lib/notifications/create-notification';
 import {
   notifyQuotationCreated,
@@ -258,10 +260,19 @@ export async function getQuotationsAction(
     const parsed = quotationFiltersSchema.safeParse(filters);
     const safeFilters = parsed.success ? parsed.data : {};
 
-    const data = await queryQuotations(safeFilters);
+    const data = serializeForClient(await queryQuotations(safeFilters));
     return { success: true, data };
   } catch (e) {
-    return { success: false, error: e instanceof Error ? e.message : 'Lỗi hệ thống' };
+    devModuleLogError('quotations', 'getQuotationsAction failed', e);
+    return {
+      success: false,
+      error:
+        e instanceof Error && e.message !== 'Unauthorized'
+          ? MODULE_LIST_ERROR
+          : e instanceof Error
+            ? e.message
+            : MODULE_LIST_ERROR,
+    };
   }
 }
 

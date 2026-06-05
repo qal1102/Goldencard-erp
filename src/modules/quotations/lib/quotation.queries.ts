@@ -38,6 +38,7 @@ export async function queryQuotations(filters: QuotationFilters = {}) {
       createdByUser: { columns: { id: true, name: true } },
     },
     orderBy: [desc(quotations.createdAt)],
+    limit: 200,
   });
 }
 
