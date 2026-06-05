@@ -15,7 +15,8 @@
     "db:create-admin": "tsx src/db/create-admin.ts",
     "db:bootstrap-super-admin": "tsx src/db/bootstrap-super-admin.ts",
     "db:promote-super-admin": "tsx src/db/promote-super-admin.ts",
-    "db:create-user": "tsx src/db/create-user.ts"
+    "db:create-user": "tsx src/db/create-user.ts",
+    "perf:routes": "tsx scripts/measure-routes.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

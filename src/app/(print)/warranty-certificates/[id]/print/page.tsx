@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import QRCode from 'qrcode';
 import { auth } from '@/auth';
+import { generateWarrantyQrDataUrl } from '@/modules/warranty-certificates/lib/generate-warranty-qr-data-url';
 import { hasRole } from '@/lib/auth/roles';
 import { WarrantyCertificatePrintDocument } from '@/modules/warranty-certificates/components/warranty-certificate-print-document';
 import { buildWarrantyCertificatePrintModel } from '@/modules/warranty-certificates/lib/build-warranty-certificate-print-model';
@@ -48,11 +48,7 @@ export default async function WarrantyCertificatePrintPage({ params }: Props) {
   }
 
   const model = buildWarrantyCertificatePrintModel(certificate);
-  const qrDataUrl = await QRCode.toDataURL(model.publicCheckUrl, {
-    width: 280,
-    margin: 1,
-    errorCorrectionLevel: 'M',
-  });
+  const qrDataUrl = await generateWarrantyQrDataUrl(model.publicCheckUrl);
 
   return (
     <WarrantyCertificatePrintDocument

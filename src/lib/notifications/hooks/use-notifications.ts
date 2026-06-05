@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getMyNotificationsAction,
@@ -29,7 +30,33 @@ export function useNotifications(limit = 20, options?: { enabled?: boolean }) {
   });
 }
 
-export function useUnreadNotificationCount() {
+const UNREAD_COUNT_DEFER_MS = 400;
+
+function useDeferredQueryEnabled(eager = false) {
+  const [deferredReady, setDeferredReady] = useState(eager);
+
+  useEffect(() => {
+    if (eager) {
+      setDeferredReady(true);
+      return;
+    }
+
+    const enable = () => setDeferredReady(true);
+    if (typeof requestIdleCallback !== 'undefined') {
+      const id = requestIdleCallback(enable, { timeout: UNREAD_COUNT_DEFER_MS + 100 });
+      return () => cancelIdleCallback(id);
+    }
+
+    const timeoutId = window.setTimeout(enable, UNREAD_COUNT_DEFER_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [eager]);
+
+  return deferredReady || eager;
+}
+
+export function useUnreadNotificationCount(options?: { eager?: boolean }) {
+  const enabled = useDeferredQueryEnabled(options?.eager ?? false);
+
   return useQuery({
     queryKey: notificationKeys.unreadCount(),
     queryFn: async () => {
@@ -37,6 +64,7 @@ export function useUnreadNotificationCount() {
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
+    enabled,
     staleTime: 60_000,
     refetchInterval: 90_000,
     refetchOnWindowFocus: true,

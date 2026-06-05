@@ -140,7 +140,7 @@ export function NotificationBell() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { data: unreadCount = 0 } = useUnreadNotificationCount();
+  const { data: unreadCount = 0 } = useUnreadNotificationCount({ eager: open });
   const { data: notifications, isLoading } = useNotifications(15, { enabled: open });
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
