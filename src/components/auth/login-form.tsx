@@ -16,11 +16,7 @@ export function LoginForm() {
   const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
-    if (!pending) {
-      setShowSlowMessage(false);
-      setTimedOut(false);
-      return;
-    }
+    if (!pending) return;
 
     const slowTimer = window.setTimeout(() => setShowSlowMessage(true), SLOW_LOGIN_MS);
     const timeoutTimer = window.setTimeout(() => setTimedOut(true), LOGIN_TIMEOUT_MS);
@@ -31,11 +27,16 @@ export function LoginForm() {
     };
   }, [pending]);
 
+  function handleSubmit() {
+    setShowSlowMessage(false);
+    setTimedOut(false);
+  }
+
   const displayError =
-    state?.error ?? (timedOut ? 'Đăng nhập quá lâu. Vui lòng thử lại.' : undefined);
+    state?.error ?? (pending && timedOut ? 'Đăng nhập quá lâu. Vui lòng thử lại.' : undefined);
 
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form action={action} onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="email">Email</Label>
         <Input

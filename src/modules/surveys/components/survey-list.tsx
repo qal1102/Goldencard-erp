@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ALL_STATUS_FILTER } from '@/lib/filters/status-filter';
 import { surveyHasTechnicalCompletionGaps } from '../lib/survey-completion-requirements';
 import { useSurveys } from '../hooks/use-surveys';
 import { SURVEY_STATUS_LABELS, SURVEY_STATUSES, type SurveyStatus } from '../schema/survey.schema';
@@ -33,7 +34,9 @@ type Props = {
 };
 
 export function SurveyList({ isTechnician }: Props) {
-  const [statusFilter, setStatusFilter] = useState<SurveyStatus | ''>('');
+  const [statusFilter, setStatusFilter] = useState<SurveyStatus | typeof ALL_STATUS_FILTER>(
+    ALL_STATUS_FILTER,
+  );
 
   const {
     data: surveyList,
@@ -43,7 +46,7 @@ export function SurveyList({ isTechnician }: Props) {
     error,
     refetch,
   } = useSurveys({
-    status: statusFilter || undefined,
+    status: statusFilter === ALL_STATUS_FILTER ? undefined : statusFilter,
   });
 
   const showSkeleton = isPending && !surveyList;
@@ -58,19 +61,21 @@ export function SurveyList({ isTechnician }: Props) {
       <div className="flex items-center gap-2">
         <Select
           value={statusFilter}
-          onValueChange={(v) => setStatusFilter(v as SurveyStatus | '')}
+          onValueChange={(v) =>
+            setStatusFilter((v ?? ALL_STATUS_FILTER) as SurveyStatus | typeof ALL_STATUS_FILTER)
+          }
         >
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Tất cả trạng thái">
               {(value) =>
-                value
+                value && value !== ALL_STATUS_FILTER
                   ? SURVEY_STATUS_LABELS[value as SurveyStatus]
                   : 'Tất cả trạng thái'
               }
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Tất cả trạng thái</SelectItem>
+            <SelectItem value={ALL_STATUS_FILTER}>Tất cả trạng thái</SelectItem>
             {SURVEY_STATUSES.map((s) => (
               <SelectItem key={s} value={s}>
                 {SURVEY_STATUS_LABELS[s]}
@@ -102,7 +107,7 @@ export function SurveyList({ isTechnician }: Props) {
 
       {!showSkeleton && !showError && surveyList?.length === 0 && (
         <div className="py-16 text-center text-sm text-muted-foreground">
-          {statusFilter ? 'Không có phiếu khảo sát nào ở trạng thái này' : 'Chưa có phiếu khảo sát'}
+          {statusFilter !== ALL_STATUS_FILTER ? 'Không có phiếu khảo sát nào ở trạng thái này' : 'Chưa có phiếu khảo sát'}
         </div>
       )}
 
