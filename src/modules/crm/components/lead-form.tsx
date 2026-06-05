@@ -28,6 +28,7 @@ import {
 import { getAssignableUserLabel, getLeadSourceLabel } from '../lib/lead-labels';
 
 type AssignableUser = { id: string; name: string };
+const UNASSIGNED_USER_VALUE = '__unassigned__';
 
 type Props = {
   mode: 'create' | 'edit';
@@ -289,18 +290,22 @@ export function LeadForm({ mode, leadId, defaultValues, assignableUsers, linkedC
                   name="assignedTo"
                   render={({ field }) => (
                     <Select
-                      value={field.value ?? ''}
-                      onValueChange={(val) => field.onChange(val || null)}
+                      value={field.value || UNASSIGNED_USER_VALUE}
+                      onValueChange={(val) =>
+                        field.onChange(val === UNASSIGNED_USER_VALUE ? null : val || null)
+                      }
                     >
                       <SelectTrigger id="assignedTo" className="w-full">
                         <SelectValue placeholder="Chưa phân công">
                           {(value) =>
-                            value ? getAssignableUserLabel(value, assignableUsers) : null
+                            value && value !== UNASSIGNED_USER_VALUE
+                              ? getAssignableUserLabel(value, assignableUsers)
+                              : null
                           }
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Chưa phân công</SelectItem>
+                        <SelectItem value={UNASSIGNED_USER_VALUE}>Chưa phân công</SelectItem>
                         {assignableUsers.map((u) => (
                           <SelectItem key={u.id} value={u.id}>
                             {u.name}

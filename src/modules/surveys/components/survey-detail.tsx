@@ -99,6 +99,7 @@ function formatDate(date: Date | string | null | undefined): string | null {
 }
 
 type AssignFeedback = { type: 'success' | 'info'; message: string } | null;
+const UNASSIGNED_TECHNICIAN_VALUE = '__unassigned__';
 
 export function SurveyDetail({
   surveyId,
@@ -204,11 +205,12 @@ export function SurveyDetail({
     setTimeout(() => setAssignFeedback(null), 3000);
   };
 
-  const techSelectValue = survey.assignedTo ?? '';
+  const techSelectValue = survey.assignedTo ?? UNASSIGNED_TECHNICIAN_VALUE;
 
   const handleAssign = async () => {
+    const selectedValue = selectedTechId !== null ? selectedTechId : techSelectValue;
     const submitTechId =
-      (selectedTechId !== null ? selectedTechId : techSelectValue) || null;
+      selectedValue === UNASSIGNED_TECHNICIAN_VALUE ? null : selectedValue || null;
     const currentTechId = survey.assignedTo ?? null;
 
     if (submitTechId && submitTechId === currentTechId) {
@@ -288,18 +290,21 @@ export function SurveyDetail({
               <div className="flex gap-2">
                 <Select
                   value={selectedTechId !== null ? selectedTechId : techSelectValue}
-                  onValueChange={(v) => setSelectedTechId(v ?? '')}
+                  onValueChange={(v) =>
+                    setSelectedTechId(v ?? UNASSIGNED_TECHNICIAN_VALUE)
+                  }
                 >
                   <SelectTrigger className="flex-1">
                     <SelectValue placeholder="Chọn kỹ thuật viên...">
                       {(value) => {
+                        if (value === UNASSIGNED_TECHNICIAN_VALUE) return 'Chưa phân công';
                         const tech = technicians?.find((t) => t.id === value);
                         return tech ? tech.name : 'Chọn kỹ thuật viên...';
                       }}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Chưa phân công</SelectItem>
+                    <SelectItem value={UNASSIGNED_TECHNICIAN_VALUE}>Chưa phân công</SelectItem>
                     {(technicians ?? []).map((t) => (
                       <SelectItem key={t.id} value={t.id}>
                         {t.name}

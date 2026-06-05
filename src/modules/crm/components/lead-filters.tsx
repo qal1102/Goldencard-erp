@@ -15,6 +15,8 @@ import {
 import { LEAD_STATUS_LABELS, LEAD_STATUSES, type LeadStatus } from '../schema/lead.schema';
 import { getLeadStatusLabel } from '../lib/lead-labels';
 
+const ALL_LEAD_STATUSES_VALUE = '__all__';
+
 export function LeadFilters() {
   const router = useRouter();
   const pathname = usePathname();
@@ -59,16 +61,20 @@ export function LeadFilters() {
       </div>
 
       <Select
-        value={status ?? ''}
-        onValueChange={(val) => updateParams('status', val || null)}
+        value={status ?? ALL_LEAD_STATUSES_VALUE}
+        onValueChange={(val) =>
+          updateParams('status', val === ALL_LEAD_STATUSES_VALUE ? null : val || null)
+        }
       >
         <SelectTrigger className="w-[160px]">
           <SelectValue placeholder="Tất cả trạng thái">
-            {(value) => (value ? getLeadStatusLabel(value) : null)}
+            {(value) =>
+              value && value !== ALL_LEAD_STATUSES_VALUE ? getLeadStatusLabel(value) : null
+            }
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">Tất cả trạng thái</SelectItem>
+          <SelectItem value={ALL_LEAD_STATUSES_VALUE}>Tất cả trạng thái</SelectItem>
           {LEAD_STATUSES.map((s) => (
             <SelectItem key={s} value={s}>
               {LEAD_STATUS_LABELS[s]}

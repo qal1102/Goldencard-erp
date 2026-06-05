@@ -70,6 +70,8 @@ type Props =
       onOpenChange: (open: boolean) => void;
     };
 
+const UNASSIGNED_TECHNICIAN_VALUE = '__unassigned__';
+
 function resolveInstallationAddress(
   explicitAddress: string | undefined,
   explicitProvince: string | null | undefined,
@@ -251,19 +253,25 @@ function CreateSurveyFormBody({
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="cs-assignedTo">Phân công kỹ thuật viên</Label>
           <Select
-            value={form.assignedTo}
-            onValueChange={(v) => handleChange('assignedTo', v ?? '')}
+            value={form.assignedTo || UNASSIGNED_TECHNICIAN_VALUE}
+            onValueChange={(v) =>
+              handleChange(
+                'assignedTo',
+                v === UNASSIGNED_TECHNICIAN_VALUE ? '' : v ?? '',
+              )
+            }
           >
             <SelectTrigger id="cs-assignedTo" className="w-full">
               <SelectValue placeholder="Chưa phân công">
                 {(value) => {
+                  if (value === UNASSIGNED_TECHNICIAN_VALUE) return null;
                   const tech = technicians?.find((t) => t.id === value);
                   return tech ? tech.name : null;
                 }}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Chưa phân công</SelectItem>
+              <SelectItem value={UNASSIGNED_TECHNICIAN_VALUE}>Chưa phân công</SelectItem>
               {(technicians ?? []).map((t) => (
                 <SelectItem key={t.id} value={t.id}>
                   {t.name}
