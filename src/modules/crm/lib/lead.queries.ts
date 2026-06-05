@@ -70,6 +70,7 @@ export async function queryLeadActivities(leadId: string) {
       },
     },
     orderBy: [desc(leadActivities.createdAt)],
+    limit: 100,
   });
 }
 

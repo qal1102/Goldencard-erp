@@ -24,6 +24,7 @@ export async function querySurveys(filters: SurveyFilters = {}) {
       },
     },
     orderBy: [desc(surveys.createdAt)],
+    limit: 200,
   });
 }
 
@@ -46,6 +47,7 @@ export async function querySurveysForTechnician(
       },
     },
     orderBy: [desc(surveys.createdAt)],
+    limit: 200,
   });
 }
 

@@ -1,11 +1,11 @@
 import { PlusCircleIcon } from 'lucide-react';
-import { auth } from '@/auth';
+import { verifySession } from '@/lib/auth/dal';
 import { hasRole } from '@/lib/auth/roles';
 import { SurveyList } from '@/modules/surveys/components/survey-list';
 
 export default async function SurveysPage() {
-  const session = await auth();
-  const roles = session?.user?.roles ?? [];
+  const session = await verifySession();
+  const roles = session.user.roles ?? [];
   const isTechnician =
     hasRole(roles, 'technician') && !hasRole(roles, 'admin', 'director', 'sales');
 

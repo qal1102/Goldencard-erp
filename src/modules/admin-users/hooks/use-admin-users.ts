@@ -67,6 +67,7 @@ export function useAdminUsers(
     staleTime: 30_000,
     retry: 1,
     retryDelay: 1000,
+    refetchOnMount: options?.initialData === undefined,
     refetchOnWindowFocus: false,
   });
 }
@@ -100,6 +101,7 @@ export function useAdminRoles(options?: UseAdminRolesOptions) {
     enabled: options?.enabled ?? true,
     staleTime: 5 * 60 * 1000,
     retry: 1,
+    refetchOnMount: options?.initialData === undefined,
     refetchOnWindowFocus: false,
   });
 }

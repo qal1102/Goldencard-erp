@@ -1,6 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
+import { ModuleListError } from '@/components/ui/module-list-error';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Lead } from '@/db/schema';
 import { useLeads } from '../hooks/use-leads';
@@ -49,15 +50,39 @@ export function LeadPipeline() {
   const search = searchParams.get('search') ?? undefined;
   const statusFilter = searchParams.get('status') as LeadStatus | null;
 
-  const { data: leads, isLoading } = useLeads({
+  const {
+    data: leads,
+    isPending,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useLeads({
     search,
     status: statusFilter ?? undefined,
   });
 
+  const showSkeleton = isPending && !leads;
+  const showError = !leads && isError;
+  const errorMessage =
+    error instanceof Error
+      ? error.message
+      : 'Không thể tải danh sách cơ hội. Vui lòng thử lại.';
+
   const leadIds = (leads ?? []).map((l) => l.id);
   const { data: progressByLeadId } = useProjectProgressForLeads(leadIds);
 
-  if (isLoading) {
+  if (showError) {
+    return (
+      <ModuleListError
+        message={errorMessage}
+        onRetry={() => void refetch()}
+        isRetrying={isFetching}
+      />
+    );
+  }
+
+  if (showSkeleton) {
     return (
       <div className="flex gap-3 overflow-x-auto pb-4">
         {LEAD_STATUSES.slice(0, 4).map((s) => (
@@ -67,7 +92,7 @@ export function LeadPipeline() {
     );
   }
 
-  const leadsTyped = (leads ?? []) as LeadWithUser[];
+  const leadsTyped = leads as LeadWithUser[];
 
   const visibleStatuses = statusFilter ? [statusFilter] : LEAD_STATUSES;
 

@@ -131,6 +131,7 @@ export async function queryCustomers(filters: CustomerFilters = {}) {
       },
     },
     orderBy: [desc(customers.createdAt)],
+    limit: 200,
   });
 
   return rows.map((customer) => {

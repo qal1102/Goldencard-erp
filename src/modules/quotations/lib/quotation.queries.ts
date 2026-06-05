@@ -206,7 +206,8 @@ export async function queryCompletedSurveysWithoutQuotation() {
         ),
       ),
     )
-    .orderBy(desc(surveys.createdAt));
+    .orderBy(desc(surveys.createdAt))
+    .limit(50);
 }
 
 /** Latest revision for a survey (used by survey detail quick-link). */

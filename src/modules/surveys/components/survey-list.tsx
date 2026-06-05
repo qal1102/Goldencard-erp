@@ -3,6 +3,7 @@
 import { CalendarIcon, UserIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
+import { ModuleListError } from '@/components/ui/module-list-error';
 import { Button } from '@/components/ui/button';
 import { stopCardNavigation, TappableListCard } from '@/components/ui/tappable-list-card';
 import {
@@ -34,9 +35,23 @@ type Props = {
 export function SurveyList({ isTechnician }: Props) {
   const [statusFilter, setStatusFilter] = useState<SurveyStatus | ''>('');
 
-  const { data: surveyList, isLoading } = useSurveys({
+  const {
+    data: surveyList,
+    isPending,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useSurveys({
     status: statusFilter || undefined,
   });
+
+  const showSkeleton = isPending && !surveyList;
+  const showError = !surveyList && isError;
+  const errorMessage =
+    error instanceof Error
+      ? error.message
+      : 'Không thể tải danh sách phiếu khảo sát. Vui lòng thử lại.';
 
   return (
     <div className="flex flex-col gap-4">
@@ -65,7 +80,19 @@ export function SurveyList({ isTechnician }: Props) {
         </Select>
       </div>
 
-      {isLoading && (
+      {isFetching && surveyList && surveyList.length > 0 && (
+        <p className="text-xs text-muted-foreground">Đang cập nhật danh sách...</p>
+      )}
+
+      {showError && (
+        <ModuleListError
+          message={errorMessage}
+          onRetry={() => void refetch()}
+          isRetrying={isFetching}
+        />
+      )}
+
+      {showSkeleton && !showError && (
         <div className="flex flex-col gap-3">
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
@@ -73,13 +100,13 @@ export function SurveyList({ isTechnician }: Props) {
         </div>
       )}
 
-      {!isLoading && (!surveyList || surveyList.length === 0) && (
+      {!showSkeleton && !showError && surveyList?.length === 0 && (
         <div className="py-16 text-center text-sm text-muted-foreground">
           {statusFilter ? 'Không có phiếu khảo sát nào ở trạng thái này' : 'Chưa có phiếu khảo sát'}
         </div>
       )}
 
-      {!isLoading && surveyList && surveyList.length > 0 && (
+      {!showSkeleton && !showError && surveyList && surveyList.length > 0 && (
         <div className="flex flex-col gap-3">
           {surveyList.map((survey) => (
             <TappableListCard
