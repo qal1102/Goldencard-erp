@@ -1,57 +1,53 @@
 # GoldenCard ERP Agent Instructions
 
-## Project Stack And Purpose
+## Project
+GoldenCard ERP is an internal solar / installation / service workflow ERP.
+Main workflow: CRM Lead -> Customer -> Survey -> Quotation -> Contract -> Inventory/BOM -> Work Order -> Installation/Handover -> Warranty/Customer Service.
+UI language is Vietnamese.
 
-- GoldenCard ERP is a production-oriented internal ERP for GoldenCard's solar, installation, and service workflow, covering CRM, customers, surveys, quotations, contracts, inventory, work orders, handover, warranty, CSKH, and user management.
-- Treat this as a Next.js project with breaking-version caveats: before changing Next.js APIs, conventions, routing, or file structure, read the relevant guide in `node_modules/next/dist/docs/`.
-- Use existing project patterns and `docs/` files as the source of truth for business behavior, module scope, and writing conventions.
-- Prefer small, targeted diffs that solve the requested task without unrelated refactors.
+## Safety Rules
+- Do not run production db:migrate without explicit user approval.
+- Do not deploy to production without explicit user approval.
+- Do not drop, truncate, reset, or destructively modify production data.
+- Do not expose secrets, DATABASE_URL, tokens, password hashes, or .env values.
+- Do not change DB pool max without explicit user approval.
+- Do not broad-refactor the app.
+- Do not optimize the whole app in one task.
+- Fix one route, one bug, or one small workflow at a time.
 
-## Production Safety
+## Auth / Security
+- Preserve Auth.js v5 credentials auth.
+- Preserve JWT session behavior.
+- Preserve Super Admin guard.
+- Preserve disabled/inactive user blocking.
+- Only Super Admin may manage users/roles/password reset/lock/unlock.
+- Never allow Super Admin to lock themselves.
+- Do not create a second Super Admin through UI/API.
 
-- Do not deploy production unless the user explicitly approves.
-- Do not run production `db:migrate` unless the user explicitly approves.
-- Do not reset, drop, truncate, or otherwise destructively modify the production database.
-- Do not expose secrets, database URLs, credentials, tokens, or `password_hash` values in code, logs, UI, docs, commits, or responses.
-- Do not change database pool max without explicit approval.
+## DB / Supabase
+- The app uses Supabase only as Postgres via DATABASE_URL.
+- Do not add Supabase JS/API key dependency unless explicitly requested.
+- Production migration history may be unreliable.
+- Before any schema change, inspect real tables/columns first.
+- Prefer safe SQL IF NOT EXISTS only after approval.
 
-## Business Workflow
-
-- Preserve the GoldenCard ERP business workflow documented in `docs/01-business-rules.md`.
-- Keep workflow state transitions, approvals, role boundaries, and validations aligned with the documented business rules.
-- Do not invent new operational flows, statuses, reports, dashboards, or audit surfaces unless explicitly requested.
-- Never create audit UI, canvas, or report pages unless explicitly requested.
-
-## Super Admin And Users
-
-- Keep the Super Admin guard intact.
-- Keep disabled-user blocking intact.
-- Do not weaken user-management permission checks, role checks, or account-status checks.
-- Avoid exposing sensitive user fields, especially `password_hash`.
-
-## Data Loading
-
-- For list pages, use server `initialData` when practical.
-- Use stable query keys.
-- Use explicit limits and pagination for list data.
-- Provide empty states and error states.
-- Do not use infinite skeleton loading.
-
-## Database And Migrations
-
-- Do not run production `db:migrate` unless the user explicitly approves.
-- Do not reset, drop, truncate, or destructively rewrite production data.
-- Do not expose database URLs, secrets, credentials, tokens, or `password_hash` values.
-- Keep migrations narrow, reviewable, and aligned with documented business rules.
-
-## Deployment
-
-- Do not deploy production unless the user explicitly approves.
-- Use `npx vercel --prod` only after explicit production-deploy approval.
-- Do not treat preview/local deployment approval as production deployment approval.
+## Frontend / Loading
+- Avoid infinite skeleton/loading states.
+- Prefer server initialData for important list pages when practical.
+- React Query hooks with initialData must not refetch immediately on mount.
+- Use stable primitive query keys.
+- Add bounded loading, empty, and error states.
+- Serialize Date/nested DB data before sending to client.
+- Avoid unsafe SelectItem value="" with Base UI / shadcn Select.
 
 ## Testing
+- Run npm run lint and npm run build after code changes.
+- If tests fail, report the failure and do not deploy.
+- Do not commit ignored/local/build files:
+  .env.local, .vercel, .next, node_modules, tsconfig.tsbuildinfo.
 
-- Always run `npm run build` after code changes.
-- Run existing tests when relevant to the changed area.
-- If tests or builds cannot be run, report the reason clearly.
+## Workflow
+- Review current diff before committing.
+- Keep commits small and focused.
+- If asked to audit, do not edit files.
+- If asked to fix, edit only files directly needed for that task.
