@@ -1,32 +1,37 @@
 import { notFound } from 'next/navigation';
-import { verifySession } from '@/lib/auth/dal';
+import { auth } from '@/auth';
+import { hasRole } from '@/lib/auth/roles';
 import { WarrantyCertificateDetail } from '@/modules/warranty-certificates/components/warranty-certificate-detail';
-import { generateWarrantyQrDataUrl } from '@/modules/warranty-certificates/lib/generate-warranty-qr-data-url';
-import { loadWarrantyCertificateDetail } from '@/modules/warranty-certificates/lib/warranty-certificate-load';
-import { getPublicWarrantyCheckUrl } from '@/modules/warranty-certificates/lib/public-url';
+import { queryWarrantyCertificateById } from '@/modules/warranty-certificates/lib/warranty-certificate.queries';
 
 type Props = {
   params: Promise<{ id: string }>;
 };
 
+const CERT_VIEW_ROLES = [
+  'admin',
+  'director',
+  'sales',
+  'chief_accountant',
+  'accountant',
+  'technician',
+  'customer_service',
+] as const;
+
 export default async function WarrantyCertificateDetailPage({ params }: Props) {
   const { id } = await params;
-  const session = await verifySession();
-  const roles = session.user.roles ?? [];
 
-  const loadResult = await loadWarrantyCertificateDetail(id, roles);
-  if (!loadResult.success) notFound();
+  const [session, certificate] = await Promise.all([auth(), queryWarrantyCertificateById(id)]);
+  if (!certificate) notFound();
 
-  const publicUrl = getPublicWarrantyCheckUrl(loadResult.data.publicToken);
-  const qrDataUrl = await generateWarrantyQrDataUrl(publicUrl);
+  const roles = session?.user?.roles ?? [];
+  if (!hasRole(roles, ...CERT_VIEW_ROLES)) {
+    notFound();
+  }
 
   return (
     <div className="mx-auto w-full max-w-xl">
-      <WarrantyCertificateDetail
-        certificateId={id}
-        initialData={loadResult.data}
-        qrDataUrl={qrDataUrl}
-      />
+      <WarrantyCertificateDetail certificateId={id} />
     </div>
   );
 }

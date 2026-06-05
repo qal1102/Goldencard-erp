@@ -1,11 +1,12 @@
 import { redirect } from 'next/navigation';
-import { verifySession } from '@/lib/auth/dal';
+import { auth } from '@/auth';
 import { hasRole } from '@/lib/auth/roles';
 import { ContractList } from '@/modules/contracts/components/contract-list';
 
 export default async function ContractsPage() {
-  const session = await verifySession();
+  const session = await auth();
   if (
+    !session?.user ||
     !hasRole(session.user.roles ?? [], 'admin', 'director', 'sales', 'chief_accountant', 'accountant')
   ) {
     redirect('/dashboard');

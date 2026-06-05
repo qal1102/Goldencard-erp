@@ -9,7 +9,6 @@ import {
   getWarrantyCertificatesAction,
   getWarrantyCertificatesByCustomerAction,
 } from '../actions/warranty-certificate.actions';
-import type { WarrantyCertificateDetailWithQrStats } from '../actions/warranty-certificate.actions';
 import type { WarrantyCertificateRow } from '../lib/warranty-certificate.queries';
 import type { WarrantyCertificateFilters } from '../schema/warranty-certificate.schema';
 
@@ -66,16 +65,11 @@ export function useWarrantyCertificates(
     enabled: options?.enabled ?? true,
     staleTime: 30_000,
     retry: 1,
-    refetchOnMount: options?.initialData === undefined,
     refetchOnWindowFocus: false,
   });
 }
 
-type UseWarrantyCertificateOptions = {
-  initialData?: WarrantyCertificateDetailWithQrStats;
-};
-
-export function useWarrantyCertificate(id: string, options?: UseWarrantyCertificateOptions) {
+export function useWarrantyCertificate(id: string) {
   return useQuery({
     queryKey: warrantyCertificateKeys.detail(id),
     queryFn: async () => {
@@ -83,11 +77,7 @@ export function useWarrantyCertificate(id: string, options?: UseWarrantyCertific
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
-    initialData: options?.initialData,
     enabled: Boolean(id),
-    staleTime: 30_000,
-    retry: 1,
-    refetchOnWindowFocus: false,
   });
 }
 

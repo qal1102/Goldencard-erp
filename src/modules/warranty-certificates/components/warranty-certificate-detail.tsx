@@ -9,7 +9,6 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getPublicWarrantyCheckUrl } from '../lib/public-url';
 import { resolveSupportPhone } from '../lib/support-phone';
-import type { WarrantyCertificateDetailWithQrStats } from '../actions/warranty-certificate.actions';
 import { useWarrantyCertificate } from '../hooks/use-warranty-certificates';
 import { CopyPublicLinkButton } from './copy-public-link-button';
 import { OpenPublicWarrantyLink } from './open-public-warranty-link';
@@ -47,23 +46,12 @@ function DetailRow({ label, value }: { label: string; value?: string | null }) {
 
 type Props = {
   certificateId: string;
-  initialData?: WarrantyCertificateDetailWithQrStats;
-  qrDataUrl?: string;
 };
 
-export function WarrantyCertificateDetail({
-  certificateId,
-  initialData,
-  qrDataUrl,
-}: Props) {
-  const {
-    data: certificate,
-    isPending,
-    isError,
-    error,
-  } = useWarrantyCertificate(certificateId, { initialData });
+export function WarrantyCertificateDetail({ certificateId }: Props) {
+  const { data: certificate, isLoading } = useWarrantyCertificate(certificateId);
 
-  if (isPending && !certificate) {
+  if (isLoading) {
     return (
       <div className="flex flex-col gap-4">
         <Skeleton className="h-8 w-48" />
@@ -75,13 +63,12 @@ export function WarrantyCertificateDetail({
   if (!certificate) {
     return (
       <div className="py-16 text-center text-muted-foreground">
-        <p>{isError && error instanceof Error ? error.message : 'Không tìm thấy phiếu bảo hành'}</p>
+        Không tìm thấy phiếu bảo hành
       </div>
     );
   }
 
-  const publicToken = certificate.publicToken?.trim();
-  const publicUrl = publicToken ? getPublicWarrantyCheckUrl(publicToken) : null;
+  const publicUrl = getPublicWarrantyCheckUrl(certificate.publicToken);
 
   return (
     <div className="flex flex-col gap-4">
@@ -112,8 +99,8 @@ export function WarrantyCertificateDetail({
               <PrinterIcon className="size-3.5" />
               In / Lưu PDF
             </Button>
-            {publicUrl && <CopyPublicLinkButton url={publicUrl} />}
-            {publicUrl && <OpenPublicWarrantyLink href={publicUrl} />}
+            <CopyPublicLinkButton url={publicUrl} />
+            <OpenPublicWarrantyLink href={publicUrl} />
           </div>
         </div>
       </div>
@@ -122,7 +109,7 @@ export function WarrantyCertificateDetail({
         <CardHeader>
           <CardTitle className="text-sm">Tra cứu công khai (QR)</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-3 text-sm">
+        <CardContent className="flex flex-col gap-2 text-sm">
           <div className="flex items-start gap-2 text-muted-foreground">
             <QrCodeIcon className="mt-0.5 size-4 shrink-0" />
             <p className="text-xs">
@@ -131,29 +118,7 @@ export function WarrantyCertificateDetail({
               mã nội bộ ERP.
             </p>
           </div>
-          {!publicToken && (
-            <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-950 dark:text-amber-100">
-              Phiếu chưa có mã tra cứu công khai. Liên hệ quản trị để cấp lại mã QR.
-            </p>
-          )}
-          {publicToken && qrDataUrl && (
-            <div className="flex flex-col items-center gap-2 rounded-lg border bg-muted/30 p-4">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={qrDataUrl}
-                alt={`Mã QR tra cứu ${certificate.code}`}
-                width={280}
-                height={280}
-                className="size-[min(280px,100%)] rounded-md bg-white p-2"
-              />
-              <p className="text-center text-xs text-muted-foreground">
-                Quét để mở trang tra cứu công khai
-              </p>
-            </div>
-          )}
-          {publicUrl && (
-            <p className="break-all font-mono text-xs text-foreground">{publicUrl}</p>
-          )}
+          <p className="break-all font-mono text-xs text-foreground">{publicUrl}</p>
           {certificate.qrRequestStats && (
             <div className="mt-2 flex flex-col gap-1 border-t pt-2 text-xs text-muted-foreground">
               <span>Số yêu cầu từ QR: {certificate.qrRequestStats.totalFromQr}</span>

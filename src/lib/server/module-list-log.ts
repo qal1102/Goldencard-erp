@@ -1,18 +1,6 @@
-import { perfLog } from './perf-log';
-
 export function devModuleLog(module: string, message: string, extra?: Record<string, unknown>) {
   if (process.env.NODE_ENV === 'development') {
     console.log(`[${module}] ${message}`, extra ?? '');
-  }
-
-  if (extra && typeof extra.ms === 'number') {
-    perfLog({
-      route: module,
-      name: message,
-      ms: extra.ms,
-      ok: true,
-      count: typeof extra.count === 'number' ? extra.count : undefined,
-    });
   }
 }
 

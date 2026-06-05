@@ -1,11 +1,11 @@
 import { redirect } from 'next/navigation';
-import { verifySession } from '@/lib/auth/dal';
+import { auth } from '@/auth';
 import { hasRole } from '@/lib/auth/roles';
 import { QuotationList } from '@/modules/quotations/components/quotation-list';
 
 export default async function QuotationsPage() {
-  const session = await verifySession();
-  const roles = session.user.roles ?? [];
+  const session = await auth();
+  const roles = session?.user?.roles ?? [];
 
   if (!hasRole(roles, 'admin', 'director', 'sales', 'chief_accountant', 'accountant')) {
     redirect('/dashboard');

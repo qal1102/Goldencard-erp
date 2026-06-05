@@ -61,7 +61,6 @@ export function useWorkOrders(filters: WorkOrderFilters = {}, options?: UseWorkO
     enabled: options?.enabled ?? true,
     staleTime: 30_000,
     retry: 1,
-    refetchOnMount: options?.initialData === undefined,
     refetchOnWindowFocus: false,
   });
 }

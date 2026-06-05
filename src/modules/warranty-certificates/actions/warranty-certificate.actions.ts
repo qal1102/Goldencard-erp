@@ -24,8 +24,10 @@ import {
   queryWarrantyCertificates,
   queryWarrantyCertificatesByCustomerId,
 } from '../lib/warranty-certificate.queries';
-import { loadWarrantyCertificateDetail } from '../lib/warranty-certificate-load';
-import { type WarrantyCertificateQrStats } from '../lib/warranty-qr-support';
+import {
+  queryWarrantyCertificateQrStats,
+  type WarrantyCertificateQrStats,
+} from '../lib/warranty-qr-support';
 
 export type WarrantyCertificateDetailWithQrStats = NonNullable<
   Awaited<ReturnType<typeof queryWarrantyCertificateById>>
@@ -111,25 +113,17 @@ export async function getWarrantyCertificateAction(
     const session = await getSessionOrThrow();
     requireRole(session.user.roles ?? [], ...CERT_VIEW_ROLES);
 
-    const loadResult = await loadWarrantyCertificateDetail(id, session.user.roles ?? []);
-    if (!loadResult.success) {
-      return { success: false, error: loadResult.error };
-    }
+    const certificate = await queryWarrantyCertificateById(id);
+    if (!certificate) return { success: false, error: 'Không tìm thấy phiếu bảo hành' };
 
-    const data = loadResult.data;
+    const qrRequestStats = await queryWarrantyCertificateQrStats(
+      certificate.handoverId,
+      certificate.code,
+    );
 
-    return { success: true, data };
+    return { success: true, data: { ...certificate, qrRequestStats } };
   } catch (e) {
-    devModuleLogError('warranty-certificates', 'getWarrantyCertificateAction failed', e);
-    return {
-      success: false,
-      error:
-        e instanceof Error && e.message !== 'Unauthorized'
-          ? MODULE_LIST_ERROR
-          : e instanceof Error
-            ? e.message
-            : MODULE_LIST_ERROR,
-    };
+    return { success: false, error: e instanceof Error ? e.message : 'Lỗi hệ thống' };
   }
 }
 
