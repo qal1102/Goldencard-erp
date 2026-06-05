@@ -1,9 +1,7 @@
-import Link from 'next/link';
-import { Card, CardContent } from '@/components/ui/card';
-import { tappableListCardClassName } from '@/components/ui/tappable-list-card';
+import { TappableListCard } from '@/components/ui/tappable-list-card';
 import type { Lead } from '@/db/schema';
-import { cn } from '@/lib/utils';
 import type { ProjectProgressView } from '@/lib/project-progress/types';
+import { cn } from '@/lib/utils';
 import type { LeadSource } from '../schema/lead.schema';
 import { LeadProgressSummary } from './lead-progress-summary';
 import { LeadSourceBadge } from './lead-source-badge';
@@ -24,39 +22,36 @@ function formatDate(date: Date | string) {
 
 export function LeadCard({ lead, progress, className }: Props) {
   return (
-    <Link
+    <TappableListCard
       href={`/crm/leads/${lead.id}`}
-      className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-      aria-label={`Xem cơ hội ${lead.fullName}`}
+      ariaLabel={`Xem cơ hội ${lead.fullName}`}
+      className={cn('hover:shadow-md active:scale-[0.99]', className)}
+      contentClassName="p-3"
     >
-      <Card className={cn(tappableListCardClassName, 'hover:shadow-md active:scale-[0.99]', className)} size="sm">
-        <CardContent className="p-3">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-medium leading-tight">{lead.fullName}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{lead.phone}</p>
-            </div>
-            <LeadSourceBadge source={lead.source as LeadSource} />
-          </div>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium leading-tight">{lead.fullName}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{lead.phone}</p>
+        </div>
+        <LeadSourceBadge source={lead.source as LeadSource} />
+      </div>
 
-          {lead.expectedCapacity && (
-            <p className="mt-1.5 text-xs text-muted-foreground">{lead.expectedCapacity}</p>
-          )}
+      {lead.expectedCapacity && (
+        <p className="mt-1.5 text-xs text-muted-foreground">{lead.expectedCapacity}</p>
+      )}
 
-          <div className="mt-2 flex items-center justify-between gap-1">
-            <span className="text-xs text-muted-foreground">{formatDate(lead.createdAt)}</span>
-            {lead.assignedUser && (
-              <span className="max-w-[100px] truncate text-xs text-muted-foreground">
-                {lead.assignedUser.name}
-              </span>
-            )}
-          </div>
+      <div className="mt-2 flex items-center justify-between gap-1">
+        <span className="text-xs text-muted-foreground">{formatDate(lead.createdAt)}</span>
+        {lead.assignedUser && (
+          <span className="max-w-[100px] truncate text-xs text-muted-foreground">
+            {lead.assignedUser.name}
+          </span>
+        )}
+      </div>
 
-          <p className="mt-1 text-[10px] font-mono text-muted-foreground/60">{lead.code}</p>
+      <p className="mt-1 text-[10px] font-mono text-muted-foreground/60">{lead.code}</p>
 
-          {progress && <LeadProgressSummary progress={progress} />}
-        </CardContent>
-      </Card>
-    </Link>
+      {progress && <LeadProgressSummary progress={progress} />}
+    </TappableListCard>
   );
 }
