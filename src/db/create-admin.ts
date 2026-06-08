@@ -1,6 +1,5 @@
 import bcrypt from 'bcryptjs';
 import { config } from 'dotenv';
-import { eq } from 'drizzle-orm';
 import {
   createDirectDbClient,
   ensureAdminRole,

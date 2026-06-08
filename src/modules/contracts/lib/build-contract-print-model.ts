@@ -11,8 +11,6 @@ import type { ContractStatus } from '../schema/contract.schema';
 import type { ContractPrintSource } from './contract-print.queries';
 
 const AGREEMENT_FALLBACK = 'Theo báo giá đã được hai bên thống nhất';
-const ITEMS_FALLBACK =
-  'Hạng mục thi công theo báo giá/hồ sơ đã được hai bên thống nhất.';
 const PAYMENT_DEFAULT =
   'Điều khoản thanh toán thực hiện theo thỏa thuận giữa hai bên.';
 const VALUE_FOOTNOTE =

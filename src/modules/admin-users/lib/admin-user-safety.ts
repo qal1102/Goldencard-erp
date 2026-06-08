@@ -18,9 +18,11 @@ export async function userIsSuperAdmin(userId: string): Promise<boolean> {
 }
 
 export async function assertCanUpdateRoles(
-  _targetUserId: string,
-  _newRoleIds: string[],
+  targetUserId: string,
+  newRoleIds: string[],
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  void targetUserId;
+  void newRoleIds;
   return { ok: true };
 }
 
