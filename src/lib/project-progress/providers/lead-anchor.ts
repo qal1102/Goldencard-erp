@@ -2,6 +2,7 @@ import 'server-only';
 
 import { desc, inArray, sql } from 'drizzle-orm';
 import { db } from '@/db';
+import { modulePerfTimed } from '@/lib/server/module-list-log';
 import {
   CONTRACT_STATUS_LABELS,
   type ContractStatus,
@@ -154,36 +155,52 @@ export async function loadProjectContextForLeadAnchors(
   const contextMap = new Map<string, ProjectContext>();
   if (uniqueIds.length === 0) return contextMap;
 
-  const leadRows = await db.query.leads.findMany({
-    where: inArray(leads.id, uniqueIds),
-    columns: {
-      id: true,
-      code: true,
-      fullName: true,
-      status: true,
-      assignedTo: true,
-    },
-  });
+  const leadRows = await modulePerfTimed(
+    'project-progress-leads',
+    'load leads',
+    () =>
+      db.query.leads.findMany({
+        where: inArray(leads.id, uniqueIds),
+        columns: {
+          id: true,
+          code: true,
+          fullName: true,
+          status: true,
+          assignedTo: true,
+        },
+      }),
+    { requestedCount: uniqueIds.length },
+  );
 
-  const surveyRows = await db.query.surveys.findMany({
-    where: inArray(surveys.leadId, uniqueIds),
-    columns: {
-      id: true,
-      code: true,
-      status: true,
-      leadId: true,
-      updatedAt: true,
-      createdAt: true,
-      assignedTo: true,
-    },
-    orderBy: [desc(surveys.updatedAt)],
-  });
+  const surveyRows = await modulePerfTimed(
+    'project-progress-leads',
+    'load surveys',
+    () =>
+      db.query.surveys.findMany({
+        where: inArray(surveys.leadId, uniqueIds),
+        columns: {
+          id: true,
+          code: true,
+          status: true,
+          leadId: true,
+          updatedAt: true,
+          createdAt: true,
+          assignedTo: true,
+        },
+        orderBy: [desc(surveys.updatedAt)],
+      }),
+    { requestedCount: uniqueIds.length },
+  );
   const surveyByLeadId = latestSurveyPerLead(surveyRows);
 
   const surveyIds = [...surveyByLeadId.values()].map((s) => s.id);
   const quotationRows =
     surveyIds.length > 0
-      ? await db.query.quotations.findMany({
+      ? await modulePerfTimed(
+          'project-progress-leads',
+          'load quotations',
+          () =>
+            db.query.quotations.findMany({
           where: inArray(quotations.surveyId, surveyIds),
           columns: {
             id: true,
@@ -194,7 +211,9 @@ export async function loadProjectContextForLeadAnchors(
             grandTotal: true,
             sentAt: true,
           },
-        })
+            }),
+          { requestedCount: surveyIds.length },
+        )
       : [];
   const quotationBySurveyId = latestQuotationPerSurvey(quotationRows);
 
@@ -202,7 +221,11 @@ export async function loadProjectContextForLeadAnchors(
 
   const contractRows =
     quotationIds.length > 0
-      ? await db.query.contracts.findMany({
+      ? await modulePerfTimed(
+          'project-progress-leads',
+          'load contracts',
+          () =>
+            db.query.contracts.findMany({
           where: inArray(contracts.quotationId, quotationIds),
           columns: {
             id: true,
@@ -211,14 +234,20 @@ export async function loadProjectContextForLeadAnchors(
             quotationId: true,
             contractValue: true,
           },
-        })
+            }),
+          { requestedCount: quotationIds.length },
+        )
       : [];
   const contractByQuotationId = new Map(
     contractRows.map((c) => [c.quotationId, c]),
   );
 
   const contractIds = contractRows.map((c) => c.id);
-  const [workOrderByContractRows, workOrderByLeadRows] = await Promise.all([
+  const [workOrderByContractRows, workOrderByLeadRows] = await modulePerfTimed(
+    'project-progress-leads',
+    'load work orders',
+    () =>
+      Promise.all([
     contractIds.length > 0
       ? db.query.workOrders.findMany({
           where: inArray(workOrders.contractId, contractIds),
@@ -241,7 +270,9 @@ export async function loadProjectContextForLeadAnchors(
         leadId: true,
       },
     }),
-  ]);
+      ]),
+    { requestedCount: uniqueIds.length },
+  );
   const workOrderByContractId = new Map(
     workOrderByContractRows.map((wo) => [wo.contractId, wo]),
   );
@@ -258,7 +289,11 @@ export async function loadProjectContextForLeadAnchors(
   ];
   const handoverRows =
     workOrderIds.length > 0
-      ? await db.query.handovers.findMany({
+      ? await modulePerfTimed(
+          'project-progress-leads',
+          'load handovers',
+          () =>
+            db.query.handovers.findMany({
           where: inArray(handovers.workOrderId, workOrderIds),
           columns: {
             id: true,
@@ -266,7 +301,9 @@ export async function loadProjectContextForLeadAnchors(
             status: true,
             workOrderId: true,
           },
-        })
+            }),
+          { requestedCount: workOrderIds.length },
+        )
       : [];
   const handoverByWorkOrderId = new Map(
     handoverRows.map((handover) => [handover.workOrderId, handover]),
@@ -274,7 +311,11 @@ export async function loadProjectContextForLeadAnchors(
 
   const warrantyRows =
     uniqueIds.length > 0
-      ? await db.query.warrantyTickets.findMany({
+      ? await modulePerfTimed(
+          'project-progress-leads',
+          'load warranty tickets',
+          () =>
+            db.query.warrantyTickets.findMany({
           where: inArray(warrantyTickets.leadId, uniqueIds),
           columns: {
             id: true,
@@ -286,7 +327,9 @@ export async function loadProjectContextForLeadAnchors(
             reportedAt: true,
           },
           orderBy: [desc(warrantyTickets.reportedAt)],
-        })
+            }),
+          { requestedCount: uniqueIds.length },
+        )
       : [];
   const warrantyByLeadId = new Map<string, typeof warrantyRows>();
   for (const row of warrantyRows) {
@@ -298,16 +341,22 @@ export async function loadProjectContextForLeadAnchors(
 
   const latestEditRows =
     quotationIds.length > 0
-      ? await db
-          .select({
+      ? await modulePerfTimed(
+          'project-progress-leads',
+          'load quotation edit logs',
+          () =>
+            db
+              .select({
             quotationId: quotationEditLogs.quotationId,
             latestEditAt: sql<Date>`max(${quotationEditLogs.editedAt})`.as(
               'latest_edit_at',
             ),
           })
           .from(quotationEditLogs)
-          .where(inArray(quotationEditLogs.quotationId, quotationIds))
-          .groupBy(quotationEditLogs.quotationId)
+              .where(inArray(quotationEditLogs.quotationId, quotationIds))
+              .groupBy(quotationEditLogs.quotationId),
+          { requestedCount: quotationIds.length },
+        )
       : [];
 
   const latestEditByQuotation = new Map(
@@ -324,10 +373,16 @@ export async function loadProjectContextForLeadAnchors(
 
   const userRows =
     userIds.size > 0
-      ? await db.query.users.findMany({
+      ? await modulePerfTimed(
+          'project-progress-leads',
+          'load users',
+          () =>
+            db.query.users.findMany({
           where: inArray(users.id, [...userIds]),
           columns: { id: true, name: true },
-        })
+            }),
+          { requestedCount: userIds.size },
+        )
       : [];
   const userNames = new Map(userRows.map((u) => [u.id, u.name]));
 

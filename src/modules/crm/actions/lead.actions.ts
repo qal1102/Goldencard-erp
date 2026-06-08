@@ -9,6 +9,7 @@ import { leadActivities, leads } from '@/db/schema';
 import { createAuditLog } from '@/lib/audit/create-audit-log';
 import { requireRole } from '@/lib/auth/roles';
 import { normalizePhoneForStorage } from '@/lib/phone/normalize-phone';
+import { modulePerfLog, modulePerfLogError, modulePerfTimed } from '@/lib/server/module-list-log';
 import {
   updateAddressSchema,
   type UpdateAddressInput,
@@ -68,13 +69,23 @@ export type ActionResult<T = void> =
 export async function getLeadsAction(
   filters: LeadFilters = {},
 ): Promise<ActionResult<Awaited<ReturnType<typeof queryLeads>>>> {
+  const started = performance.now();
   try {
-    await getSessionOrThrow();
+    await modulePerfTimed('crm-leads', 'auth', () => getSessionOrThrow());
     const parsed = leadFiltersSchema.safeParse(filters);
     const safeFilters = parsed.success ? parsed.data : {};
-    const data = await queryLeads(safeFilters);
+    const data = await modulePerfTimed('crm-leads', 'queryLeads', () => queryLeads(safeFilters), {
+      hasSearch: Boolean(safeFilters.search),
+      hasStatus: Boolean(safeFilters.status),
+    });
+    modulePerfLog('crm-leads', 'action ok', performance.now() - started, {
+      count: data.length,
+      hasSearch: Boolean(safeFilters.search),
+      hasStatus: Boolean(safeFilters.status),
+    });
     return { success: true, data };
   } catch (e) {
+    modulePerfLogError('crm-leads', 'action failed', e, performance.now() - started);
     return { success: false, error: e instanceof Error ? e.message : 'Lỗi hệ thống' };
   }
 }

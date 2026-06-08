@@ -8,6 +8,7 @@ import { customers, leadActivities, leads } from '@/db/schema';
 import { createAuditLog } from '@/lib/audit/create-audit-log';
 import { updateAddressSchema, type UpdateAddressInput } from '@/lib/address/address.schema';
 import { requireRole } from '@/lib/auth/roles';
+import { modulePerfLog, modulePerfLogError, modulePerfTimed } from '@/lib/server/module-list-log';
 import type { ActionResult } from './lead.actions';
 import { queryCustomerById, queryCustomers } from '../lib/customer.queries';
 import { queryLeadById } from '../lib/lead.queries';
@@ -216,13 +217,24 @@ export async function updateCustomerAddressAction(
 export async function getCustomersAction(
   filters: CustomerFilters = {},
 ): Promise<ActionResult<Awaited<ReturnType<typeof queryCustomers>>>> {
+  const started = performance.now();
   try {
-    await getSessionOrThrow();
+    await modulePerfTimed('crm-customers', 'auth', () => getSessionOrThrow());
     const parsed = customerFiltersSchema.safeParse(filters);
     const safeFilters = parsed.success ? parsed.data : {};
-    const data = await queryCustomers(safeFilters);
+    const data = await modulePerfTimed(
+      'crm-customers',
+      'queryCustomers',
+      () => queryCustomers(safeFilters),
+      { hasSearch: Boolean(safeFilters.search) },
+    );
+    modulePerfLog('crm-customers', 'action ok', performance.now() - started, {
+      count: data.length,
+      hasSearch: Boolean(safeFilters.search),
+    });
     return { success: true, data };
   } catch (e) {
+    modulePerfLogError('crm-customers', 'action failed', e, performance.now() - started);
     return { success: false, error: e instanceof Error ? e.message : 'Lỗi hệ thống' };
   }
 }
