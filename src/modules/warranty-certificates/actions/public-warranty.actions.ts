@@ -20,6 +20,7 @@ import { WARRANTY_CERTIFICATE_STATUS_LABELS } from '../schema/warranty-certifica
 import {
   assertPublicQrSubmitAllowed,
   buildQrIssueSourceNote,
+  queryWarrantyCertificateQrYearlyUsage,
 } from '../lib/warranty-qr-support';
 
 export type PublicActionResult<T = void> =
@@ -36,6 +37,12 @@ export type PublicWarrantyCheckView = {
   warrantyEnd: string | null;
   supportPhone: string;
   supportPhoneTel: string | null;
+  yearlyUsage: {
+    year: number;
+    used: number;
+    limit: number;
+    remaining: number;
+  };
   canSubmitRequest: boolean;
 };
 
@@ -77,6 +84,10 @@ export async function getPublicWarrantyCheckAction(
     const supportPhone = resolveSupportPhone(certificate.supportPhone);
     const supportDigits = supportPhone.replace(/\D/g, '');
     const supportPhoneTel = supportDigits.length >= 9 ? supportDigits : null;
+    const yearlyUsage = await queryWarrantyCertificateQrYearlyUsage(
+      certificate.handoverId,
+      certificate.code,
+    );
 
     return {
       success: true,
@@ -90,7 +101,8 @@ export async function getPublicWarrantyCheckAction(
         warrantyEnd: formatPublicDate(certificate.warrantyEndAt),
         supportPhone,
         supportPhoneTel,
-        canSubmitRequest: effectiveStatus === 'active',
+        yearlyUsage,
+        canSubmitRequest: effectiveStatus === 'active' && yearlyUsage.remaining > 0,
       },
     };
   } catch (e) {

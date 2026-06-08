@@ -100,6 +100,16 @@ export function PublicWarrantyCheck({ publicToken, initialView }: Props) {
             <dt className="text-xs text-muted-foreground">Địa chỉ lắp đặt</dt>
             <dd>{view.installationAddress}</dd>
           </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">
+              {'Th\u00f4ng tin s\u1ea3n ph\u1ea9m / h\u1ec7 th\u1ed1ng'}
+            </dt>
+            <dd className="font-medium">
+              {view.systemRows.length > 0
+                ? 'H\u1ec7 th\u1ed1ng \u0111i\u1ec7n m\u1eb7t tr\u1eddi GoldenCard'
+                : '---'}
+            </dd>
+          </div>
           {view.systemRows.map((row) => (
             <div key={row.label}>
               <dt className="text-xs text-muted-foreground">{row.label}</dt>
@@ -123,6 +133,29 @@ export function PublicWarrantyCheck({ publicToken, initialView }: Props) {
             <dd className="font-medium">{view.supportPhone}</dd>
           </div>
         </dl>
+      </div>
+
+      <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs text-muted-foreground">
+              {'L\u01b0\u1ee3t y\u00eau c\u1ea7u b\u1ea3o h\u00e0nh c\u00f2n l\u1ea1i trong n\u0103m'}{' '}
+              {view.yearlyUsage.year}
+            </p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums">
+              {view.yearlyUsage.remaining}/{view.yearlyUsage.limit}
+            </p>
+          </div>
+          <div className="rounded-lg bg-muted px-3 py-2 text-right text-xs text-muted-foreground">
+            <p>{'\u0110\u00e3 s\u1eed d\u1ee5ng'}</p>
+            <p className="font-medium text-foreground">{view.yearlyUsage.used}</p>
+          </div>
+        </div>
+        {view.yearlyUsage.remaining <= 0 && (
+          <p className="mt-3 text-xs text-destructive">
+            {'M\u00e3 QR n\u00e0y \u0111\u00e3 h\u1ebft l\u01b0\u1ee3t g\u1eedi y\u00eau c\u1ea7u b\u1ea3o h\u00e0nh trong n\u0103m. Vui l\u00f2ng g\u1ecdi hotline \u0111\u1ec3 \u0111\u01b0\u1ee3c h\u1ed7 tr\u1ee3.'}
+          </p>
+        )}
       </div>
 
       <p className="text-center text-sm text-muted-foreground">

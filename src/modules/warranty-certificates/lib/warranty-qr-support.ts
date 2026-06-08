@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, count, desc, eq, gte, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { warrantyTickets } from '@/db/schema';
 
@@ -8,6 +8,7 @@ export const WARRANTY_QR_SOURCE_MARKER = 'Quét mã QR phiếu bảo hành';
 
 export const PUBLIC_QR_MAX_SUBMISSIONS_PER_WINDOW = 3;
 export const PUBLIC_QR_RATE_LIMIT_WINDOW_MINUTES = 30;
+export const PUBLIC_QR_MAX_SUBMISSIONS_PER_YEAR = 3;
 
 export function buildQrIssueSourceNote(certificateCode: string): string {
   return `[Nguồn: ${WARRANTY_QR_SOURCE_MARKER} ${certificateCode}]`;
@@ -24,6 +25,13 @@ export type WarrantyCertificateQrStats = {
   totalFromQr: number;
   openFromQr: number;
   lastSubmittedAt: Date | null;
+};
+
+export type WarrantyCertificateQrYearlyUsage = {
+  year: number;
+  used: number;
+  limit: number;
+  remaining: number;
 };
 
 export async function queryWarrantyCertificateQrStats(
@@ -56,6 +64,38 @@ export async function queryWarrantyCertificateQrStats(
   };
 }
 
+function currentYearWindow() {
+  const now = new Date();
+  const year = now.getFullYear();
+  return {
+    year,
+    start: new Date(year, 0, 1),
+    end: new Date(year + 1, 0, 1),
+  };
+}
+
+export async function queryWarrantyCertificateQrYearlyUsage(
+  handoverId: string,
+  certificateCode: string,
+): Promise<WarrantyCertificateQrYearlyUsage> {
+  const { year, start, end } = currentYearWindow();
+  const where = qrSourceCondition(handoverId, certificateCode);
+
+  const [row] = await db
+    .select({ value: count() })
+    .from(warrantyTickets)
+    .where(and(where, gte(warrantyTickets.reportedAt, start), lt(warrantyTickets.reportedAt, end)));
+
+  const used = Number(row?.value ?? 0);
+  const remaining = Math.max(PUBLIC_QR_MAX_SUBMISSIONS_PER_YEAR - used, 0);
+  return {
+    year,
+    used,
+    limit: PUBLIC_QR_MAX_SUBMISSIONS_PER_YEAR,
+    remaining,
+  };
+}
+
 export type PublicQrSubmitGuardResult =
   | { allowed: true }
   | { allowed: false; error: string };
@@ -85,6 +125,14 @@ export async function assertPublicQrSubmitAllowed(
     return {
       allowed: false,
       error: `Một mã QR chỉ được gửi tối đa ${PUBLIC_QR_MAX_SUBMISSIONS_PER_WINDOW} yêu cầu trong ${PUBLIC_QR_RATE_LIMIT_WINDOW_MINUTES} phút. Vui lòng gọi hotline nếu cần hỗ trợ gấp.`,
+    };
+  }
+
+  const yearlyUsage = await queryWarrantyCertificateQrYearlyUsage(handoverId, certificateCode);
+  if (yearlyUsage.remaining <= 0) {
+    return {
+      allowed: false,
+      error: `Mã QR này đã sử dụng hết ${yearlyUsage.limit} lượt yêu cầu bảo hành trong năm ${yearlyUsage.year}. Vui lòng gọi hotline nếu cần hỗ trợ thêm.`,
     };
   }
 
