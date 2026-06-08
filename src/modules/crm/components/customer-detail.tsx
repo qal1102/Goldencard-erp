@@ -35,6 +35,7 @@ import { ACTIVITY_TYPE_LABELS, type ActivityType } from '../schema/lead.schema';
 import { LeadSourceBadge } from './lead-source-badge';
 import { CustomerCertificateLinks } from '@/modules/warranty-certificates/components/customer-certificate-links';
 import { CustomerWarrantySection } from '@/modules/warranty-tickets/components/customer-warranty-section';
+import type { CustomerDetailData } from '../lib/customer.queries';
 import { LeadStatusBadge } from './lead-status-badge';
 
 type Props = {
@@ -43,6 +44,7 @@ type Props = {
   canCreateLead?: boolean;
   canEdit?: boolean;
   canCreateWarranty?: boolean;
+  initialData?: CustomerDetailData;
 };
 
 const ACTIVITY_ICONS: Record<ActivityType, React.ReactNode> = {
@@ -101,9 +103,10 @@ export function CustomerDetail({
   canCreateLead = false,
   canEdit = false,
   canCreateWarranty = false,
+  initialData,
 }: Props) {
   const [surveyDialogOpen, setSurveyDialogOpen] = useState(false);
-  const { data: customer, isLoading } = useCustomer(customerId);
+  const { data: customer, isLoading } = useCustomer(customerId, { initialData });
   const updateAddress = useUpdateCustomerAddress(customerId);
 
   const linkedLeads = customer?.linkedLeads

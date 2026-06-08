@@ -13,6 +13,8 @@ import {
 } from '../schema/lead.schema';
 import { LeadCard } from './lead-card';
 
+const MAX_PROGRESS_BATCH_SIZE = 120;
+
 type LeadWithUser = Lead & {
   assignedUser: { id: string; name: string } | null;
   createdByUser: { id: string; name: string };
@@ -69,7 +71,7 @@ export function LeadPipeline() {
       ? error.message
       : 'Không thể tải danh sách cơ hội. Vui lòng thử lại.';
 
-  const leadIds = (leads ?? []).map((l) => l.id);
+  const leadIds = (leads ?? []).slice(0, MAX_PROGRESS_BATCH_SIZE).map((l) => l.id);
   const { data: progressByLeadId } = useProjectProgressForLeads(leadIds);
 
   if (showError) {

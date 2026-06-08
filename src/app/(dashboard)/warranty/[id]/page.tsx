@@ -1,4 +1,5 @@
 import { auth } from '@/auth';
+import { AccessDeniedMessage } from '@/components/ui/access-denied-message';
 import { hasRole } from '@/lib/auth/roles';
 import { WarrantyTicketDetail } from '@/modules/warranty-tickets/components/warranty-ticket-detail';
 
@@ -30,7 +31,7 @@ export default async function WarrantyDetailPage({ params }: Props) {
   const roles = session?.user?.roles ?? [];
 
   if (!hasRole(roles, ...WARRANTY_VIEW_ROLES)) {
-    return null;
+    return <AccessDeniedMessage moduleName="yêu cầu bảo hành" />;
   }
 
   const canWrite = hasRole(roles, ...WARRANTY_WRITE_ROLES);

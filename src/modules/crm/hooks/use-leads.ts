@@ -42,6 +42,9 @@ export function useLeads(filters: LeadFilters = {}) {
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
+    staleTime: 30_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 }
 

@@ -13,6 +13,7 @@ import type {
   CustomerFilters,
   UpdateCustomerAddressInput,
 } from '../schema/customer.schema';
+import type { CustomerDetailData } from '../lib/customer.queries';
 
 export const customerKeys = {
   all: ['customers'] as const,
@@ -28,10 +29,17 @@ export function useCustomers(filters: CustomerFilters = {}) {
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
+    staleTime: 30_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 }
 
-export function useCustomer(id: string) {
+type UseCustomerOptions = {
+  initialData?: CustomerDetailData;
+};
+
+export function useCustomer(id: string, options?: UseCustomerOptions) {
   return useQuery({
     queryKey: customerKeys.detail(id),
     queryFn: async () => {
@@ -39,6 +47,10 @@ export function useCustomer(id: string) {
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
+    initialData: options?.initialData,
+    enabled: Boolean(id),
+    refetchOnMount: options?.initialData === undefined,
+    refetchOnWindowFocus: false,
   });
 }
 

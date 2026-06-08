@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { auth } from '@/auth';
 import { hasRole } from '@/lib/auth/roles';
+import { serializeForClient } from '@/lib/serialize/for-client';
 import { CustomerDetail } from '@/modules/crm/components/customer-detail';
 import { queryCustomerById } from '@/modules/crm/lib/customer.queries';
 
@@ -35,6 +36,7 @@ export default async function CustomerDetailPage({ params }: Props) {
         canCreateLead={canCreateLead}
         canEdit={canEdit}
         canCreateWarranty={canCreateWarranty}
+        initialData={serializeForClient(customer)}
       />
     </div>
   );

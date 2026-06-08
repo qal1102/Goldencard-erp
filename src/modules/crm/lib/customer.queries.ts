@@ -30,6 +30,7 @@ export async function queryCustomerById(id: string) {
           createdByUser: { columns: { id: true, name: true } },
         },
         orderBy: [desc(leads.createdAt)],
+        limit: 50,
       },
       lead: {
         columns: {
@@ -69,6 +70,7 @@ export async function queryCustomerById(id: string) {
       lead: { columns: { id: true, code: true } },
     },
     orderBy: [desc(surveys.createdAt)],
+    limit: 50,
   });
 
   const surveyIds = customerSurveys.map((s) => s.id);
@@ -90,6 +92,7 @@ export async function queryCustomerById(id: string) {
             surveyId: true,
           },
           orderBy: [desc(quotations.createdAt)],
+          limit: 50,
         })
       : [];
 
@@ -105,6 +108,7 @@ export async function queryCustomerById(id: string) {
             lead: { columns: { id: true, code: true } },
           },
           orderBy: [desc(leadActivities.createdAt)],
+          limit: 100,
         })
       : [];
 
@@ -225,5 +229,8 @@ export async function queryCustomerActivities(customerId: string) {
       lead: { columns: { id: true, code: true } },
     },
     orderBy: [desc(leadActivities.createdAt)],
+    limit: 100,
   });
 }
+
+export type CustomerDetailData = Awaited<ReturnType<typeof queryCustomerById>>;
