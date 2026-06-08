@@ -1,11 +1,34 @@
 import 'server-only';
 
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { db } from '@/db';
-import { users } from '@/db/schema';
+import { roles, users } from '@/db/schema';
 import { evaluateCanSetActive } from './admin-user-active.rules';
 
 export { evaluateCanSetActive } from './admin-user-active.rules';
+
+const SYSTEM_ROLE_NAMES = new Set(['super_admin', 'root', 'owner']);
+
+export function evaluateCanUpdateRoles(params: {
+  targetIsSuperAdmin: boolean;
+  newRoleNames: string[];
+}): { ok: true } | { ok: false; error: string } {
+  if (params.targetIsSuperAdmin) {
+    return {
+      ok: false,
+      error: 'Không thể chỉnh vai trò tài khoản Super Admin.',
+    };
+  }
+
+  if (params.newRoleNames.some((name) => SYSTEM_ROLE_NAMES.has(name))) {
+    return {
+      ok: false,
+      error: 'Không thể gán vai trò hệ thống qua màn hình quản lý tài khoản.',
+    };
+  }
+
+  return { ok: true };
+}
 
 export async function userIsSuperAdmin(userId: string): Promise<boolean> {
   const row = await db
@@ -21,9 +44,18 @@ export async function assertCanUpdateRoles(
   targetUserId: string,
   newRoleIds: string[],
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  void targetUserId;
-  void newRoleIds;
-  return { ok: true };
+  const targetIsSuperAdmin = await userIsSuperAdmin(targetUserId);
+  const newRoleNames =
+    newRoleIds.length === 0
+      ? []
+      : (
+          await db
+            .select({ name: roles.name })
+            .from(roles)
+            .where(inArray(roles.id, newRoleIds))
+        ).map((role) => role.name);
+
+  return evaluateCanUpdateRoles({ targetIsSuperAdmin, newRoleNames });
 }
 
 export async function assertCanSetActive(

@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { KeyRoundIcon, LogOutIcon } from 'lucide-react';
+import { useFormStatus } from 'react-dom';
+import { KeyRoundIcon, LoaderIcon, LogOutIcon } from 'lucide-react';
 import { signOutAction } from '@/lib/auth/actions';
 import { Button } from '@/components/ui/button';
 
@@ -18,6 +19,28 @@ function getInitials(name: string | null | undefined): string {
     .slice(0, 2)
     .join('')
     .toUpperCase();
+}
+
+function SignOutButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button
+      type="submit"
+      variant="destructive"
+      size="sm"
+      className="w-full justify-start gap-2 shadow-sm"
+      disabled={pending}
+      aria-live="polite"
+    >
+      {pending ? (
+        <LoaderIcon className="size-4 animate-spin" />
+      ) : (
+        <LogOutIcon className="size-4" />
+      )}
+      {pending ? 'Đang đăng xuất...' : 'Đăng xuất'}
+    </Button>
+  );
 }
 
 export function UserMenu({ name, email }: UserMenuProps) {
@@ -50,15 +73,7 @@ export function UserMenu({ name, email }: UserMenuProps) {
         </Button>
 
         <form action={signOutAction}>
-          <Button
-            type="submit"
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start gap-2 text-muted-foreground"
-          >
-            <LogOutIcon className="size-4" />
-            Đăng xuất
-          </Button>
+          <SignOutButton />
         </form>
       </div>
     </div>

@@ -12,6 +12,7 @@ import { normalizePhoneForStorage } from '@/lib/phone/normalize-phone';
 import {
   assertCanSetActive,
   assertCanUpdateRoles,
+  evaluateCanUpdateRoles,
 } from '../lib/admin-user-safety';
 import {
   serializeAdminUserList,
@@ -202,6 +203,15 @@ export async function createAdminUserAction(
       return { success: false, error: 'Vai trò không hợp lệ' };
     }
 
+    const roleNames = d.roleIds.map(
+      (id) => roleRows.find((r) => r.id === id)?.name ?? id,
+    );
+    const roleSafety = evaluateCanUpdateRoles({
+      targetIsSuperAdmin: false,
+      newRoleNames: roleNames,
+    });
+    if (!roleSafety.ok) return { success: false, error: roleSafety.error };
+
     const passwordHash = await bcrypt.hash(d.password, 12);
     const phone = d.phone ? normalizePhoneForStorage(d.phone) : null;
 
@@ -222,10 +232,6 @@ export async function createAdminUserAction(
         roleId,
         assignedBy: session.user.id,
       })),
-    );
-
-    const roleNames = d.roleIds.map(
-      (id) => roleRows.find((r) => r.id === id)?.name ?? id,
     );
 
     await createAuditLog({
