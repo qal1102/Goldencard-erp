@@ -5,10 +5,8 @@ import { loadAdminRolesList, loadAdminUsersList } from '@/modules/admin-users/li
 export default async function AdminUsersPage() {
   await requireSuperAdminPage();
 
-  const [usersResult, rolesResult] = await Promise.all([
-    loadAdminUsersList({}),
-    loadAdminRolesList(),
-  ]);
+  const usersResult = await loadAdminUsersList({});
+  const rolesResult = await loadAdminRolesList();
 
   const initialError =
     !usersResult.success

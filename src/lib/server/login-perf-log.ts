@@ -2,12 +2,21 @@ import 'server-only';
 
 type LoginPerfExtra = Record<string, number | string | boolean | null | undefined>;
 
-function shouldLogLoginPerf(): boolean {
-  return process.env.NODE_ENV === 'development' || process.env.PERF_LOG === '1';
+function slowLogThresholdMs(): number {
+  const configured = Number(process.env.PERF_LOG_SLOW_MS ?? 1000);
+  return Number.isFinite(configured) && configured >= 0 ? configured : 1000;
+}
+
+function shouldLogLoginPerf(ms = 0): boolean {
+  return (
+    process.env.NODE_ENV === 'development' ||
+    process.env.PERF_LOG === '1' ||
+    ms >= slowLogThresholdMs()
+  );
 }
 
 export function loginPerfLog(step: string, ms = 0, extra?: LoginPerfExtra) {
-  if (!shouldLogLoginPerf()) return;
+  if (!shouldLogLoginPerf(ms)) return;
   console.log(
     JSON.stringify({
       scope: 'login-perf',

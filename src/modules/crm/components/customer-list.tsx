@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ModuleListError } from '@/components/ui/module-list-error';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -9,6 +9,13 @@ import { CustomerCard } from './customer-card';
 
 export function CustomerList() {
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search), 400);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
   const {
     data: customerList,
     isPending,
@@ -16,7 +23,7 @@ export function CustomerList() {
     isError,
     error,
     refetch,
-  } = useCustomers({ search: search || undefined });
+  } = useCustomers({ search: debouncedSearch || undefined });
 
   const showSkeleton = isPending && !customerList;
   const showError = !customerList && isError;
@@ -55,7 +62,7 @@ export function CustomerList() {
 
       {!showSkeleton && !showError && customerList?.length === 0 && (
         <div className="py-16 text-center text-sm text-muted-foreground">
-          {search ? 'Không tìm thấy khách hàng phù hợp' : 'Chưa có khách hàng'}
+          {debouncedSearch ? 'Không tìm thấy khách hàng phù hợp' : 'Chưa có khách hàng'}
         </div>
       )}
 

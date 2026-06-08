@@ -1,8 +1,10 @@
 import 'server-only';
 
-import { and, desc, eq, ilike, inArray, or } from 'drizzle-orm';
+import { and, count, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
+import type { SQL } from 'drizzle-orm';
 import { db } from '@/db';
 import { customers, leadActivities, leads, quotations, surveys } from '@/db/schema';
+import { modulePerfLog, modulePerfTimed } from '@/lib/server/module-list-log';
 import type { CustomerFilters } from '../schema/customer.schema';
 
 export async function queryCustomerById(id: string) {
@@ -115,35 +117,97 @@ export async function queryCustomerById(id: string) {
 }
 
 export async function queryCustomers(filters: CustomerFilters = {}) {
-  const conditions = [];
+  const conditions: SQL[] = [];
 
   if (filters.search) {
     const term = `%${filters.search}%`;
-    conditions.push(or(ilike(customers.fullName, term), ilike(customers.phone, term)));
+    const searchCondition = or(ilike(customers.fullName, term), ilike(customers.phone, term));
+    if (searchCondition) conditions.push(searchCondition);
   }
 
-  const rows = await db.query.customers.findMany({
-    where: conditions.length > 0 ? and(...conditions) : undefined,
-    with: {
-      lead: { columns: { id: true, code: true } },
-      linkedLeads: {
-        columns: { id: true, code: true, status: true, createdAt: true },
-      },
-    },
-    orderBy: [desc(customers.createdAt)],
-    limit: 200,
-  });
+  const rows = await modulePerfTimed(
+    'crm-customers',
+    'query customers',
+    () =>
+      db.query.customers.findMany({
+        where: conditions.length > 0 ? and(...conditions) : undefined,
+        with: {
+          lead: { columns: { id: true, code: true } },
+        },
+        orderBy: [desc(customers.createdAt)],
+        limit: 200,
+      }),
+    { hasSearch: Boolean(filters.search) },
+  );
 
-  return rows.map((customer) => {
-    const sortedLeads = [...customer.linkedLeads].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
+  if (rows.length === 0) return [];
+
+  const customerIds = rows.map((customer) => customer.id);
+  const leadCountRows = await modulePerfTimed(
+    'crm-customers',
+    'query linked lead counts',
+    () =>
+      db
+        .select({
+          customerId: leads.customerId,
+          value: count(),
+        })
+        .from(leads)
+        .where(inArray(leads.customerId, customerIds))
+        .groupBy(leads.customerId),
+    { requestedCount: customerIds.length },
+  );
+
+  type LatestLeadRow = {
+    id: string;
+    code: string;
+    status: string;
+    createdAt: Date;
+    customerId: string;
+  };
+
+  const latestLeadRows = await modulePerfTimed(
+    'crm-customers',
+    'query latest linked leads',
+    async () =>
+      db.execute(sql`
+        SELECT DISTINCT ON (${leads.customerId})
+          ${leads.id} AS "id",
+          ${leads.code} AS "code",
+          ${leads.status} AS "status",
+          ${leads.createdAt} AS "createdAt",
+          ${leads.customerId} AS "customerId"
+        FROM ${leads}
+        WHERE ${inArray(leads.customerId, customerIds)}
+        ORDER BY ${leads.customerId}, ${leads.createdAt} DESC
+      `) as Promise<LatestLeadRow[]>,
+    { requestedCount: customerIds.length },
+  );
+
+  const leadCountByCustomer = new Map(
+    leadCountRows
+      .filter((row): row is typeof row & { customerId: string } => Boolean(row.customerId))
+      .map((row) => [row.customerId, Number(row.value)]),
+  );
+  const latestLeadByCustomer = new Map(
+    latestLeadRows.map((lead) => [lead.customerId, lead]),
+  );
+
+  const mapStarted = performance.now();
+  const data = rows.map((customer) => {
+    const latestLinkedLead = latestLeadByCustomer.get(customer.id) ?? null;
     return {
       ...customer,
-      linkedLeadCount: customer.linkedLeads.length,
-      latestLinkedLead: sortedLeads[0] ?? null,
+      linkedLeads: latestLinkedLead ? [latestLinkedLead] : [],
+      linkedLeadCount: leadCountByCustomer.get(customer.id) ?? 0,
+      latestLinkedLead,
     };
   });
+  modulePerfLog('crm-customers', 'map linked leads', performance.now() - mapStarted, {
+    count: data.length,
+    linkedLeadCount: leadCountRows.reduce((sum, row) => sum + Number(row.value), 0),
+  });
+  return data;
 }
 
 export async function queryCustomerActivities(customerId: string) {
