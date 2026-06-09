@@ -17,12 +17,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { db } from '@/db';
-import {
-  leads,
-  quotations,
-  warrantyTickets,
-  workOrders,
-} from '@/db/schema';
+import { leads, quotations, warrantyTickets, workOrders } from '@/db/schema';
 import { mainNavItems } from '@/lib/navigation/modules';
 import { getLeadStatusLabel } from '@/modules/crm/lib/lead-labels';
 import {
@@ -47,6 +42,16 @@ function startOfToday() {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d;
+}
+
+function formatVnd(value: unknown) {
+  const numericValue = Number(value ?? 0);
+
+  if (!Number.isFinite(numericValue)) {
+    return '0 VND';
+  }
+
+  return `${new Intl.NumberFormat('vi-VN').format(numericValue)} VND`;
 }
 
 export default async function DashboardPage() {
@@ -104,6 +109,7 @@ export default async function DashboardPage() {
     {
       label: 'Lead mới hôm nay',
       value: leadsToday[0]?.value ?? 0,
+      unit: 'lead',
       href: '/crm/leads',
       icon: PhoneCallIcon,
       tone: 'text-blue-700 bg-blue-50 dark:text-blue-200 dark:bg-blue-950/30',
@@ -111,6 +117,7 @@ export default async function DashboardPage() {
     {
       label: 'Lead đang xử lý',
       value: activeLeads[0]?.value ?? 0,
+      unit: 'lead',
       href: '/crm/leads',
       icon: ClipboardCheckIcon,
       tone: 'text-emerald-700 bg-emerald-50 dark:text-emerald-200 dark:bg-emerald-950/30',
@@ -118,6 +125,7 @@ export default async function DashboardPage() {
     {
       label: 'Báo giá cần xử lý',
       value: quotationsToHandle[0]?.value ?? 0,
+      unit: 'báo giá',
       href: '/quotations',
       icon: FileTextIcon,
       tone: 'text-amber-700 bg-amber-50 dark:text-amber-200 dark:bg-amber-950/30',
@@ -125,6 +133,7 @@ export default async function DashboardPage() {
     {
       label: 'Lệnh thi công mở',
       value: activeWorkOrders[0]?.value ?? 0,
+      unit: 'lệnh',
       href: '/work-orders',
       icon: WrenchIcon,
       tone: 'text-cyan-700 bg-cyan-50 dark:text-cyan-200 dark:bg-cyan-950/30',
@@ -132,6 +141,7 @@ export default async function DashboardPage() {
     {
       label: 'Bảo hành đang mở',
       value: activeWarrantyTickets[0]?.value ?? 0,
+      unit: 'ticket',
       href: '/warranty',
       icon: ShieldAlertIcon,
       tone: 'text-rose-700 bg-rose-50 dark:text-rose-200 dark:bg-rose-950/30',
@@ -168,7 +178,10 @@ export default async function DashboardPage() {
                     </span>
                   </div>
                   <div className="mt-4 flex items-end justify-between gap-2">
-                    <p className="text-3xl font-semibold tabular-nums">{stat.value}</p>
+                    <div>
+                      <p className="text-3xl font-semibold tabular-nums">{stat.value}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{stat.unit}</p>
+                    </div>
                     <ArrowRightIcon className="mb-1 size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
                   </div>
                 </CardContent>
@@ -209,26 +222,41 @@ export default async function DashboardPage() {
         <Card className="border-border/80 shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Báo giá cần xử lý</CardTitle>
-            <CardDescription>Nháp, đã gửi, hoặc cần chỉnh sửa.</CardDescription>
+            <CardDescription>
+              Hiển thị tối đa 5 báo giá: nháp, đã gửi hoặc cần chỉnh sửa.
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             {recentQuotations.length === 0 && (
-              <p className="py-4 text-sm text-muted-foreground">Không có báo giá cần xử lý.</p>
+              <p className="py-4 text-sm text-muted-foreground">
+                Không có báo giá cần xử lý.
+              </p>
             )}
             {recentQuotations.map((quotation) => (
               <Link
                 key={quotation.id}
                 href={`/quotations/${quotation.id}`}
-                className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted/50"
+                className="grid gap-3 rounded-md border px-3 py-3 text-sm transition-colors hover:bg-muted/50 sm:grid-cols-[1fr_auto]"
               >
                 <div className="min-w-0">
-                  <p className="font-mono text-xs font-medium text-primary">{quotation.code}</p>
-                  <p className="text-xs text-muted-foreground">{quotation.grandTotal} VND</p>
+                  <p className="text-[11px] uppercase text-muted-foreground">Mã báo giá</p>
+                  <p className="truncate font-mono text-sm font-semibold text-primary">
+                    {quotation.code}
+                  </p>
+                  <p className="mt-1 text-[11px] uppercase text-muted-foreground">
+                    Tổng giá trị
+                  </p>
+                  <p className="font-medium tabular-nums">{formatVnd(quotation.grandTotal)}</p>
                 </div>
-                <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs">
-                  {QUOTATION_STATUS_LABELS[quotation.status as QuotationStatus] ??
-                    quotation.status}
-                </span>
+                <div className="flex items-center gap-2 sm:flex-col sm:items-end sm:justify-center">
+                  <span className="text-[11px] uppercase text-muted-foreground">
+                    Trạng thái
+                  </span>
+                  <span className="w-fit rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
+                    {QUOTATION_STATUS_LABELS[quotation.status as QuotationStatus] ??
+                      quotation.status}
+                  </span>
+                </div>
               </Link>
             ))}
           </CardContent>
