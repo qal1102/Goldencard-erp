@@ -76,6 +76,38 @@ export async function getInventoryItemsAction(
   }
 }
 
+export async function getInventoryExistingSkusAction(
+  skus: string[],
+): Promise<InventoryActionResult<string[]>> {
+  try {
+    await requireInventoryAdmin('inventory.items.preview_existing_skus');
+
+    const normalizedSkus = Array.from(
+      new Set(skus.map((sku) => sku.trim().toUpperCase()).filter(Boolean)),
+    );
+    if (normalizedSkus.length === 0) return { success: true, data: [] };
+
+    if (normalizedSkus.length > 500) {
+      return { success: false, error: 'Mỗi lần preview tối đa 500 mã vật tư' };
+    }
+
+    const rows = await db
+      .select({ sku: inventoryItems.sku })
+      .from(inventoryItems)
+      .where(inArray(inventoryItems.sku, normalizedSkus));
+
+    return { success: true, data: rows.map((row) => row.sku) };
+  } catch (e) {
+    return {
+      success: false,
+      error:
+        e instanceof Error && e.message === 'Unauthorized'
+          ? 'Bạn không có quyền preview danh mục vật tư.'
+          : 'Không thể kiểm tra mã vật tư đã tồn tại. Vui lòng thử lại.',
+    };
+  }
+}
+
 export async function createInventoryItemAction(
   input: InventoryItemFormInput,
 ): Promise<InventoryActionResult<{ id: string }>> {
@@ -290,6 +322,8 @@ export async function importInventoryItemsAction(
       }
     }
 
+    const skuSample = parsedRows.slice(0, 20).map((row) => row.sku);
+
     await createAuditLog({
       userId: session.user.id,
       action: 'inventory.item.import',
@@ -299,7 +333,8 @@ export async function importInventoryItemsAction(
         created,
         updated,
         total: parsedRows.length,
-        skus: parsedRows.map((row) => row.sku),
+        skuSample,
+        hiddenSkuCount: Math.max(parsedRows.length - skuSample.length, 0),
       },
     });
 

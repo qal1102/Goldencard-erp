@@ -33,6 +33,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import {
   createInventoryItemAction,
+  getInventoryExistingSkusAction,
   getInventoryItemsAction,
   importInventoryItemsAction,
   updateInventoryItemAction,
@@ -45,6 +46,17 @@ import type {
 
 const ALL_STATUS = 'all';
 type CatalogStatus = NonNullable<InventoryItemFilters['status']>;
+
+const catalogStatusLabels: Record<CatalogStatus, string> = {
+  all: 'Tất cả trạng thái',
+  active: 'Đang sử dụng',
+  inactive: 'Ngừng sử dụng',
+};
+
+function getCatalogStatusLabel(value: string | null) {
+  if (!value) return catalogStatusLabels.all;
+  return catalogStatusLabels[value as CatalogStatus] ?? catalogStatusLabels.all;
+}
 
 const popularUnits = ['tấm', 'bộ', 'cái', 'mét', 'cuộn', 'kg', 'thùng'];
 
@@ -389,9 +401,9 @@ async function parseXlsxFile(file: File) {
 
 function buildPreviewRows(
   rawRows: { rowNumber: number; values: Record<string, unknown> }[],
-  existingItems: SerializedInventoryItem[],
+  existingSkuList: string[],
 ) {
-  const existingSkus = new Set(existingItems.map((item) => item.sku.toUpperCase()));
+  const existingSkus = new Set(existingSkuList.map((sku) => sku.toUpperCase()));
   const fileSkus = new Map<string, number>();
 
   return rawRows.map<ImportPreviewRow>((row) => {
@@ -766,10 +778,16 @@ export function InventoryItemCatalog({
         return;
       }
 
-      const allItemsResult = await getInventoryItemsAction({ status: ALL_STATUS });
-      setImportPreview(
-        buildPreviewRows(rawRows, allItemsResult.success ? allItemsResult.data : items),
-      );
+      const uploadedSkus = rawRows
+        .map((row) => String(row.values.sku ?? '').trim().toUpperCase())
+        .filter(Boolean);
+      const existingSkusResult = await getInventoryExistingSkusAction(uploadedSkus);
+      if (!existingSkusResult.success) {
+        setImportError(existingSkusResult.error);
+        return;
+      }
+
+      setImportPreview(buildPreviewRows(rawRows, existingSkusResult.data));
     } catch (e) {
       setImportError(
         e instanceof Error ? e.message : 'Không thể đọc file. Vui lòng kiểm tra lại.',
@@ -847,12 +865,12 @@ export function InventoryItemCatalog({
         <div className="flex flex-wrap items-center gap-2">
           <Select value={status} onValueChange={handleStatusChange}>
             <SelectTrigger className="w-full sm:w-48">
-              <SelectValue placeholder="Trạng thái" />
+              <SelectValue>{(value) => getCatalogStatusLabel(value)}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tất cả trạng thái</SelectItem>
-              <SelectItem value="active">Đang sử dụng</SelectItem>
-              <SelectItem value="inactive">Ngừng sử dụng</SelectItem>
+              <SelectItem value="all">{catalogStatusLabels.all}</SelectItem>
+              <SelectItem value="active">{catalogStatusLabels.active}</SelectItem>
+              <SelectItem value="inactive">{catalogStatusLabels.inactive}</SelectItem>
             </SelectContent>
           </Select>
 
