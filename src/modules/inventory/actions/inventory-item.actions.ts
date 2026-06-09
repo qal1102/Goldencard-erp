@@ -36,6 +36,22 @@ function revalidateInventory() {
   revalidatePath('/inventory');
 }
 
+function isDuplicateSkuError(error: unknown) {
+  if (!error || typeof error !== 'object') return false;
+
+  const dbError = error as {
+    code?: string;
+    constraint_name?: string;
+    constraint?: string;
+  };
+
+  return (
+    dbError.code === '23505' &&
+    (dbError.constraint_name === 'inventory_items_sku_unique' ||
+      dbError.constraint === 'inventory_items_sku_unique')
+  );
+}
+
 export async function getInventoryItemsAction(
   filters: InventoryItemFilters = {},
 ): Promise<InventoryActionResult<ReturnType<typeof serializeInventoryItems>>> {
@@ -108,6 +124,10 @@ export async function createInventoryItemAction(
     revalidateInventory();
     return { success: true, data: { id: created.id } };
   } catch (e) {
+    if (isDuplicateSkuError(e)) {
+      return { success: false, error: 'Mã vật tư đã tồn tại' };
+    }
+
     return {
       success: false,
       error: e instanceof Error ? e.message : 'Không thể tạo vật tư',
@@ -182,6 +202,10 @@ export async function updateInventoryItemAction(
     revalidateInventory();
     return { success: true, data: undefined };
   } catch (e) {
+    if (isDuplicateSkuError(e)) {
+      return { success: false, error: 'Mã vật tư đã tồn tại' };
+    }
+
     return {
       success: false,
       error: e instanceof Error ? e.message : 'Không thể cập nhật vật tư',

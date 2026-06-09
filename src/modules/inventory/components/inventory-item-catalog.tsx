@@ -88,11 +88,13 @@ function InventoryItemDialog({
   open,
   onOpenChange,
   onSaved,
+  refreshFilters,
 }: {
   mode: DialogMode;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved: (items: SerializedInventoryItem[]) => void;
+  refreshFilters: InventoryItemFilters;
 }) {
   const [form, setForm] = useState<InventoryItemFormInput>(
     mode.type === 'edit' ? itemToForm(mode.item) : emptyForm,
@@ -122,7 +124,7 @@ function InventoryItemDialog({
         return;
       }
 
-      const refreshed = await getInventoryItemsAction({});
+      const refreshed = await getInventoryItemsAction(refreshFilters);
       if (refreshed.success) onSaved(refreshed.data);
       onOpenChange(false);
     });
@@ -280,10 +282,17 @@ export function InventoryItemCatalog({
     return { total: items.length, active, inactive: items.length - active, serial };
   }, [items]);
 
-  function loadItems(next?: Partial<InventoryItemFilters>) {
-    const filters = {
+  const currentFilters = useMemo(
+    () => ({
       q: search.trim() || undefined,
       status,
+    }),
+    [search, status],
+  );
+
+  function loadItems(next?: Partial<InventoryItemFilters>) {
+    const filters = {
+      ...currentFilters,
       ...next,
     };
 
@@ -381,11 +390,11 @@ export function InventoryItemCatalog({
         </div>
       )}
 
-      {isPending && items.length > 0 && (
+      {isPending && (
         <p className="text-xs text-muted-foreground">Đang cập nhật danh mục...</p>
       )}
 
-      {!error && items.length === 0 && (
+      {!error && !isPending && items.length === 0 && (
         <p className="rounded-lg border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
           Chưa có vật tư phù hợp.
         </p>
@@ -454,6 +463,7 @@ export function InventoryItemCatalog({
             if (!open) setDialogMode(null);
           }}
           onSaved={setItems}
+          refreshFilters={currentFilters}
         />
       )}
     </div>
