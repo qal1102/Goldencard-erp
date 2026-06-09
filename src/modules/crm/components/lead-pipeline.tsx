@@ -51,6 +51,7 @@ export function LeadPipeline() {
   const searchParams = useSearchParams();
   const search = searchParams.get('search') ?? undefined;
   const statusFilter = searchParams.get('status') as LeadStatus | null;
+  const view = searchParams.get('view') === 'list' ? 'list' : 'pipeline';
 
   const {
     data: leads,
@@ -95,6 +96,21 @@ export function LeadPipeline() {
   }
 
   const leadsTyped = leads as LeadWithUser[];
+
+  if (view === 'list') {
+    return (
+      <div className="flex flex-col gap-3">
+        {leadsTyped.length === 0 && (
+          <p className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+            Không có cơ hội phù hợp.
+          </p>
+        )}
+        {leadsTyped.map((lead) => (
+          <LeadCard key={lead.id} lead={lead} progress={progressByLeadId?.[lead.id]} />
+        ))}
+      </div>
+    );
+  }
 
   const visibleStatuses = statusFilter ? [statusFilter] : LEAD_STATUSES;
 

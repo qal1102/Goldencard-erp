@@ -1,8 +1,8 @@
 'use client';
 
-import { SearchIcon, XIcon } from 'lucide-react';
+import { Columns3Icon, ListIcon, SearchIcon, XIcon } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useTransition } from 'react';
+import { useCallback, useEffect, useRef, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -12,8 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { LEAD_STATUS_LABELS, LEAD_STATUSES, type LeadStatus } from '../schema/lead.schema';
 import { getLeadStatusLabel } from '../lib/lead-labels';
+import { LEAD_STATUS_LABELS, LEAD_STATUSES, type LeadStatus } from '../schema/lead.schema';
 
 const ALL_LEAD_STATUSES_VALUE = '__all__';
 
@@ -25,6 +25,8 @@ export function LeadFilters() {
 
   const search = searchParams.get('search') ?? '';
   const status = searchParams.get('status') as LeadStatus | null;
+  const view = searchParams.get('view') === 'list' ? 'list' : 'pipeline';
+  const searchTimerRef = useRef<number | null>(null);
 
   const updateParams = useCallback(
     (key: string, value: string | null) => {
@@ -34,28 +36,44 @@ export function LeadFilters() {
       } else {
         params.delete(key);
       }
+      const queryString = params.toString();
       startTransition(() => {
-        router.replace(`${pathname}?${params.toString()}`);
+        router.replace(queryString ? `${pathname}?${queryString}` : pathname);
       });
     },
     [router, pathname, searchParams],
   );
 
-  const hasFilters = search || status;
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) {
+        window.clearTimeout(searchTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleSearchChange = (value: string) => {
+    if (searchTimerRef.current) {
+      window.clearTimeout(searchTimerRef.current);
+    }
+
+    searchTimerRef.current = window.setTimeout(() => {
+      updateParams('search', value || null);
+    }, 400);
+  };
+
+  const hasFilters = Boolean(search || status || view === 'list');
 
   return (
     <div className="flex flex-wrap items-center gap-2">
       <div className="relative min-w-[180px] flex-1">
         <SearchIcon className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
+          key={search}
           placeholder="Tìm tên, số điện thoại..."
           className="pl-8"
           defaultValue={search}
-          onChange={(e) => {
-            const val = e.target.value;
-            const timer = setTimeout(() => updateParams('search', val || null), 400);
-            return () => clearTimeout(timer);
-          }}
+          onChange={(e) => handleSearchChange(e.target.value)}
           disabled={isPending}
         />
       </div>
@@ -82,6 +100,31 @@ export function LeadFilters() {
           ))}
         </SelectContent>
       </Select>
+
+      <div className="flex rounded-md border p-0.5">
+        <Button
+          type="button"
+          variant={view === 'pipeline' ? 'secondary' : 'ghost'}
+          size="sm"
+          className="h-8 px-2"
+          onClick={() => updateParams('view', null)}
+          disabled={isPending}
+          aria-label="Xem dạng pipeline"
+        >
+          <Columns3Icon className="size-4" />
+        </Button>
+        <Button
+          type="button"
+          variant={view === 'list' ? 'secondary' : 'ghost'}
+          size="sm"
+          className="h-8 px-2"
+          onClick={() => updateParams('view', 'list')}
+          disabled={isPending}
+          aria-label="Xem dạng danh sách"
+        >
+          <ListIcon className="size-4" />
+        </Button>
+      </div>
 
       {hasFilters && (
         <Button
