@@ -64,49 +64,49 @@ const popularUnits = ['tấm', 'bộ', 'cái', 'mét', 'cuộn', 'kg', 'thùng']
 const inventoryExportColumns = [
   {
     key: 'sku',
-    label: 'Mã vật tư (sku)',
+    label: 'Mã vật tư',
     guide: 'Bắt buộc, không trùng. Đây là mã hệ thống dùng để tạo mới hoặc cập nhật.',
     example: 'PIN-550W',
   },
   {
     key: 'name',
-    label: 'Tên vật tư (name)',
+    label: 'Tên vật tư',
     guide: 'Bắt buộc. Tên dễ hiểu để nhân viên kho và thi công nhận diện.',
     example: 'Tấm pin năng lượng mặt trời 550W',
   },
   {
     key: 'category',
-    label: 'Nhóm vật tư (category)',
+    label: 'Nhóm vật tư',
     guide: 'Không bắt buộc. Ví dụ: Tấm pin, Inverter, Dây điện, Phụ kiện.',
     example: 'Tấm pin',
   },
   {
     key: 'unit',
-    label: 'Đơn vị tính (unit)',
+    label: 'Đơn vị tính',
     guide: 'Bắt buộc. Ví dụ: tấm, bộ, cái, mét, cuộn, kg, thùng.',
     example: 'tấm',
   },
   {
     key: 'minStock',
-    label: 'Tồn tối thiểu (minStock)',
+    label: 'Mức cảnh báo tồn thấp',
     guide: 'Số không âm. Dùng để cảnh báo thiếu hàng ở các bước sau.',
     example: 0,
   },
   {
     key: 'isSerializable',
-    label: 'Theo dõi serial (isSerializable)',
+    label: 'Có quản lý số serial',
     guide: 'Nhập TRUE/FALSE. TRUE nếu vật tư cần quản lý serial/IMEI.',
     example: false,
   },
   {
     key: 'isActive',
-    label: 'Đang sử dụng (isActive)',
+    label: 'Đang sử dụng',
     guide: 'Nhập TRUE/FALSE. FALSE nếu muốn ngừng dùng vật tư nhưng không xóa.',
     example: true,
   },
   {
     key: 'note',
-    label: 'Ghi chú (note)',
+    label: 'Ghi chú',
     guide: 'Không bắt buộc. Ghi thông tin thêm cho nội bộ.',
     example: 'Ví dụ, có thể xóa dòng này trước khi import',
   },
@@ -213,7 +213,7 @@ function downloadCsv(rows: InventoryExportRow[], filename: string) {
 async function downloadXlsx(rows: InventoryExportRow[], filename: string) {
   const ExcelJS = await import('exceljs');
   const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet('Danh muc vat tu');
+  const worksheet = workbook.addWorksheet('Danh mục vật tư');
 
   worksheet.columns = inventoryExportColumns.map((column) => ({
     header: column.label,
@@ -241,7 +241,32 @@ async function downloadXlsx(rows: InventoryExportRow[], filename: string) {
 function normalizeHeader(header: unknown) {
   const text = String(header ?? '').trim();
   const match = text.match(/\(([^)]+)\)/);
-  return (match?.[1] ?? text).trim();
+  const normalized = (match?.[1] ?? text).trim();
+  const aliasMap: Record<string, InventoryExportColumnKey> = {
+    'Mã vật tư': 'sku',
+    'Ma vat tu': 'sku',
+    'Tên vật tư': 'name',
+    'Ten vat tu': 'name',
+    'Nhóm vật tư': 'category',
+    'Nhom vat tu': 'category',
+    'Đơn vị tính': 'unit',
+    'Don vi tinh': 'unit',
+    'Mức cảnh báo tồn thấp': 'minStock',
+    'Muc canh bao ton thap': 'minStock',
+    'Tồn tối thiểu': 'minStock',
+    'Ton toi thieu': 'minStock',
+    'Có quản lý số serial': 'isSerializable',
+    'Co quan ly so serial': 'isSerializable',
+    'Theo dõi serial': 'isSerializable',
+    'Theo doi serial': 'isSerializable',
+    'Đang sử dụng': 'isActive',
+    'Dang su dung': 'isActive',
+    'Trạng thái sử dụng': 'isActive',
+    'Trang thai su dung': 'isActive',
+    'Ghi chú': 'note',
+    'Ghi chu': 'note',
+  };
+  return aliasMap[normalized] ?? normalized;
 }
 
 function parseBooleanCell(value: unknown) {
@@ -328,6 +353,7 @@ async function parseXlsxFile(file: File) {
   await workbook.xlsx.load(await file.arrayBuffer());
 
   const worksheet =
+    workbook.getWorksheet('Danh mục vật tư') ??
     workbook.getWorksheet('Danh muc vat tu') ??
     workbook.worksheets.find((sheet) => sheet.name !== 'Huong dan') ??
     workbook.worksheets[0];
