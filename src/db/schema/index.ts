@@ -1,6 +1,8 @@
 export * from './audit-logs';
 export * from './contracts';
 export * from './handovers';
+export * from './inventory-items';
+export * from './inventory-stocks';
 export * from './customers';
 export * from './lead-activities';
 export * from './notifications';
@@ -18,6 +20,7 @@ export * from './survey-zones';
 export * from './surveys';
 export * from './user-roles';
 export * from './users';
+export * from './warehouses';
 export * from './work-orders';
 export * from './warranty-tickets';
 export * from './warranty-certificates';
