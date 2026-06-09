@@ -10,6 +10,7 @@ import {
   PlusIcon,
   SearchIcon,
   ShieldCheckIcon,
+  TablePropertiesIcon,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -143,26 +144,6 @@ const emptyForm: InventoryItemFormInput = {
 };
 
 const templateRows: InventoryExportRow[] = [
-  {
-    sku: 'PIN-550W',
-    name: 'Tấm pin năng lượng mặt trời 550W',
-    category: 'Tấm pin',
-    unit: 'tấm',
-    minStock: 0,
-    isSerializable: false,
-    isActive: true,
-    note: 'Dòng này là ví dụ, có thể xóa trước khi import',
-  },
-  {
-    sku: 'INV-5KW',
-    name: 'Inverter hòa lưới 5kW',
-    category: 'Inverter',
-    unit: 'bộ',
-    minStock: 0,
-    isSerializable: true,
-    isActive: true,
-    note: 'Thiết bị có serial nên để TRUE ở cột theo dõi serial',
-  },
 ];
 
 function formatNumber(value: string | number) {
@@ -232,34 +213,7 @@ function downloadCsv(rows: InventoryExportRow[], filename: string) {
 async function downloadXlsx(rows: InventoryExportRow[], filename: string) {
   const ExcelJS = await import('exceljs');
   const workbook = new ExcelJS.Workbook();
-  const guideWorksheet = workbook.addWorksheet('Huong dan');
   const worksheet = workbook.addWorksheet('Danh muc vat tu');
-
-  guideWorksheet.columns = [
-    { header: 'Cột trong file', key: 'label', width: 30 },
-    { header: 'Cách nhập', key: 'guide', width: 58 },
-    { header: 'Ví dụ', key: 'example', width: 28 },
-  ];
-  guideWorksheet.getRow(1).font = { bold: true };
-  guideWorksheet.getRow(1).fill = {
-    type: 'pattern',
-    pattern: 'solid',
-    fgColor: { argb: 'FFEFF6FF' },
-  };
-  guideWorksheet.addRows(
-    inventoryExportColumns.map((column) => ({
-      label: column.label,
-      guide: column.guide,
-      example: String(column.example),
-    })),
-  );
-  guideWorksheet.addRow({});
-  guideWorksheet.addRow({
-    label: 'Lưu ý',
-    guide:
-      'Có thể sửa phần tiếng Việt cho dễ nhìn, nhưng không đổi mã trong ngoặc như (sku), (name), (unit). Bước import sau này sẽ dùng các mã này để nhận diện cột.',
-    example: '',
-  });
 
   worksheet.columns = inventoryExportColumns.map((column) => ({
     header: column.label,
@@ -682,6 +636,7 @@ export function InventoryItemCatalog({
   const [status, setStatus] = useState<CatalogStatus>(ALL_STATUS);
   const [error, setError] = useState<string | null>(initialError);
   const [dialogMode, setDialogMode] = useState<DialogMode | null>(null);
+  const [isQuickTableOpen, setIsQuickTableOpen] = useState(false);
   const [importFileName, setImportFileName] = useState<string | null>(null);
   const [importPreview, setImportPreview] = useState<ImportPreviewRow[]>([]);
   const [importError, setImportError] = useState<string | null>(null);
@@ -876,7 +831,18 @@ export function InventoryItemCatalog({
 
           <Button
             type="button"
-            className="ml-auto w-full sm:w-auto"
+            variant="outline"
+            className="w-full sm:ml-auto sm:w-auto"
+            onClick={() => setIsQuickTableOpen(true)}
+            disabled={items.length === 0}
+          >
+            <TablePropertiesIcon className="size-4" />
+            Bảng danh mục
+          </Button>
+
+          <Button
+            type="button"
+            className="w-full sm:w-auto"
             onClick={() => setDialogMode({ type: 'create' })}
           >
             <PlusIcon className="size-4" />
@@ -890,9 +856,10 @@ export function InventoryItemCatalog({
           <div>
             <p className="text-sm font-medium">File mẫu nhập liệu</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Tải file mẫu hoặc export catalog hiện tại, nhập/sửa offline rồi upload
-              lại ở bước import sau. Cột có tiếng Việt dễ đọc và mã hệ thống trong ngoặc
-              để hệ thống vẫn nhận diện được.
+              Mẫu tải về chỉ có cột trống để nhập tay. Điền tối thiểu Mã vật tư, Tên vật
+              tư và Đơn vị tính; các cột Có/Không có thể nhập TRUE/FALSE hoặc Có/Không.
+              Muốn sửa hàng loạt thì export catalog hiện tại, chỉnh trong Excel rồi upload
+              lại để hệ thống preview trước khi cập nhật.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
@@ -1151,6 +1118,69 @@ export function InventoryItemCatalog({
           </div>
         </div>
       </div>
+
+      <Dialog open={isQuickTableOpen} onOpenChange={setIsQuickTableOpen}>
+        <DialogContent className="sm:max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>Bảng danh mục vật tư</DialogTitle>
+            <DialogDescription>
+              Xem nhanh danh mục theo bộ lọc hiện tại và mở từng dòng để sửa khi cần.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-[70vh] overflow-auto rounded-md border">
+            <div className="grid min-w-[900px] grid-cols-[130px_1.3fr_150px_90px_120px_120px_80px] border-b bg-muted/60 px-3 py-2 text-xs font-medium">
+              <span>Mã vật tư</span>
+              <span>Tên vật tư</span>
+              <span>Nhóm</span>
+              <span>Đơn vị</span>
+              <span>Tồn tối thiểu</span>
+              <span>Trạng thái</span>
+              <span></span>
+            </div>
+            {items.map((item) => (
+              <div
+                key={item.id}
+                className="grid min-w-[900px] grid-cols-[130px_1.3fr_150px_90px_120px_120px_80px] items-center border-b px-3 py-2 text-xs last:border-b-0"
+              >
+                <span className="font-mono font-medium text-primary">{item.sku}</span>
+                <span className="truncate">{item.name}</span>
+                <span className="truncate text-muted-foreground">
+                  {item.category || 'Chưa phân nhóm'}
+                </span>
+                <span>{item.unit}</span>
+                <span className="tabular-nums">{formatNumber(item.minStock)}</span>
+                <span>
+                  <Badge variant={item.isActive ? 'secondary' : 'outline'}>
+                    {item.isActive ? 'Đang dùng' : 'Ngừng dùng'}
+                  </Badge>
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setIsQuickTableOpen(false);
+                    setDialogMode({ type: 'edit', item });
+                  }}
+                >
+                  Sửa
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsQuickTableOpen(false)}
+            >
+              Đóng
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {dialogMode && (
         <InventoryItemDialog
