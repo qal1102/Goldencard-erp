@@ -94,6 +94,7 @@ export function WarrantyCertificateDetail({ certificateId }: Props) {
             <Button
               size="sm"
               variant="outline"
+              nativeButton={false}
               render={<Link href={`/warranty-certificates/${certificateId}/print`} />}
             >
               <PrinterIcon className="size-3.5" />

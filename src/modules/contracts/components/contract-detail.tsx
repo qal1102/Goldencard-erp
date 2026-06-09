@@ -213,6 +213,7 @@ export function ContractDetail({ contractId, canWrite, canApprove }: Props) {
             <Button
               size="sm"
               variant="outline"
+              nativeButton={false}
               render={<Link href={`/contracts/${contractId}/print`} />}
             >
               <PrinterIcon className="size-3.5" />
@@ -275,7 +276,12 @@ export function ContractDetail({ contractId, canWrite, canApprove }: Props) {
               </Button>
             )}
             {status === 'signed' && linkedWorkOrder && (
-              <Button size="sm" variant="outline" render={<Link href={`/work-orders/${linkedWorkOrder.id}`} />}>
+              <Button
+                size="sm"
+                variant="outline"
+                nativeButton={false}
+                render={<Link href={`/work-orders/${linkedWorkOrder.id}`} />}
+              >
                 Xem lệnh thi công ({linkedWorkOrder.code})
               </Button>
             )}

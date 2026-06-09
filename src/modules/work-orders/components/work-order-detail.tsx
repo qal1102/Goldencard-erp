@@ -283,7 +283,12 @@ export function WorkOrderDetail({ workOrderId, canWrite }: Props) {
           </CardHeader>
           <CardContent>
             {workOrder.handover ? (
-              <Button size="sm" variant="outline" render={<Link href={`/handovers/${workOrder.handover.id}`} />}>
+              <Button
+                size="sm"
+                variant="outline"
+                nativeButton={false}
+                render={<Link href={`/handovers/${workOrder.handover.id}`} />}
+              >
                 Xem phiếu bàn giao ({workOrder.handover.code})
               </Button>
             ) : (
