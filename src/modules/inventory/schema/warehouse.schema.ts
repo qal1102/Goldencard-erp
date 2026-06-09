@@ -20,5 +20,17 @@ export const warehouseFormSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
+export const inventoryStockAdjustmentSchema = z.object({
+  warehouseId: z.string().uuid('Kho không hợp lệ'),
+  itemId: z.string().uuid('Vật tư không hợp lệ'),
+  quantityOnHand: z.coerce
+    .number({ error: 'Số tồn phải là số' })
+    .min(0, 'Số tồn không được âm'),
+  note: z.string().trim().optional(),
+});
+
 export type WarehouseFilters = z.infer<typeof warehouseFiltersSchema>;
 export type WarehouseFormInput = z.infer<typeof warehouseFormSchema>;
+export type InventoryStockAdjustmentInput = z.infer<
+  typeof inventoryStockAdjustmentSchema
+>;

@@ -63,6 +63,7 @@ export default async function InventoryPage() {
         initialWarehouseError={warehousesResult.success ? null : warehousesResult.error}
         initialStocks={stocksResult.success ? stocksResult.data : undefined}
         initialStockError={stocksResult.success ? null : stocksResult.error}
+        inventoryItems={itemsResult.success ? itemsResult.data : undefined}
       />
 
       <InventoryItemCatalog

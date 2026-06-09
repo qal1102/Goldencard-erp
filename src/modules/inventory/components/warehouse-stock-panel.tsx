@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import {
   EditIcon,
+  PackageCheckIcon,
   PlusIcon,
   RefreshCwIcon,
   WarehouseIcon,
@@ -28,15 +29,19 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import {
+  adjustInventoryStockAction,
   createWarehouseAction,
+  getInventoryStocksAction,
   getWarehousesAction,
   updateWarehouseAction,
 } from '../actions/warehouse.actions';
 import type {
   SerializedInventoryStockRow,
 } from '../lib/warehouse-load';
+import type { SerializedInventoryItem } from '../lib/inventory-item-serialize';
 import type { SerializedWarehouse } from '../lib/warehouse-serialize';
 import type {
+  InventoryStockAdjustmentInput,
   WarehouseFilters,
   WarehouseFormInput,
 } from '../schema/warehouse.schema';
@@ -76,6 +81,13 @@ const emptyForm: WarehouseFormInput = {
   address: '',
   note: '',
   isActive: true,
+};
+
+const emptyStockAdjustmentForm: InventoryStockAdjustmentInput = {
+  warehouseId: '',
+  itemId: '',
+  quantityOnHand: 0,
+  note: '',
 };
 
 type DialogMode =
@@ -243,6 +255,7 @@ type Props = {
   initialWarehouseError?: string | null;
   initialStocks?: SerializedInventoryStockRow[];
   initialStockError?: string | null;
+  inventoryItems?: SerializedInventoryItem[];
 };
 
 export function WarehouseStockPanel({
@@ -250,14 +263,21 @@ export function WarehouseStockPanel({
   initialWarehouseError = null,
   initialStocks = [],
   initialStockError = null,
+  inventoryItems = [],
 }: Props) {
   const [warehouses, setWarehouses] = useState(initialWarehouses);
+  const [stocks, setStocks] = useState(initialStocks);
   const [warehouseStatus, setWarehouseStatus] = useState<WarehouseStatus>(ALL_STATUS);
   const [selectedWarehouseId, setSelectedWarehouseId] = useState('all');
   const [dialogMode, setDialogMode] = useState<DialogMode | null>(null);
+  const [isStockDialogOpen, setIsStockDialogOpen] = useState(false);
+  const [stockForm, setStockForm] = useState<InventoryStockAdjustmentInput>(
+    emptyStockAdjustmentForm,
+  );
   const [warehouseError, setWarehouseError] = useState<string | null>(initialWarehouseError);
-  const [stockError] = useState<string | null>(initialStockError);
+  const [stockError, setStockError] = useState<string | null>(initialStockError);
   const [isPending, startTransition] = useTransition();
+  const [isStockPending, startStockTransition] = useTransition();
 
   const activeWarehouses = useMemo(
     () => warehouses.filter((warehouse) => warehouse.isActive).length,
@@ -267,9 +287,9 @@ export function WarehouseStockPanel({
   const filteredStocks = useMemo(
     () =>
       selectedWarehouseId === 'all'
-        ? initialStocks
-        : initialStocks.filter((row) => row.warehouseId === selectedWarehouseId),
-    [initialStocks, selectedWarehouseId],
+        ? stocks
+        : stocks.filter((row) => row.warehouseId === selectedWarehouseId),
+    [stocks, selectedWarehouseId],
   );
 
   const stockTotals = useMemo(() => {
@@ -316,6 +336,45 @@ export function WarehouseStockPanel({
     const nextStatus = value ?? ALL_STATUS;
     setWarehouseStatus(nextStatus);
     loadWarehouses({ status: nextStatus });
+  }
+
+  function openStockAdjustmentDialog() {
+    setStockError(null);
+    setStockForm({
+      warehouseId: selectedWarehouseId === 'all' ? '' : selectedWarehouseId,
+      itemId: '',
+      quantityOnHand: 0,
+      note: '',
+    });
+    setIsStockDialogOpen(true);
+  }
+
+  function updateStockField<K extends keyof InventoryStockAdjustmentInput>(
+    key: K,
+    value: InventoryStockAdjustmentInput[K],
+  ) {
+    setStockForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function handleStockSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setStockError(null);
+
+    startStockTransition(async () => {
+      const result = await adjustInventoryStockAction(stockForm);
+      if (!result.success) {
+        setStockError(result.error);
+        return;
+      }
+
+      const refreshed = await getInventoryStocksAction();
+      if (refreshed.success) {
+        setStocks(refreshed.data);
+      } else {
+        setStockError(refreshed.error);
+      }
+      setIsStockDialogOpen(false);
+    });
   }
 
   return (
@@ -444,26 +503,43 @@ export function WarehouseStockPanel({
               xuất hoặc điều chỉnh kho ở bước sau.
             </p>
           </div>
-          <Select value={selectedWarehouseId} onValueChange={(value) => setSelectedWarehouseId(value ?? 'all')}>
-            <SelectTrigger className="w-full sm:w-64">
-              <SelectValue>
-                {(value) =>
-                  value === 'all'
-                    ? 'Tất cả kho'
-                    : warehouses.find((warehouse) => warehouse.id === value)?.name ??
-                      'Tất cả kho'
-                }
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tất cả kho</SelectItem>
-              {warehouses.map((warehouse) => (
-                <SelectItem key={warehouse.id} value={warehouse.id}>
-                  {warehouse.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Select
+              value={selectedWarehouseId}
+              onValueChange={(value) => setSelectedWarehouseId(value ?? 'all')}
+            >
+              <SelectTrigger className="w-full sm:w-64">
+                <SelectValue>
+                  {(value) =>
+                    value === 'all'
+                      ? 'Tất cả kho'
+                      : warehouses.find((warehouse) => warehouse.id === value)?.name ??
+                        'Tất cả kho'
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả kho</SelectItem>
+                {warehouses.map((warehouse) => (
+                  <SelectItem key={warehouse.id} value={warehouse.id}>
+                    {warehouse.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
+              onClick={openStockAdjustmentDialog}
+              disabled={
+                warehouses.filter((warehouse) => warehouse.isActive).length === 0 ||
+                inventoryItems.filter((item) => item.isActive).length === 0
+              }
+            >
+              <PackageCheckIcon className="size-4" />
+              Cập nhật tồn
+            </Button>
+          </div>
         </div>
 
         {stockError && (
@@ -521,6 +597,119 @@ export function WarehouseStockPanel({
           refreshFilters={currentFilters}
         />
       )}
+
+      <Dialog open={isStockDialogOpen} onOpenChange={setIsStockDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <form onSubmit={handleStockSubmit} className="flex flex-col gap-4">
+            <DialogHeader>
+              <DialogTitle>Cập nhật tồn ban đầu</DialogTitle>
+              <DialogDescription>
+                Nhập số tồn thực tế hiện có cho một vật tư tại một kho. Đây là số dư
+                hiện tại, chưa phải phiếu nhập/xuất có lịch sử chi tiết.
+              </DialogDescription>
+            </DialogHeader>
+
+            {stockError && (
+              <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {stockError}
+              </p>
+            )}
+
+            <div className="flex flex-col gap-1.5">
+              <Label>Kho</Label>
+              <Select
+                value={stockForm.warehouseId}
+                onValueChange={(value) => updateStockField('warehouseId', value ?? '')}
+                disabled={isStockPending}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {(value) =>
+                      warehouses.find((warehouse) => warehouse.id === value)?.name ??
+                      'Chọn kho'
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {warehouses
+                    .filter((warehouse) => warehouse.isActive)
+                    .map((warehouse) => (
+                      <SelectItem key={warehouse.id} value={warehouse.id}>
+                        {warehouse.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label>Vật tư</Label>
+              <Select
+                value={stockForm.itemId}
+                onValueChange={(value) => updateStockField('itemId', value ?? '')}
+                disabled={isStockPending}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {(value) => {
+                      const item = inventoryItems.find((entry) => entry.id === value);
+                      return item ? `${item.sku} - ${item.name}` : 'Chọn vật tư';
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {inventoryItems
+                    .filter((item) => item.isActive)
+                    .map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.sku} - {item.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="stock-quantity">Số tồn thực tế</Label>
+              <Input
+                id="stock-quantity"
+                type="number"
+                min="0"
+                step="0.001"
+                value={stockForm.quantityOnHand}
+                onChange={(e) => updateStockField('quantityOnHand', Number(e.target.value))}
+                disabled={isStockPending}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="stock-note">Ghi chú</Label>
+              <Textarea
+                id="stock-note"
+                value={stockForm.note ?? ''}
+                onChange={(e) => updateStockField('note', e.target.value)}
+                placeholder="VD: nhập tồn đầu kỳ"
+                rows={3}
+                disabled={isStockPending}
+              />
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isStockPending}
+                onClick={() => setIsStockDialogOpen(false)}
+              >
+                Hủy
+              </Button>
+              <Button type="submit" disabled={isStockPending}>
+                {isStockPending ? 'Đang lưu...' : 'Lưu tồn'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
