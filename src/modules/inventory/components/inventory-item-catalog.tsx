@@ -3,7 +3,9 @@
 import { useMemo, useState, useTransition } from 'react';
 import {
   BoxesIcon,
+  DownloadIcon,
   EditIcon,
+  FileSpreadsheetIcon,
   PlusIcon,
   SearchIcon,
   ShieldCheckIcon,
@@ -42,6 +44,22 @@ import type {
 const ALL_STATUS = 'all';
 type CatalogStatus = NonNullable<InventoryItemFilters['status']>;
 
+const popularUnits = ['tấm', 'bộ', 'cái', 'mét', 'cuộn', 'kg', 'thùng'];
+
+const inventoryExportColumns = [
+  { key: 'sku', label: 'sku' },
+  { key: 'name', label: 'name' },
+  { key: 'category', label: 'category' },
+  { key: 'unit', label: 'unit' },
+  { key: 'minStock', label: 'minStock' },
+  { key: 'isSerializable', label: 'isSerializable' },
+  { key: 'isActive', label: 'isActive' },
+  { key: 'note', label: 'note' },
+] as const;
+
+type InventoryExportColumnKey = (typeof inventoryExportColumns)[number]['key'];
+type InventoryExportRow = Record<InventoryExportColumnKey, string | number | boolean>;
+
 type CatalogProps = {
   initialItems?: SerializedInventoryItem[];
   initialError?: string | null;
@@ -61,6 +79,19 @@ const emptyForm: InventoryItemFormInput = {
   isActive: true,
   note: '',
 };
+
+const templateRows: InventoryExportRow[] = [
+  {
+    sku: 'PIN-550W',
+    name: 'Tấm pin năng lượng mặt trời 550W',
+    category: 'Tấm pin',
+    unit: 'tấm',
+    minStock: 0,
+    isSerializable: false,
+    isActive: true,
+    note: 'Dòng này là ví dụ, có thể xóa trước khi import',
+  },
+];
 
 function formatNumber(value: string | number) {
   const numericValue = Number(value);
@@ -83,18 +114,87 @@ function itemToForm(item: SerializedInventoryItem): InventoryItemFormInput {
   };
 }
 
+function getExportFileDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function exportRowsFromItems(items: SerializedInventoryItem[]): InventoryExportRow[] {
+  return items.map((item) => ({
+    sku: item.sku,
+    name: item.name,
+    category: item.category ?? '',
+    unit: item.unit,
+    minStock: Number(item.minStock),
+    isSerializable: item.isSerializable,
+    isActive: item.isActive,
+    note: item.note ?? '',
+  }));
+}
+
+function escapeCsvCell(value: string | number | boolean) {
+  const text = String(value);
+  if (!/[",\n\r]/.test(text)) return text;
+  return `"${text.replaceAll('"', '""')}"`;
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function downloadCsv(rows: InventoryExportRow[], filename: string) {
+  const header = inventoryExportColumns.map((column) => column.label);
+  const body = rows.map((row) =>
+    inventoryExportColumns.map((column) => escapeCsvCell(row[column.key])).join(','),
+  );
+  const csv = [`\uFEFF${header.join(',')}`, ...body].join('\r\n');
+  downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), filename);
+}
+
+async function downloadXlsx(rows: InventoryExportRow[], filename: string) {
+  const ExcelJS = await import('exceljs');
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('inventory_items');
+
+  worksheet.columns = inventoryExportColumns.map((column) => ({
+    header: column.label,
+    key: column.key,
+    width: column.key === 'name' || column.key === 'note' ? 32 : 18,
+  }));
+  worksheet.getRow(1).font = { bold: true };
+  worksheet.addRows(rows);
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  downloadBlob(
+    new Blob([buffer as BlobPart], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    }),
+    filename,
+  );
+}
+
 function InventoryItemDialog({
   mode,
   open,
   onOpenChange,
   onSaved,
   refreshFilters,
+  categoryOptions,
+  unitOptions,
 }: {
   mode: DialogMode;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved: (items: SerializedInventoryItem[]) => void;
   refreshFilters: InventoryItemFilters;
+  categoryOptions: string[];
+  unitOptions: string[];
 }) {
   const [form, setForm] = useState<InventoryItemFormInput>(
     mode.type === 'edit' ? itemToForm(mode.item) : emptyForm,
@@ -113,6 +213,12 @@ function InventoryItemDialog({
     e.preventDefault();
     setError(null);
 
+    const submitter = (e.nativeEvent as SubmitEvent).submitter as
+      | HTMLButtonElement
+      | null;
+    const shouldCreateNext =
+      mode.type === 'create' && submitter?.value === 'save-and-new';
+
     startTransition(async () => {
       const result =
         mode.type === 'edit'
@@ -126,6 +232,12 @@ function InventoryItemDialog({
 
       const refreshed = await getInventoryItemsAction(refreshFilters);
       if (refreshed.success) onSaved(refreshed.data);
+
+      if (shouldCreateNext) {
+        setForm(emptyForm);
+        return;
+      }
+
       onOpenChange(false);
     });
   }
@@ -155,7 +267,7 @@ function InventoryItemDialog({
               <Input
                 id="inventory-sku"
                 value={form.sku}
-                onChange={(e) => updateField('sku', e.target.value)}
+                onChange={(e) => updateField('sku', e.target.value.toUpperCase())}
                 placeholder="VD: PIN-550W"
                 disabled={isPending}
               />
@@ -164,11 +276,17 @@ function InventoryItemDialog({
               <Label htmlFor="inventory-unit">Đơn vị tính</Label>
               <Input
                 id="inventory-unit"
+                list="inventory-unit-options"
                 value={form.unit}
                 onChange={(e) => updateField('unit', e.target.value)}
                 placeholder="tấm, bộ, mét..."
                 disabled={isPending}
               />
+              <datalist id="inventory-unit-options">
+                {unitOptions.map((unit) => (
+                  <option key={unit} value={unit} />
+                ))}
+              </datalist>
             </div>
           </div>
 
@@ -188,11 +306,17 @@ function InventoryItemDialog({
               <Label htmlFor="inventory-category">Nhóm vật tư</Label>
               <Input
                 id="inventory-category"
+                list="inventory-category-options"
                 value={form.category ?? ''}
                 onChange={(e) => updateField('category', e.target.value)}
                 placeholder="Tấm pin, inverter..."
                 disabled={isPending}
               />
+              <datalist id="inventory-category-options">
+                {categoryOptions.map((category) => (
+                  <option key={category} value={category} />
+                ))}
+              </datalist>
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="inventory-min-stock">Tồn tối thiểu</Label>
@@ -255,7 +379,18 @@ function InventoryItemDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Hủy
             </Button>
-            <Button type="submit" disabled={isPending}>
+            {mode.type === 'create' && (
+              <Button
+                type="submit"
+                name="intent"
+                value="save-and-new"
+                variant="secondary"
+                disabled={isPending}
+              >
+                {isPending ? 'Đang lưu...' : 'Lưu & tạo tiếp'}
+              </Button>
+            )}
+            <Button type="submit" name="intent" value="save" disabled={isPending}>
               {isPending ? 'Đang lưu...' : 'Lưu vật tư'}
             </Button>
           </DialogFooter>
@@ -281,6 +416,24 @@ export function InventoryItemCatalog({
     const serial = items.filter((item) => item.isSerializable).length;
     return { total: items.length, active, inactive: items.length - active, serial };
   }, [items]);
+
+  const categoryOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(items.map((item) => item.category).filter(Boolean) as string[]),
+      ).sort((a, b) => a.localeCompare(b, 'vi')),
+    [items],
+  );
+
+  const unitOptions = useMemo(
+    () =>
+      Array.from(new Set([...popularUnits, ...items.map((item) => item.unit)])).sort(
+        (a, b) => a.localeCompare(b, 'vi'),
+      ),
+    [items],
+  );
+
+  const currentExportRows = useMemo(() => exportRowsFromItems(items), [items]);
 
   const currentFilters = useMemo(
     () => ({
@@ -379,6 +532,72 @@ export function InventoryItemCatalog({
         </div>
       </div>
 
+      <div className="rounded-lg border p-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-sm font-medium">File mẫu nhập liệu</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Tải file mẫu hoặc export catalog hiện tại, chỉnh offline rồi dùng lại cho
+              bước import/preview tiếp theo. Hệ thống sẽ nhận diện theo cột sku.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                downloadCsv(templateRows, `inventory-template-${getExportFileDate()}.csv`)
+              }
+            >
+              <DownloadIcon className="size-4" />
+              Mẫu CSV
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                void downloadXlsx(
+                  templateRows,
+                  `inventory-template-${getExportFileDate()}.xlsx`,
+                )
+              }
+            >
+              <FileSpreadsheetIcon className="size-4" />
+              Mẫu Excel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                downloadCsv(currentExportRows, `inventory-catalog-${getExportFileDate()}.csv`)
+              }
+              disabled={items.length === 0}
+            >
+              <DownloadIcon className="size-4" />
+              Export CSV
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                void downloadXlsx(
+                  currentExportRows,
+                  `inventory-catalog-${getExportFileDate()}.xlsx`,
+                )
+              }
+              disabled={items.length === 0}
+            >
+              <FileSpreadsheetIcon className="size-4" />
+              Export Excel
+            </Button>
+          </div>
+        </div>
+      </div>
+
       <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
         Catalog này chưa trừ tồn thật. Bước này chỉ chuẩn hóa mã vật tư, đơn vị,
         nhóm và trạng thái để chuẩn bị nối tồn kho/BOM.
@@ -464,6 +683,8 @@ export function InventoryItemCatalog({
           }}
           onSaved={setItems}
           refreshFilters={currentFilters}
+          categoryOptions={categoryOptions}
+          unitOptions={unitOptions}
         />
       )}
     </div>
