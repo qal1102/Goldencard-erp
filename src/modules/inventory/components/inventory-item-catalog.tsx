@@ -47,14 +47,54 @@ type CatalogStatus = NonNullable<InventoryItemFilters['status']>;
 const popularUnits = ['tấm', 'bộ', 'cái', 'mét', 'cuộn', 'kg', 'thùng'];
 
 const inventoryExportColumns = [
-  { key: 'sku', label: 'sku' },
-  { key: 'name', label: 'name' },
-  { key: 'category', label: 'category' },
-  { key: 'unit', label: 'unit' },
-  { key: 'minStock', label: 'minStock' },
-  { key: 'isSerializable', label: 'isSerializable' },
-  { key: 'isActive', label: 'isActive' },
-  { key: 'note', label: 'note' },
+  {
+    key: 'sku',
+    label: 'Mã vật tư (sku)',
+    guide: 'Bắt buộc, không trùng. Đây là mã hệ thống dùng để tạo mới hoặc cập nhật.',
+    example: 'PIN-550W',
+  },
+  {
+    key: 'name',
+    label: 'Tên vật tư (name)',
+    guide: 'Bắt buộc. Tên dễ hiểu để nhân viên kho và thi công nhận diện.',
+    example: 'Tấm pin năng lượng mặt trời 550W',
+  },
+  {
+    key: 'category',
+    label: 'Nhóm vật tư (category)',
+    guide: 'Không bắt buộc. Ví dụ: Tấm pin, Inverter, Dây điện, Phụ kiện.',
+    example: 'Tấm pin',
+  },
+  {
+    key: 'unit',
+    label: 'Đơn vị tính (unit)',
+    guide: 'Bắt buộc. Ví dụ: tấm, bộ, cái, mét, cuộn, kg, thùng.',
+    example: 'tấm',
+  },
+  {
+    key: 'minStock',
+    label: 'Tồn tối thiểu (minStock)',
+    guide: 'Số không âm. Dùng để cảnh báo thiếu hàng ở các bước sau.',
+    example: 0,
+  },
+  {
+    key: 'isSerializable',
+    label: 'Theo dõi serial (isSerializable)',
+    guide: 'Nhập TRUE/FALSE. TRUE nếu vật tư cần quản lý serial/IMEI.',
+    example: false,
+  },
+  {
+    key: 'isActive',
+    label: 'Đang sử dụng (isActive)',
+    guide: 'Nhập TRUE/FALSE. FALSE nếu muốn ngừng dùng vật tư nhưng không xóa.',
+    example: true,
+  },
+  {
+    key: 'note',
+    label: 'Ghi chú (note)',
+    guide: 'Không bắt buộc. Ghi thông tin thêm cho nội bộ.',
+    example: 'Ví dụ, có thể xóa dòng này trước khi import',
+  },
 ] as const;
 
 type InventoryExportColumnKey = (typeof inventoryExportColumns)[number]['key'];
@@ -90,6 +130,16 @@ const templateRows: InventoryExportRow[] = [
     isSerializable: false,
     isActive: true,
     note: 'Dòng này là ví dụ, có thể xóa trước khi import',
+  },
+  {
+    sku: 'INV-5KW',
+    name: 'Inverter hòa lưới 5kW',
+    category: 'Inverter',
+    unit: 'bộ',
+    minStock: 0,
+    isSerializable: true,
+    isActive: true,
+    note: 'Thiết bị có serial nên để TRUE ở cột theo dõi serial',
   },
 ];
 
@@ -160,7 +210,34 @@ function downloadCsv(rows: InventoryExportRow[], filename: string) {
 async function downloadXlsx(rows: InventoryExportRow[], filename: string) {
   const ExcelJS = await import('exceljs');
   const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet('inventory_items');
+  const guideWorksheet = workbook.addWorksheet('Huong dan');
+  const worksheet = workbook.addWorksheet('Danh muc vat tu');
+
+  guideWorksheet.columns = [
+    { header: 'Cột trong file', key: 'label', width: 30 },
+    { header: 'Cách nhập', key: 'guide', width: 58 },
+    { header: 'Ví dụ', key: 'example', width: 28 },
+  ];
+  guideWorksheet.getRow(1).font = { bold: true };
+  guideWorksheet.getRow(1).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFEFF6FF' },
+  };
+  guideWorksheet.addRows(
+    inventoryExportColumns.map((column) => ({
+      label: column.label,
+      guide: column.guide,
+      example: String(column.example),
+    })),
+  );
+  guideWorksheet.addRow({});
+  guideWorksheet.addRow({
+    label: 'Lưu ý',
+    guide:
+      'Có thể sửa phần tiếng Việt cho dễ nhìn, nhưng không đổi mã trong ngoặc như (sku), (name), (unit). Bước import sau này sẽ dùng các mã này để nhận diện cột.',
+    example: '',
+  });
 
   worksheet.columns = inventoryExportColumns.map((column) => ({
     header: column.label,
@@ -168,6 +245,12 @@ async function downloadXlsx(rows: InventoryExportRow[], filename: string) {
     width: column.key === 'name' || column.key === 'note' ? 32 : 18,
   }));
   worksheet.getRow(1).font = { bold: true };
+  worksheet.getRow(1).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFEFF6FF' },
+  };
+  worksheet.views = [{ state: 'frozen', ySplit: 1 }];
   worksheet.addRows(rows);
 
   const buffer = await workbook.xlsx.writeBuffer();
@@ -537,8 +620,9 @@ export function InventoryItemCatalog({
           <div>
             <p className="text-sm font-medium">File mẫu nhập liệu</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Tải file mẫu hoặc export catalog hiện tại, chỉnh offline rồi dùng lại cho
-              bước import/preview tiếp theo. Hệ thống sẽ nhận diện theo cột sku.
+              Tải file mẫu hoặc export catalog hiện tại, nhập/sửa offline rồi upload
+              lại ở bước import sau. Cột có tiếng Việt dễ đọc và mã hệ thống trong ngoặc
+              để hệ thống vẫn nhận diện được.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
