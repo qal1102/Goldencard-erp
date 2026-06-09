@@ -1,0 +1,65 @@
+import { and, asc, desc, eq } from 'drizzle-orm';
+import { db } from '@/db';
+import { inventoryItems, inventoryStocks, warehouses } from '@/db/schema';
+import {
+  type WarehouseFilters,
+  warehouseFiltersSchema,
+} from '../schema/warehouse.schema';
+
+export async function queryWarehouses(filters: WarehouseFilters = {}) {
+  const parsed = warehouseFiltersSchema.parse(filters);
+  const where = and(
+    parsed.status === 'active'
+      ? eq(warehouses.isActive, true)
+      : parsed.status === 'inactive'
+        ? eq(warehouses.isActive, false)
+        : undefined,
+  );
+
+  return db
+    .select()
+    .from(warehouses)
+    .where(where)
+    .orderBy(desc(warehouses.isActive), asc(warehouses.name))
+    .limit(100);
+}
+
+export async function queryWarehouseByCode(code: string, excludeId?: string) {
+  const rows = await db
+    .select({ id: warehouses.id })
+    .from(warehouses)
+    .where(eq(warehouses.code, code))
+    .limit(1);
+
+  const row = rows[0];
+  if (!row) return null;
+  if (excludeId && row.id === excludeId) return null;
+  return row;
+}
+
+export async function queryInventoryStockRows() {
+  return db
+    .select({
+      id: inventoryStocks.id,
+      warehouseId: warehouses.id,
+      warehouseCode: warehouses.code,
+      warehouseName: warehouses.name,
+      itemId: inventoryItems.id,
+      itemSku: inventoryItems.sku,
+      itemName: inventoryItems.name,
+      itemUnit: inventoryItems.unit,
+      itemCategory: inventoryItems.category,
+      quantityOnHand: inventoryStocks.quantityOnHand,
+      quantityReserved: inventoryStocks.quantityReserved,
+      updatedAt: inventoryStocks.updatedAt,
+    })
+    .from(inventoryStocks)
+    .innerJoin(warehouses, eq(inventoryStocks.warehouseId, warehouses.id))
+    .innerJoin(inventoryItems, eq(inventoryStocks.itemId, inventoryItems.id))
+    .orderBy(asc(warehouses.name), asc(inventoryItems.name))
+    .limit(500);
+}
+
+export type InventoryStockListRow = Awaited<
+  ReturnType<typeof queryInventoryStockRows>
+>[number];

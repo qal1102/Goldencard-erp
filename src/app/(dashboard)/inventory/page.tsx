@@ -3,7 +3,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { verifySession } from '@/lib/auth/dal';
 import { assertSuperAdminFromDb } from '@/lib/auth/super-admin';
 import { InventoryItemCatalog } from '@/modules/inventory/components/inventory-item-catalog';
+import { WarehouseStockPanel } from '@/modules/inventory/components/warehouse-stock-panel';
 import { loadInventoryItemsList } from '@/modules/inventory/lib/inventory-item-load';
+import {
+  loadInventoryStocksList,
+  loadWarehousesList,
+} from '@/modules/inventory/lib/warehouse-load';
 
 export default async function InventoryPage() {
   const session = await verifySession();
@@ -30,10 +35,14 @@ export default async function InventoryPage() {
     );
   }
 
-  const itemsResult = await loadInventoryItemsList({});
+  const [itemsResult, warehousesResult, stocksResult] = await Promise.all([
+    loadInventoryItemsList({}),
+    loadWarehousesList({}),
+    loadInventoryStocksList(),
+  ]);
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary">Kho bước 2</Badge>
@@ -48,6 +57,13 @@ export default async function InventoryPage() {
           </p>
         </div>
       </div>
+
+      <WarehouseStockPanel
+        initialWarehouses={warehousesResult.success ? warehousesResult.data : undefined}
+        initialWarehouseError={warehousesResult.success ? null : warehousesResult.error}
+        initialStocks={stocksResult.success ? stocksResult.data : undefined}
+        initialStockError={stocksResult.success ? null : stocksResult.error}
+      />
 
       <InventoryItemCatalog
         initialItems={itemsResult.success ? itemsResult.data : undefined}
