@@ -6,6 +6,7 @@ import {
   DownloadIcon,
   EditIcon,
   FileSpreadsheetIcon,
+  FileUpIcon,
   PlusIcon,
   SearchIcon,
   ShieldCheckIcon,
@@ -33,6 +34,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   createInventoryItemAction,
   getInventoryItemsAction,
+  importInventoryItemsAction,
   updateInventoryItemAction,
 } from '../actions/inventory-item.actions';
 import type { SerializedInventoryItem } from '../lib/inventory-item-serialize';
@@ -99,6 +101,14 @@ const inventoryExportColumns = [
 
 type InventoryExportColumnKey = (typeof inventoryExportColumns)[number]['key'];
 type InventoryExportRow = Record<InventoryExportColumnKey, string | number | boolean>;
+
+type ImportPreviewStatus = 'new' | 'update' | 'error';
+type ImportPreviewRow = {
+  rowNumber: number;
+  data: InventoryItemFormInput;
+  status: ImportPreviewStatus;
+  errors: string[];
+};
 
 type CatalogProps = {
   initialItems?: SerializedInventoryItem[];
@@ -260,6 +270,174 @@ async function downloadXlsx(rows: InventoryExportRow[], filename: string) {
     }),
     filename,
   );
+}
+
+function normalizeHeader(header: unknown) {
+  const text = String(header ?? '').trim();
+  const match = text.match(/\(([^)]+)\)/);
+  return (match?.[1] ?? text).trim();
+}
+
+function parseBooleanCell(value: unknown) {
+  if (typeof value === 'boolean') return { value, error: null };
+  const text = String(value ?? '').trim().toLowerCase();
+  if (!text) return { value: false, error: null };
+
+  if (['true', '1', 'yes', 'y', 'co', 'có', 'x'].includes(text)) {
+    return { value: true, error: null };
+  }
+  if (['false', '0', 'no', 'n', 'khong', 'không'].includes(text)) {
+    return { value: false, error: null };
+  }
+
+  return { value: false, error: 'Giá trị TRUE/FALSE không hợp lệ' };
+}
+
+function parseNumberCell(value: unknown) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return { value: 0, error: null };
+
+  const normalized = raw.replace(/\s/g, '').replace(',', '.');
+  const numeric = Number(normalized);
+  if (!Number.isFinite(numeric) || numeric < 0) {
+    return { value: 0, error: 'Tồn tối thiểu phải là số không âm' };
+  }
+
+  return { value: numeric, error: null };
+}
+
+function parseCsvLine(line: string) {
+  const cells: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    const next = line[i + 1];
+
+    if (char === '"' && inQuotes && next === '"') {
+      current += '"';
+      i += 1;
+      continue;
+    }
+
+    if (char === '"') {
+      inQuotes = !inQuotes;
+      continue;
+    }
+
+    if (char === ',' && !inQuotes) {
+      cells.push(current);
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  cells.push(current);
+  return cells.map((cell) => cell.trim());
+}
+
+function parseCsvText(text: string) {
+  const lines = text
+    .replace(/^\uFEFF/, '')
+    .split(/\r?\n/)
+    .filter((line) => line.trim().length > 0);
+  if (lines.length === 0) return [];
+
+  const headers = parseCsvLine(lines[0]).map(normalizeHeader);
+  return lines.slice(1).map((line, index) => {
+    const cells = parseCsvLine(line);
+    return {
+      rowNumber: index + 2,
+      values: Object.fromEntries(headers.map((header, i) => [header, cells[i] ?? ''])),
+    };
+  });
+}
+
+async function parseXlsxFile(file: File) {
+  const ExcelJS = await import('exceljs');
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(await file.arrayBuffer());
+
+  const worksheet =
+    workbook.getWorksheet('Danh muc vat tu') ??
+    workbook.worksheets.find((sheet) => sheet.name !== 'Huong dan') ??
+    workbook.worksheets[0];
+  if (!worksheet) return [];
+
+  const headerRow = worksheet.getRow(1);
+  const headerValues = Array.isArray(headerRow.values) ? headerRow.values.slice(1) : [];
+  const headers = headerValues.map((value) => normalizeHeader(value));
+
+  const rows: { rowNumber: number; values: Record<string, unknown> }[] = [];
+  worksheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return;
+    const rowValues = Array.isArray(row.values) ? row.values.slice(1) : [];
+    const isBlank = rowValues.every((value) => String(value ?? '').trim() === '');
+    if (isBlank) return;
+
+    rows.push({
+      rowNumber,
+      values: Object.fromEntries(headers.map((header, i) => [header, rowValues[i] ?? ''])),
+    });
+  });
+
+  return rows;
+}
+
+function buildPreviewRows(
+  rawRows: { rowNumber: number; values: Record<string, unknown> }[],
+  existingItems: SerializedInventoryItem[],
+) {
+  const existingSkus = new Set(existingItems.map((item) => item.sku.toUpperCase()));
+  const fileSkus = new Map<string, number>();
+
+  return rawRows.map<ImportPreviewRow>((row) => {
+    const values = row.values;
+    const sku = String(values.sku ?? '').trim().toUpperCase();
+    const minStock = parseNumberCell(values.minStock);
+    const isSerializable = parseBooleanCell(values.isSerializable);
+    const isActive = parseBooleanCell(
+      values.isActive === undefined || values.isActive === '' ? true : values.isActive,
+    );
+    const errors: string[] = [];
+
+    const data: InventoryItemFormInput = {
+      sku,
+      name: String(values.name ?? '').trim(),
+      category: String(values.category ?? '').trim(),
+      unit: String(values.unit ?? '').trim(),
+      minStock: minStock.value,
+      isSerializable: isSerializable.value,
+      isActive: isActive.value,
+      note: String(values.note ?? '').trim(),
+    };
+
+    if (!data.sku) errors.push('Thiếu mã vật tư');
+    if (!data.name) errors.push('Thiếu tên vật tư');
+    if (!data.unit) errors.push('Thiếu đơn vị tính');
+    if (minStock.error) errors.push(minStock.error);
+    if (isSerializable.error) errors.push(`Theo dõi serial: ${isSerializable.error}`);
+    if (isActive.error) errors.push(`Đang sử dụng: ${isActive.error}`);
+
+    if (data.sku) {
+      const firstRow = fileSkus.get(data.sku);
+      if (firstRow) {
+        errors.push(`SKU trùng với dòng ${firstRow}`);
+      } else {
+        fileSkus.set(data.sku, row.rowNumber);
+      }
+    }
+
+    return {
+      rowNumber: row.rowNumber,
+      data,
+      status: errors.length > 0 ? 'error' : existingSkus.has(data.sku) ? 'update' : 'new',
+      errors,
+    };
+  });
 }
 
 function InventoryItemDialog({
@@ -492,7 +670,12 @@ export function InventoryItemCatalog({
   const [status, setStatus] = useState<CatalogStatus>(ALL_STATUS);
   const [error, setError] = useState<string | null>(initialError);
   const [dialogMode, setDialogMode] = useState<DialogMode | null>(null);
+  const [importFileName, setImportFileName] = useState<string | null>(null);
+  const [importPreview, setImportPreview] = useState<ImportPreviewRow[]>([]);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importResult, setImportResult] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isImportPending, startImportTransition] = useTransition();
 
   const stats = useMemo(() => {
     const active = items.filter((item) => item.isActive).length;
@@ -517,6 +700,16 @@ export function InventoryItemCatalog({
   );
 
   const currentExportRows = useMemo(() => exportRowsFromItems(items), [items]);
+  const importStats = useMemo(
+    () => ({
+      total: importPreview.length,
+      valid: importPreview.filter((row) => row.status !== 'error').length,
+      created: importPreview.filter((row) => row.status === 'new').length,
+      updated: importPreview.filter((row) => row.status === 'update').length,
+      errors: importPreview.filter((row) => row.status === 'error').length,
+    }),
+    [importPreview],
+  );
 
   const currentFilters = useMemo(
     () => ({
@@ -552,6 +745,65 @@ export function InventoryItemCatalog({
     const nextStatus = value ?? ALL_STATUS;
     setStatus(nextStatus);
     loadItems({ status: nextStatus });
+  }
+
+  async function handleImportFile(file: File | null) {
+    setImportError(null);
+    setImportResult(null);
+    setImportPreview([]);
+    setImportFileName(file?.name ?? null);
+    if (!file) return;
+
+    try {
+      const extension = file.name.split('.').pop()?.toLowerCase();
+      const rawRows =
+        extension === 'xlsx'
+          ? await parseXlsxFile(file)
+          : parseCsvText(await file.text());
+
+      if (rawRows.length === 0) {
+        setImportError('File không có dòng dữ liệu để preview.');
+        return;
+      }
+
+      const allItemsResult = await getInventoryItemsAction({ status: ALL_STATUS });
+      setImportPreview(
+        buildPreviewRows(rawRows, allItemsResult.success ? allItemsResult.data : items),
+      );
+    } catch (e) {
+      setImportError(
+        e instanceof Error ? e.message : 'Không thể đọc file. Vui lòng kiểm tra lại.',
+      );
+    }
+  }
+
+  function handleConfirmImport() {
+    const validRows = importPreview
+      .filter((row) => row.status !== 'error')
+      .map((row) => row.data);
+
+    if (validRows.length === 0) {
+      setImportError('Không có dòng hợp lệ để import.');
+      return;
+    }
+
+    setImportError(null);
+    setImportResult(null);
+    startImportTransition(async () => {
+      const result = await importInventoryItemsAction(validRows);
+      if (!result.success) {
+        setImportError(result.error);
+        return;
+      }
+
+      const refreshed = await getInventoryItemsAction(currentFilters);
+      if (refreshed.success) setItems(refreshed.data);
+      setImportResult(
+        `Import xong: tạo mới ${result.data.created}, cập nhật ${result.data.updated}.`,
+      );
+      setImportPreview([]);
+      setImportFileName(null);
+    });
   }
 
   return (
@@ -679,6 +931,131 @@ export function InventoryItemCatalog({
               Export Excel
             </Button>
           </div>
+        </div>
+      </div>
+
+      <div className="rounded-lg border p-3">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-sm font-medium">Import từ file</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Upload CSV/XLSX để preview trước. Dòng lỗi sẽ không được import. SKU đã có
+                sẽ cập nhật, SKU mới sẽ tạo mới.
+              </p>
+            </div>
+            <label className="inline-flex h-7 cursor-pointer items-center justify-center gap-1 rounded-md border px-2.5 text-[0.8rem] font-medium transition-colors hover:bg-muted">
+              <FileUpIcon className="size-3.5" />
+              Chọn file
+              <input
+                type="file"
+                className="sr-only"
+                accept=".csv,.xlsx"
+                onChange={(e) => void handleImportFile(e.target.files?.[0] ?? null)}
+              />
+            </label>
+          </div>
+
+          {importFileName && (
+            <p className="text-xs text-muted-foreground">File đang preview: {importFileName}</p>
+          )}
+
+          {importError && (
+            <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {importError}
+            </p>
+          )}
+
+          {importResult && (
+            <p className="rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+              {importResult}
+            </p>
+          )}
+
+          {importPreview.length > 0 && (
+            <div className="flex flex-col gap-3">
+              <div className="grid gap-2 text-xs sm:grid-cols-4">
+                <div className="rounded-md border px-3 py-2">
+                  Tổng dòng: <span className="font-semibold">{importStats.total}</span>
+                </div>
+                <div className="rounded-md border px-3 py-2">
+                  Tạo mới: <span className="font-semibold">{importStats.created}</span>
+                </div>
+                <div className="rounded-md border px-3 py-2">
+                  Cập nhật: <span className="font-semibold">{importStats.updated}</span>
+                </div>
+                <div className="rounded-md border px-3 py-2">
+                  Lỗi: <span className="font-semibold">{importStats.errors}</span>
+                </div>
+              </div>
+
+              <div className="max-h-80 overflow-auto rounded-md border">
+                <div className="grid min-w-[760px] grid-cols-[70px_110px_1fr_110px_120px_1.3fr] border-b bg-muted/60 px-3 py-2 text-xs font-medium">
+                  <span>Dòng</span>
+                  <span>Trạng thái</span>
+                  <span>Tên vật tư</span>
+                  <span>SKU</span>
+                  <span>Đơn vị</span>
+                  <span>Lỗi/Ghi chú</span>
+                </div>
+                {importPreview.slice(0, 80).map((row) => (
+                  <div
+                    key={`${row.rowNumber}-${row.data.sku}`}
+                    className="grid min-w-[760px] grid-cols-[70px_110px_1fr_110px_120px_1.3fr] border-b px-3 py-2 text-xs last:border-b-0"
+                  >
+                    <span>{row.rowNumber}</span>
+                    <span>
+                      <Badge
+                        variant={row.status === 'error' ? 'destructive' : 'secondary'}
+                      >
+                        {row.status === 'new'
+                          ? 'Tạo mới'
+                          : row.status === 'update'
+                            ? 'Cập nhật'
+                            : 'Lỗi'}
+                      </Badge>
+                    </span>
+                    <span className="truncate">{row.data.name || '-'}</span>
+                    <span className="font-mono">{row.data.sku || '-'}</span>
+                    <span>{row.data.unit || '-'}</span>
+                    <span className={row.errors.length ? 'text-destructive' : 'text-muted-foreground'}>
+                      {row.errors.length ? row.errors.join('; ') : 'Hợp lệ'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {importPreview.length > 80 && (
+                <p className="text-xs text-muted-foreground">
+                  Đang hiển thị 80 dòng đầu để giữ màn hình nhẹ. Khi xác nhận, hệ thống
+                  vẫn xử lý toàn bộ dòng hợp lệ.
+                </p>
+              )}
+
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setImportPreview([]);
+                    setImportFileName(null);
+                    setImportError(null);
+                  }}
+                >
+                  Xóa preview
+                </Button>
+                <Button
+                  type="button"
+                  disabled={isImportPending || importStats.valid === 0}
+                  onClick={handleConfirmImport}
+                >
+                  {isImportPending
+                    ? 'Đang import...'
+                    : `Import ${importStats.valid} dòng hợp lệ`}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { db } from '@/db';
@@ -209,6 +209,110 @@ export async function updateInventoryItemAction(
     return {
       success: false,
       error: e instanceof Error ? e.message : 'Không thể cập nhật vật tư',
+    };
+  }
+}
+
+export async function importInventoryItemsAction(
+  input: InventoryItemFormInput[],
+): Promise<InventoryActionResult<{ created: number; updated: number }>> {
+  try {
+    const session = await requireInventoryAdmin('inventory.items.import');
+
+    if (!Array.isArray(input) || input.length === 0) {
+      return { success: false, error: 'Không có dòng vật tư hợp lệ để import' };
+    }
+
+    if (input.length > 500) {
+      return { success: false, error: 'Mỗi lần import tối đa 500 dòng vật tư' };
+    }
+
+    const parsedRows: InventoryItemFormInput[] = [];
+    const seenSkus = new Set<string>();
+    for (const row of input) {
+      const parsed = inventoryItemFormSchema.safeParse(row);
+      if (!parsed.success) {
+        return {
+          success: false,
+          error: parsed.error.issues[0]?.message ?? 'Dữ liệu import không hợp lệ',
+        };
+      }
+
+      const normalized = {
+        ...parsed.data,
+        sku: parsed.data.sku.toUpperCase(),
+      };
+
+      if (seenSkus.has(normalized.sku)) {
+        return {
+          success: false,
+          error: `Mã vật tư bị trùng trong file: ${normalized.sku}`,
+        };
+      }
+
+      seenSkus.add(normalized.sku);
+      parsedRows.push(normalized);
+    }
+
+    const existingRows = await db
+      .select({ id: inventoryItems.id, sku: inventoryItems.sku })
+      .from(inventoryItems)
+      .where(inArray(inventoryItems.sku, parsedRows.map((row) => row.sku)));
+    const existingBySku = new Map(existingRows.map((row) => [row.sku, row.id]));
+
+    let created = 0;
+    let updated = 0;
+
+    for (const row of parsedRows) {
+      const values = {
+        sku: row.sku,
+        name: row.name,
+        category: normalizeOptional(row.category),
+        unit: row.unit,
+        minStock: String(row.minStock),
+        isSerializable: row.isSerializable,
+        isActive: row.isActive,
+        note: normalizeOptional(row.note),
+        updatedBy: session.user.id,
+        updatedAt: new Date(),
+      };
+
+      const existingId = existingBySku.get(row.sku);
+      if (existingId) {
+        await db.update(inventoryItems).set(values).where(eq(inventoryItems.id, existingId));
+        updated += 1;
+      } else {
+        await db.insert(inventoryItems).values({
+          ...values,
+          createdBy: session.user.id,
+        });
+        created += 1;
+      }
+    }
+
+    await createAuditLog({
+      userId: session.user.id,
+      action: 'inventory.item.import',
+      resource: 'inventory_item',
+      summary: `Import danh mục vật tư: tạo mới ${created}, cập nhật ${updated}`,
+      after: {
+        created,
+        updated,
+        total: parsedRows.length,
+        skus: parsedRows.map((row) => row.sku),
+      },
+    });
+
+    revalidateInventory();
+    return { success: true, data: { created, updated } };
+  } catch (e) {
+    if (isDuplicateSkuError(e)) {
+      return { success: false, error: 'Mã vật tư đã tồn tại' };
+    }
+
+    return {
+      success: false,
+      error: e instanceof Error ? e.message : 'Không thể import danh mục vật tư',
     };
   }
 }
