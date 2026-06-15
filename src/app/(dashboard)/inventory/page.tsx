@@ -6,6 +6,7 @@ import { InventoryItemCatalog } from '@/modules/inventory/components/inventory-i
 import { WarehouseStockPanel } from '@/modules/inventory/components/warehouse-stock-panel';
 import { loadInventoryItemsList } from '@/modules/inventory/lib/inventory-item-load';
 import {
+  loadInventoryStockMovementsList,
   loadInventoryStocksList,
   loadWarehousesList,
 } from '@/modules/inventory/lib/warehouse-load';
@@ -35,10 +36,11 @@ export default async function InventoryPage() {
     );
   }
 
-  const [itemsResult, warehousesResult, stocksResult] = await Promise.all([
+  const [itemsResult, warehousesResult, stocksResult, movementsResult] = await Promise.all([
     loadInventoryItemsList({}),
     loadWarehousesList({}),
     loadInventoryStocksList(),
+    loadInventoryStockMovementsList(),
   ]);
 
   return (
@@ -63,6 +65,8 @@ export default async function InventoryPage() {
         initialWarehouseError={warehousesResult.success ? null : warehousesResult.error}
         initialStocks={stocksResult.success ? stocksResult.data : undefined}
         initialStockError={stocksResult.success ? null : stocksResult.error}
+        initialMovements={movementsResult.success ? movementsResult.data : undefined}
+        initialMovementError={movementsResult.success ? null : movementsResult.error}
         inventoryItems={itemsResult.success ? itemsResult.data : undefined}
       />
 

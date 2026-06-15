@@ -1,5 +1,9 @@
 import { serializeWarehouses } from './warehouse-serialize';
-import { queryInventoryStockRows, queryWarehouses } from './warehouse.queries';
+import {
+  queryInventoryStockMovementRows,
+  queryInventoryStockRows,
+  queryWarehouses,
+} from './warehouse.queries';
 import type { WarehouseFilters } from '../schema/warehouse.schema';
 
 export type SerializedInventoryStockRow = {
@@ -17,6 +21,23 @@ export type SerializedInventoryStockRow = {
   updatedAt: string;
 };
 
+export type SerializedInventoryStockMovementRow = {
+  id: string;
+  type: string;
+  warehouseId: string;
+  warehouseCode: string;
+  warehouseName: string;
+  itemId: string;
+  itemSku: string;
+  itemName: string;
+  itemUnit: string;
+  quantity: string;
+  quantityBefore: string;
+  quantityAfter: string;
+  note: string | null;
+  createdAt: string;
+};
+
 function serializeInventoryStockRows(
   rows: Awaited<ReturnType<typeof queryInventoryStockRows>>,
 ): SerializedInventoryStockRow[] {
@@ -26,12 +47,25 @@ function serializeInventoryStockRows(
   }));
 }
 
+export function serializeInventoryStockMovementRows(
+  rows: Awaited<ReturnType<typeof queryInventoryStockMovementRows>>,
+): SerializedInventoryStockMovementRow[] {
+  return rows.map((row) => ({
+    ...row,
+    createdAt: row.createdAt.toISOString(),
+  }));
+}
+
 export type LoadWarehousesResult =
   | { success: true; data: ReturnType<typeof serializeWarehouses> }
   | { success: false; error: string };
 
 export type LoadInventoryStocksResult =
   | { success: true; data: SerializedInventoryStockRow[] }
+  | { success: false; error: string };
+
+export type LoadInventoryStockMovementsResult =
+  | { success: true; data: SerializedInventoryStockMovementRow[] }
   | { success: false; error: string };
 
 export async function loadWarehousesList(
@@ -62,6 +96,21 @@ export async function loadInventoryStocksList(): Promise<LoadInventoryStocksResu
     return {
       success: false,
       error: 'Không thể tải tồn kho. Vui lòng thử lại.',
+    };
+  }
+}
+
+export async function loadInventoryStockMovementsList(): Promise<LoadInventoryStockMovementsResult> {
+  try {
+    const rows = await queryInventoryStockMovementRows();
+    return { success: true, data: serializeInventoryStockMovementRows(rows) };
+  } catch (e) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[inventory] loadInventoryStockMovementsList failed', e);
+    }
+    return {
+      success: false,
+      error: 'Không thể tải lịch sử kho. Vui lòng thử lại.',
     };
   }
 }

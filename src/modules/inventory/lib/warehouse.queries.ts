@@ -1,6 +1,11 @@
 import { and, asc, desc, eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { inventoryItems, inventoryStocks, warehouses } from '@/db/schema';
+import {
+  inventoryItems,
+  inventoryStockMovements,
+  inventoryStocks,
+  warehouses,
+} from '@/db/schema';
 import {
   type WarehouseFilters,
   warehouseFiltersSchema,
@@ -62,4 +67,33 @@ export async function queryInventoryStockRows() {
 
 export type InventoryStockListRow = Awaited<
   ReturnType<typeof queryInventoryStockRows>
+>[number];
+
+export async function queryInventoryStockMovementRows() {
+  return db
+    .select({
+      id: inventoryStockMovements.id,
+      type: inventoryStockMovements.type,
+      warehouseId: warehouses.id,
+      warehouseCode: warehouses.code,
+      warehouseName: warehouses.name,
+      itemId: inventoryItems.id,
+      itemSku: inventoryItems.sku,
+      itemName: inventoryItems.name,
+      itemUnit: inventoryItems.unit,
+      quantity: inventoryStockMovements.quantity,
+      quantityBefore: inventoryStockMovements.quantityBefore,
+      quantityAfter: inventoryStockMovements.quantityAfter,
+      note: inventoryStockMovements.note,
+      createdAt: inventoryStockMovements.createdAt,
+    })
+    .from(inventoryStockMovements)
+    .innerJoin(warehouses, eq(inventoryStockMovements.warehouseId, warehouses.id))
+    .innerJoin(inventoryItems, eq(inventoryStockMovements.itemId, inventoryItems.id))
+    .orderBy(desc(inventoryStockMovements.createdAt))
+    .limit(100);
+}
+
+export type InventoryStockMovementListRow = Awaited<
+  ReturnType<typeof queryInventoryStockMovementRows>
 >[number];

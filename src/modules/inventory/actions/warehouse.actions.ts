@@ -4,20 +4,28 @@ import { and, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { db } from '@/db';
-import { inventoryItems, inventoryStocks, warehouses } from '@/db/schema';
+import {
+  inventoryItems,
+  inventoryStockMovements,
+  inventoryStocks,
+  warehouses,
+} from '@/db/schema';
 import { createAuditLog } from '@/lib/audit/create-audit-log';
 import { requireSuperAdminAction } from '@/lib/auth/super-admin';
 import { serializeWarehouses } from '../lib/warehouse-serialize';
 import {
+  queryInventoryStockMovementRows,
   queryInventoryStockRows,
   queryWarehouseByCode,
   queryWarehouses,
 } from '../lib/warehouse.queries';
 import {
   type InventoryStockAdjustmentInput,
+  type InventoryStockMovementInput,
   type WarehouseFilters,
   type WarehouseFormInput,
   inventoryStockAdjustmentSchema,
+  inventoryStockMovementSchema,
   warehouseFiltersSchema,
   warehouseFormSchema,
 } from '../schema/warehouse.schema';
@@ -52,6 +60,15 @@ function serializeInventoryStockRows(
   return rows.map((row) => ({
     ...row,
     updatedAt: row.updatedAt.toISOString(),
+  }));
+}
+
+function serializeInventoryStockMovementRows(
+  rows: Awaited<ReturnType<typeof queryInventoryStockMovementRows>>,
+) {
+  return rows.map((row) => ({
+    ...row,
+    createdAt: row.createdAt.toISOString(),
   }));
 }
 
@@ -109,6 +126,24 @@ export async function getInventoryStocksAction(): Promise<
         e instanceof Error && e.message === 'Unauthorized'
           ? 'Bạn không có quyền xem tồn kho.'
           : 'Không thể tải tồn kho. Vui lòng thử lại.',
+    };
+  }
+}
+
+export async function getInventoryStockMovementsAction(): Promise<
+  WarehouseActionResult<ReturnType<typeof serializeInventoryStockMovementRows>>
+> {
+  try {
+    await requireWarehouseAdmin('inventory.stock_movements.list');
+    const rows = await queryInventoryStockMovementRows();
+    return { success: true, data: serializeInventoryStockMovementRows(rows) };
+  } catch (e) {
+    return {
+      success: false,
+      error:
+        e instanceof Error && e.message === 'Unauthorized'
+          ? 'Bạn không có quyền xem lịch sử kho.'
+          : 'Không thể tải lịch sử kho. Vui lòng thử lại.',
     };
   }
 }
@@ -332,6 +367,122 @@ export async function adjustInventoryStockAction(
     return {
       success: false,
       error: e instanceof Error ? e.message : 'Không thể điều chỉnh tồn kho',
+    };
+  }
+}
+
+export async function createInventoryStockMovementAction(
+  input: InventoryStockMovementInput,
+): Promise<WarehouseActionResult> {
+  try {
+    const session = await requireWarehouseAdmin('inventory.stock_movements.create');
+
+    const parsed = inventoryStockMovementSchema.safeParse(input);
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: parsed.error.issues[0]?.message ?? 'Dữ liệu phiếu kho không hợp lệ',
+      };
+    }
+
+    const d = parsed.data;
+    const result = await db.transaction(async (tx) => {
+      const [warehouse, item, existingStock] = await Promise.all([
+        tx.query.warehouses.findFirst({
+          where: eq(warehouses.id, d.warehouseId),
+        }),
+        tx.query.inventoryItems.findFirst({
+          where: eq(inventoryItems.id, d.itemId),
+        }),
+        tx.query.inventoryStocks.findFirst({
+          where: and(
+            eq(inventoryStocks.warehouseId, d.warehouseId),
+            eq(inventoryStocks.itemId, d.itemId),
+          ),
+        }),
+      ]);
+
+      if (!warehouse) throw new Error('Không tìm thấy kho');
+      if (!warehouse.isActive) throw new Error('Kho đang ngừng sử dụng');
+      if (!item) throw new Error('Không tìm thấy vật tư');
+      if (!item.isActive) throw new Error('Vật tư đang ngừng sử dụng');
+
+      const quantity = d.quantity;
+      const before = Number(existingStock?.quantityOnHand ?? 0);
+      const reserved = Number(existingStock?.quantityReserved ?? 0);
+      const after = d.type === 'in' ? before + quantity : before - quantity;
+      if (d.type === 'out' && after < reserved) {
+        throw new Error('Số lượng xuất vượt tồn khả dụng');
+      }
+
+      const [movement] = await tx
+        .insert(inventoryStockMovements)
+        .values({
+          type: d.type,
+          warehouseId: d.warehouseId,
+          itemId: d.itemId,
+          quantity: String(quantity),
+          quantityBefore: String(before),
+          quantityAfter: String(after),
+          note: normalizeOptional(d.note),
+          createdBy: session.user.id,
+        })
+        .returning({ id: inventoryStockMovements.id });
+
+      await tx
+        .insert(inventoryStocks)
+        .values({
+          warehouseId: d.warehouseId,
+          itemId: d.itemId,
+          quantityOnHand: String(after),
+          updatedBy: session.user.id,
+        })
+        .onConflictDoUpdate({
+          target: [inventoryStocks.warehouseId, inventoryStocks.itemId],
+          set: {
+            quantityOnHand: String(after),
+            updatedBy: session.user.id,
+            updatedAt: new Date(),
+          },
+        });
+
+      return {
+        movementId: movement.id,
+        warehouse,
+        item,
+        before,
+        after,
+        quantity,
+      };
+    });
+
+    await createAuditLog({
+      userId: session.user.id,
+      action: `inventory.stock.${input.type}`,
+      resource: 'inventory_stock_movement',
+      resourceId: result.movementId,
+      summary: `${input.type === 'in' ? 'Nhập kho' : 'Xuất kho'} ${result.item.sku} tại ${result.warehouse.code}: ${result.quantity} ${result.item.unit}`,
+      before: {
+        quantityOnHand: result.before,
+      },
+      after: {
+        warehouseId: input.warehouseId,
+        warehouseCode: result.warehouse.code,
+        itemId: input.itemId,
+        itemSku: result.item.sku,
+        movementType: input.type,
+        quantity: result.quantity,
+        quantityOnHand: result.after,
+        note: normalizeOptional(input.note),
+      },
+    });
+
+    revalidateInventory();
+    return { success: true, data: undefined };
+  } catch (e) {
+    return {
+      success: false,
+      error: e instanceof Error ? e.message : 'Không thể tạo phiếu kho',
     };
   }
 }

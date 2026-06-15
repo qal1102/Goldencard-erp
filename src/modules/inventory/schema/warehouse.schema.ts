@@ -29,8 +29,21 @@ export const inventoryStockAdjustmentSchema = z.object({
   note: z.string().trim().optional(),
 });
 
+export const inventoryStockMovementSchema = z.object({
+  type: z.enum(['in', 'out']),
+  warehouseId: z.string().uuid('Kho không hợp lệ'),
+  itemId: z.string().uuid('Vật tư không hợp lệ'),
+  quantity: z.coerce
+    .number({ error: 'Số lượng phải là số' })
+    .positive('Số lượng phải lớn hơn 0'),
+  note: z.string().trim().optional(),
+});
+
 export type WarehouseFilters = z.infer<typeof warehouseFiltersSchema>;
 export type WarehouseFormInput = z.infer<typeof warehouseFormSchema>;
 export type InventoryStockAdjustmentInput = z.infer<
   typeof inventoryStockAdjustmentSchema
+>;
+export type InventoryStockMovementInput = z.infer<
+  typeof inventoryStockMovementSchema
 >;

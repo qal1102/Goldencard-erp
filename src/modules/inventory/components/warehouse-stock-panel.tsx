@@ -2,6 +2,8 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import {
+  ArrowDownToLineIcon,
+  ArrowUpFromLineIcon,
   EditIcon,
   PackageCheckIcon,
   PlusIcon,
@@ -31,17 +33,21 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   adjustInventoryStockAction,
   createWarehouseAction,
+  createInventoryStockMovementAction,
+  getInventoryStockMovementsAction,
   getInventoryStocksAction,
   getWarehousesAction,
   updateWarehouseAction,
 } from '../actions/warehouse.actions';
 import type {
+  SerializedInventoryStockMovementRow,
   SerializedInventoryStockRow,
 } from '../lib/warehouse-load';
 import type { SerializedInventoryItem } from '../lib/inventory-item-serialize';
 import type { SerializedWarehouse } from '../lib/warehouse-serialize';
 import type {
   InventoryStockAdjustmentInput,
+  InventoryStockMovementInput,
   WarehouseFilters,
   WarehouseFormInput,
 } from '../schema/warehouse.schema';
@@ -87,6 +93,14 @@ const emptyStockAdjustmentForm: InventoryStockAdjustmentInput = {
   warehouseId: '',
   itemId: '',
   quantityOnHand: 0,
+  note: '',
+};
+
+const emptyStockMovementForm: InventoryStockMovementInput = {
+  type: 'in',
+  warehouseId: '',
+  itemId: '',
+  quantity: 1,
   note: '',
 };
 
@@ -255,6 +269,8 @@ type Props = {
   initialWarehouseError?: string | null;
   initialStocks?: SerializedInventoryStockRow[];
   initialStockError?: string | null;
+  initialMovements?: SerializedInventoryStockMovementRow[];
+  initialMovementError?: string | null;
   inventoryItems?: SerializedInventoryItem[];
 };
 
@@ -263,21 +279,30 @@ export function WarehouseStockPanel({
   initialWarehouseError = null,
   initialStocks = [],
   initialStockError = null,
+  initialMovements = [],
+  initialMovementError = null,
   inventoryItems = [],
 }: Props) {
   const [warehouses, setWarehouses] = useState(initialWarehouses);
   const [stocks, setStocks] = useState(initialStocks);
+  const [movements, setMovements] = useState(initialMovements);
   const [warehouseStatus, setWarehouseStatus] = useState<WarehouseStatus>(ALL_STATUS);
   const [selectedWarehouseId, setSelectedWarehouseId] = useState('all');
   const [dialogMode, setDialogMode] = useState<DialogMode | null>(null);
   const [isStockDialogOpen, setIsStockDialogOpen] = useState(false);
+  const [isMovementDialogOpen, setIsMovementDialogOpen] = useState(false);
   const [stockForm, setStockForm] = useState<InventoryStockAdjustmentInput>(
     emptyStockAdjustmentForm,
   );
+  const [movementForm, setMovementForm] = useState<InventoryStockMovementInput>(
+    emptyStockMovementForm,
+  );
   const [warehouseError, setWarehouseError] = useState<string | null>(initialWarehouseError);
   const [stockError, setStockError] = useState<string | null>(initialStockError);
+  const [movementError, setMovementError] = useState<string | null>(initialMovementError);
   const [isPending, startTransition] = useTransition();
   const [isStockPending, startStockTransition] = useTransition();
+  const [isMovementPending, startMovementTransition] = useTransition();
 
   const activeWarehouses = useMemo(
     () => warehouses.filter((warehouse) => warehouse.isActive).length,
@@ -349,11 +374,30 @@ export function WarehouseStockPanel({
     setIsStockDialogOpen(true);
   }
 
+  function openMovementDialog(type: InventoryStockMovementInput['type']) {
+    setMovementError(null);
+    setMovementForm({
+      type,
+      warehouseId: selectedWarehouseId === 'all' ? '' : selectedWarehouseId,
+      itemId: '',
+      quantity: 1,
+      note: '',
+    });
+    setIsMovementDialogOpen(true);
+  }
+
   function updateStockField<K extends keyof InventoryStockAdjustmentInput>(
     key: K,
     value: InventoryStockAdjustmentInput[K],
   ) {
     setStockForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateMovementField<K extends keyof InventoryStockMovementInput>(
+    key: K,
+    value: InventoryStockMovementInput[K],
+  ) {
+    setMovementForm((current) => ({ ...current, [key]: value }));
   }
 
   function handleStockSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -374,6 +418,33 @@ export function WarehouseStockPanel({
         setStockError(refreshed.error);
       }
       setIsStockDialogOpen(false);
+    });
+  }
+
+  function handleMovementSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setMovementError(null);
+
+    startMovementTransition(async () => {
+      const result = await createInventoryStockMovementAction(movementForm);
+      if (!result.success) {
+        setMovementError(result.error);
+        return;
+      }
+
+      const [stocksResult, movementsResult] = await Promise.all([
+        getInventoryStocksAction(),
+        getInventoryStockMovementsAction(),
+      ]);
+      if (stocksResult.success) setStocks(stocksResult.data);
+      else setMovementError(stocksResult.error);
+
+      if (movementsResult.success) setMovements(movementsResult.data);
+      else setMovementError(movementsResult.error);
+
+      if (stocksResult.success && movementsResult.success) {
+        setIsMovementDialogOpen(false);
+      }
     });
   }
 
@@ -530,6 +601,32 @@ export function WarehouseStockPanel({
             <Button
               type="button"
               className="w-full sm:w-auto"
+              variant="outline"
+              onClick={() => openMovementDialog('in')}
+              disabled={
+                warehouses.filter((warehouse) => warehouse.isActive).length === 0 ||
+                inventoryItems.filter((item) => item.isActive).length === 0
+              }
+            >
+              <ArrowDownToLineIcon className="size-4" />
+              Nhập kho
+            </Button>
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
+              variant="outline"
+              onClick={() => openMovementDialog('out')}
+              disabled={
+                warehouses.filter((warehouse) => warehouse.isActive).length === 0 ||
+                inventoryItems.filter((item) => item.isActive).length === 0
+              }
+            >
+              <ArrowUpFromLineIcon className="size-4" />
+              Xuất kho
+            </Button>
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
               onClick={openStockAdjustmentDialog}
               disabled={
                 warehouses.filter((warehouse) => warehouse.isActive).length === 0 ||
@@ -585,6 +682,64 @@ export function WarehouseStockPanel({
         )}
       </div>
 
+      <div className="rounded-lg border p-3">
+        <div>
+          <p className="text-sm font-medium">Lịch sử nhập/xuất kho</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Hiển thị 100 thao tác nhập/xuất gần nhất. Cập nhật tồn ban đầu vẫn được ghi
+            trong audit log, còn bảng này dành cho phiếu kho có tăng/giảm số tồn.
+          </p>
+        </div>
+
+        {movementError && (
+          <p className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {movementError}
+          </p>
+        )}
+
+        {!movementError && movements.length === 0 && (
+          <p className="mt-3 rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+            Chưa có lịch sử nhập/xuất kho.
+          </p>
+        )}
+
+        {movements.length > 0 && (
+          <div className="mt-3 max-h-96 overflow-auto rounded-md border">
+            <div className="grid min-w-[980px] grid-cols-[110px_150px_140px_1.3fr_110px_110px_110px_130px] border-b bg-muted/60 px-3 py-2 text-xs font-medium">
+              <span>Loại</span>
+              <span>Kho</span>
+              <span>Mã vật tư</span>
+              <span>Tên vật tư</span>
+              <span>Số lượng</span>
+              <span>Trước</span>
+              <span>Sau</span>
+              <span>Ngày</span>
+            </div>
+            {movements.map((row) => (
+              <div
+                key={row.id}
+                className="grid min-w-[980px] grid-cols-[110px_150px_140px_1.3fr_110px_110px_110px_130px] border-b px-3 py-2 text-xs last:border-b-0"
+              >
+                <span>
+                  <Badge variant={row.type === 'in' ? 'secondary' : 'outline'}>
+                    {row.type === 'in' ? 'Nhập kho' : 'Xuất kho'}
+                  </Badge>
+                </span>
+                <span className="truncate">{row.warehouseName}</span>
+                <span className="font-mono text-primary">{row.itemSku}</span>
+                <span className="truncate">{row.itemName}</span>
+                <span className="tabular-nums">
+                  {formatNumber(row.quantity)} {row.itemUnit}
+                </span>
+                <span className="tabular-nums">{formatNumber(row.quantityBefore)}</span>
+                <span className="tabular-nums">{formatNumber(row.quantityAfter)}</span>
+                <span className="text-muted-foreground">{formatDateTime(row.createdAt)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {dialogMode && (
         <WarehouseDialog
           key={dialogMode.type === 'edit' ? dialogMode.warehouse.id : 'create'}
@@ -597,6 +752,124 @@ export function WarehouseStockPanel({
           refreshFilters={currentFilters}
         />
       )}
+
+      <Dialog open={isMovementDialogOpen} onOpenChange={setIsMovementDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <form onSubmit={handleMovementSubmit} className="flex flex-col gap-4">
+            <DialogHeader>
+              <DialogTitle>
+                {movementForm.type === 'in' ? 'Nhập kho' : 'Xuất kho'}
+              </DialogTitle>
+              <DialogDescription>
+                Phiếu kho sẽ cập nhật số tồn hiện tại và lưu lại lịch sử nhập/xuất.
+              </DialogDescription>
+            </DialogHeader>
+
+            {movementError && (
+              <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {movementError}
+              </p>
+            )}
+
+            <div className="flex flex-col gap-1.5">
+              <Label>Kho</Label>
+              <Select
+                value={movementForm.warehouseId}
+                onValueChange={(value) => updateMovementField('warehouseId', value ?? '')}
+                disabled={isMovementPending}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {(value) =>
+                      warehouses.find((warehouse) => warehouse.id === value)?.name ??
+                      'Chọn kho'
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {warehouses
+                    .filter((warehouse) => warehouse.isActive)
+                    .map((warehouse) => (
+                      <SelectItem key={warehouse.id} value={warehouse.id}>
+                        {warehouse.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label>Vật tư</Label>
+              <Select
+                value={movementForm.itemId}
+                onValueChange={(value) => updateMovementField('itemId', value ?? '')}
+                disabled={isMovementPending}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {(value) => {
+                      const item = inventoryItems.find((entry) => entry.id === value);
+                      return item ? `${item.sku} - ${item.name}` : 'Chọn vật tư';
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {inventoryItems
+                    .filter((item) => item.isActive)
+                    .map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.sku} - {item.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="movement-quantity">Số lượng</Label>
+              <Input
+                id="movement-quantity"
+                type="number"
+                min="0.001"
+                step="0.001"
+                value={movementForm.quantity}
+                onChange={(e) => updateMovementField('quantity', Number(e.target.value))}
+                disabled={isMovementPending}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="movement-note">Ghi chú</Label>
+              <Textarea
+                id="movement-note"
+                value={movementForm.note ?? ''}
+                onChange={(e) => updateMovementField('note', e.target.value)}
+                placeholder={
+                  movementForm.type === 'in'
+                    ? 'VD: nhập hàng từ nhà cung cấp'
+                    : 'VD: xuất cho công trình'
+                }
+                rows={3}
+                disabled={isMovementPending}
+              />
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isMovementPending}
+                onClick={() => setIsMovementDialogOpen(false)}
+              >
+                Hủy
+              </Button>
+              <Button type="submit" disabled={isMovementPending}>
+                {isMovementPending ? 'Đang lưu...' : 'Lưu phiếu'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isStockDialogOpen} onOpenChange={setIsStockDialogOpen}>
         <DialogContent className="sm:max-w-lg">

@@ -2,6 +2,7 @@ export * from './audit-logs';
 export * from './contracts';
 export * from './handovers';
 export * from './inventory-items';
+export * from './inventory-stock-movements';
 export * from './inventory-stocks';
 export * from './customers';
 export * from './lead-activities';
