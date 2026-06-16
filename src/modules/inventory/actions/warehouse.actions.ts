@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { db } from '@/db';
@@ -387,18 +387,12 @@ export async function createInventoryStockMovementAction(
 
     const d = parsed.data;
     const result = await db.transaction(async (tx) => {
-      const [warehouse, item, existingStock] = await Promise.all([
+      const [warehouse, item] = await Promise.all([
         tx.query.warehouses.findFirst({
           where: eq(warehouses.id, d.warehouseId),
         }),
         tx.query.inventoryItems.findFirst({
           where: eq(inventoryItems.id, d.itemId),
-        }),
-        tx.query.inventoryStocks.findFirst({
-          where: and(
-            eq(inventoryStocks.warehouseId, d.warehouseId),
-            eq(inventoryStocks.itemId, d.itemId),
-          ),
         }),
       ]);
 
@@ -408,8 +402,33 @@ export async function createInventoryStockMovementAction(
       if (!item.isActive) throw new Error('Vật tư đang ngừng sử dụng');
 
       const quantity = d.quantity;
-      const before = Number(existingStock?.quantityOnHand ?? 0);
-      const reserved = Number(existingStock?.quantityReserved ?? 0);
+      await tx
+        .insert(inventoryStocks)
+        .values({
+          warehouseId: d.warehouseId,
+          itemId: d.itemId,
+          quantityOnHand: '0',
+          updatedBy: session.user.id,
+        })
+        .onConflictDoNothing({
+          target: [inventoryStocks.warehouseId, inventoryStocks.itemId],
+        });
+
+      const lockedRows = await tx.execute<{
+        quantity_on_hand: string;
+        quantity_reserved: string;
+      }>(sql`
+        select quantity_on_hand, quantity_reserved
+        from inventory_stocks
+        where warehouse_id = ${d.warehouseId}
+          and item_id = ${d.itemId}
+        for update
+      `);
+      const lockedStock = lockedRows[0];
+      if (!lockedStock) throw new Error('Không thể khóa dòng tồn kho');
+
+      const before = Number(lockedStock.quantity_on_hand);
+      const reserved = Number(lockedStock.quantity_reserved);
       const after = d.type === 'in' ? before + quantity : before - quantity;
       if (d.type === 'out' && after < reserved) {
         throw new Error('Số lượng xuất vượt tồn khả dụng');
@@ -430,21 +449,18 @@ export async function createInventoryStockMovementAction(
         .returning({ id: inventoryStockMovements.id });
 
       await tx
-        .insert(inventoryStocks)
-        .values({
-          warehouseId: d.warehouseId,
-          itemId: d.itemId,
+        .update(inventoryStocks)
+        .set({
           quantityOnHand: String(after),
           updatedBy: session.user.id,
+          updatedAt: new Date(),
         })
-        .onConflictDoUpdate({
-          target: [inventoryStocks.warehouseId, inventoryStocks.itemId],
-          set: {
-            quantityOnHand: String(after),
-            updatedBy: session.user.id,
-            updatedAt: new Date(),
-          },
-        });
+        .where(
+          and(
+            eq(inventoryStocks.warehouseId, d.warehouseId),
+            eq(inventoryStocks.itemId, d.itemId),
+          ),
+        );
 
       return {
         movementId: movement.id,
