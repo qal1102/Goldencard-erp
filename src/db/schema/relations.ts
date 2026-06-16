@@ -2,6 +2,7 @@ import { relations } from 'drizzle-orm';
 import { contracts } from './contracts';
 import { handovers } from './handovers';
 import { inventoryItems } from './inventory-items';
+import { inventoryStockMovements } from './inventory-stock-movements';
 import { inventoryStocks } from './inventory-stocks';
 import { warrantyCertificates } from './warranty-certificates';
 import { warrantyTickets } from './warranty-tickets';
@@ -457,6 +458,7 @@ export const quotationItemsRelations = relations(quotationItems, ({ one }) => ({
 
 export const warehousesRelations = relations(warehouses, ({ one, many }) => ({
   stocks: many(inventoryStocks),
+  stockMovements: many(inventoryStockMovements),
   createdByUser: one(users, {
     fields: [warehouses.createdBy],
     references: [users.id],
@@ -471,6 +473,7 @@ export const warehousesRelations = relations(warehouses, ({ one, many }) => ({
 
 export const inventoryItemsRelations = relations(inventoryItems, ({ one, many }) => ({
   stocks: many(inventoryStocks),
+  stockMovements: many(inventoryStockMovements),
   createdByUser: one(users, {
     fields: [inventoryItems.createdBy],
     references: [users.id],
@@ -498,6 +501,25 @@ export const inventoryStocksRelations = relations(inventoryStocks, ({ one }) => 
     relationName: 'inventory_stock_updated_by_user',
   }),
 }));
+
+export const inventoryStockMovementsRelations = relations(
+  inventoryStockMovements,
+  ({ one }) => ({
+    warehouse: one(warehouses, {
+      fields: [inventoryStockMovements.warehouseId],
+      references: [warehouses.id],
+    }),
+    item: one(inventoryItems, {
+      fields: [inventoryStockMovements.itemId],
+      references: [inventoryItems.id],
+    }),
+    createdByUser: one(users, {
+      fields: [inventoryStockMovements.createdBy],
+      references: [users.id],
+      relationName: 'inventory_stock_movement_created_by_user',
+    }),
+  }),
+);
 
 export const notificationsRelations = relations(notifications, ({ one }) => ({
   recipientUser: one(users, {
