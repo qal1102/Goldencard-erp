@@ -33,6 +33,7 @@ export const inventoryStockMovementSchema = z.object({
   type: z.enum(['in', 'out']),
   warehouseId: z.string().uuid('Kho không hợp lệ'),
   itemId: z.string().uuid('Vật tư không hợp lệ'),
+  workOrderId: z.string().uuid('Lệnh thi công không hợp lệ').optional(),
   quantity: z.coerce
     .number({ error: 'Số lượng phải là số' })
     .positive('Số lượng phải lớn hơn 0'),

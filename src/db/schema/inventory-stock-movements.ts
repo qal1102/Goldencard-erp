@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import { index, numeric, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 import { inventoryItems } from './inventory-items';
 import { warehouses } from './warehouses';
+import { workOrders } from './work-orders';
 import { users } from './users';
 
 export const inventoryStockMovements = pgTable(
@@ -15,6 +16,9 @@ export const inventoryStockMovements = pgTable(
     itemId: uuid('item_id')
       .notNull()
       .references(() => inventoryItems.id, { onDelete: 'restrict' }),
+    workOrderId: uuid('work_order_id').references(() => workOrders.id, {
+      onDelete: 'set null',
+    }),
     quantity: numeric('quantity', { precision: 12, scale: 3 }).notNull(),
     quantityBefore: numeric('quantity_before', { precision: 12, scale: 3 }).notNull(),
     quantityAfter: numeric('quantity_after', { precision: 12, scale: 3 }).notNull(),
@@ -25,6 +29,7 @@ export const inventoryStockMovements = pgTable(
   (table) => [
     index('inventory_stock_movements_warehouse_id_idx').on(table.warehouseId),
     index('inventory_stock_movements_item_id_idx').on(table.itemId),
+    index('inventory_stock_movements_work_order_id_idx').on(table.workOrderId),
     index('inventory_stock_movements_type_idx').on(table.type),
     index('inventory_stock_movements_created_at_idx').on(table.createdAt),
   ],

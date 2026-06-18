@@ -4,6 +4,7 @@ import {
   inventoryItems,
   inventoryStockMovements,
   inventoryStocks,
+  workOrders,
   warehouses,
 } from '@/db/schema';
 import {
@@ -81,6 +82,8 @@ export async function queryInventoryStockMovementRows() {
       itemSku: inventoryItems.sku,
       itemName: inventoryItems.name,
       itemUnit: inventoryItems.unit,
+      workOrderId: workOrders.id,
+      workOrderCode: workOrders.code,
       quantity: inventoryStockMovements.quantity,
       quantityBefore: inventoryStockMovements.quantityBefore,
       quantityAfter: inventoryStockMovements.quantityAfter,
@@ -90,6 +93,7 @@ export async function queryInventoryStockMovementRows() {
     .from(inventoryStockMovements)
     .innerJoin(warehouses, eq(inventoryStockMovements.warehouseId, warehouses.id))
     .innerJoin(inventoryItems, eq(inventoryStockMovements.itemId, inventoryItems.id))
+    .leftJoin(workOrders, eq(inventoryStockMovements.workOrderId, workOrders.id))
     .orderBy(desc(inventoryStockMovements.createdAt))
     .limit(100);
 }
@@ -97,3 +101,27 @@ export async function queryInventoryStockMovementRows() {
 export type InventoryStockMovementListRow = Awaited<
   ReturnType<typeof queryInventoryStockMovementRows>
 >[number];
+
+export async function queryInventoryWorkOrderOptions() {
+  return db.query.workOrders.findMany({
+    columns: {
+      id: true,
+      code: true,
+      status: true,
+    },
+    with: {
+      customer: {
+        columns: {
+          fullName: true,
+        },
+      },
+      contract: {
+        columns: {
+          code: true,
+        },
+      },
+    },
+    orderBy: [desc(workOrders.createdAt)],
+    limit: 100,
+  });
+}

@@ -8,6 +8,7 @@ import { loadInventoryItemsList } from '@/modules/inventory/lib/inventory-item-l
 import {
   loadInventoryStockMovementsList,
   loadInventoryStocksList,
+  loadInventoryWorkOrderOptions,
   loadWarehousesList,
 } from '@/modules/inventory/lib/warehouse-load';
 
@@ -36,11 +37,18 @@ export default async function InventoryPage() {
     );
   }
 
-  const [itemsResult, warehousesResult, stocksResult, movementsResult] = await Promise.all([
+  const [
+    itemsResult,
+    warehousesResult,
+    stocksResult,
+    movementsResult,
+    workOrdersResult,
+  ] = await Promise.all([
     loadInventoryItemsList({}),
     loadWarehousesList({}),
     loadInventoryStocksList(),
     loadInventoryStockMovementsList(),
+    loadInventoryWorkOrderOptions(),
   ]);
 
   return (
@@ -67,6 +75,8 @@ export default async function InventoryPage() {
         initialStockError={stocksResult.success ? null : stocksResult.error}
         initialMovements={movementsResult.success ? movementsResult.data : undefined}
         initialMovementError={movementsResult.success ? null : movementsResult.error}
+        workOrders={workOrdersResult.success ? workOrdersResult.data : undefined}
+        workOrderError={workOrdersResult.success ? null : workOrdersResult.error}
         inventoryItems={itemsResult.success ? itemsResult.data : undefined}
       />
 

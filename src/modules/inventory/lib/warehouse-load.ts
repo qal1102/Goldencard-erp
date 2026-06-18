@@ -2,6 +2,7 @@ import { serializeWarehouses } from './warehouse-serialize';
 import {
   queryInventoryStockMovementRows,
   queryInventoryStockRows,
+  queryInventoryWorkOrderOptions,
   queryWarehouses,
 } from './warehouse.queries';
 import type { WarehouseFilters } from '../schema/warehouse.schema';
@@ -31,11 +32,21 @@ export type SerializedInventoryStockMovementRow = {
   itemSku: string;
   itemName: string;
   itemUnit: string;
+  workOrderId: string | null;
+  workOrderCode: string | null;
   quantity: string;
   quantityBefore: string;
   quantityAfter: string;
   note: string | null;
   createdAt: string;
+};
+
+export type SerializedInventoryWorkOrderOption = {
+  id: string;
+  code: string;
+  status: string;
+  customerName: string;
+  contractCode: string | null;
 };
 
 function serializeInventoryStockRows(
@@ -66,6 +77,10 @@ export type LoadInventoryStocksResult =
 
 export type LoadInventoryStockMovementsResult =
   | { success: true; data: SerializedInventoryStockMovementRow[] }
+  | { success: false; error: string };
+
+export type LoadInventoryWorkOrderOptionsResult =
+  | { success: true; data: SerializedInventoryWorkOrderOption[] }
   | { success: false; error: string };
 
 export async function loadWarehousesList(
@@ -111,6 +126,30 @@ export async function loadInventoryStockMovementsList(): Promise<LoadInventorySt
     return {
       success: false,
       error: 'Không thể tải lịch sử kho. Vui lòng thử lại.',
+    };
+  }
+}
+
+export async function loadInventoryWorkOrderOptions(): Promise<LoadInventoryWorkOrderOptionsResult> {
+  try {
+    const rows = await queryInventoryWorkOrderOptions();
+    return {
+      success: true,
+      data: rows.map((row) => ({
+        id: row.id,
+        code: row.code,
+        status: row.status,
+        customerName: row.customer.fullName,
+        contractCode: row.contract?.code ?? null,
+      })),
+    };
+  } catch (e) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[inventory] loadInventoryWorkOrderOptions failed', e);
+    }
+    return {
+      success: false,
+      error: 'Không thể tải danh sách lệnh thi công. Vui lòng thử lại.',
     };
   }
 }

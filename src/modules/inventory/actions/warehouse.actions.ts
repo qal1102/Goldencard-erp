@@ -8,6 +8,7 @@ import {
   inventoryItems,
   inventoryStockMovements,
   inventoryStocks,
+  workOrders,
   warehouses,
 } from '@/db/schema';
 import { createAuditLog } from '@/lib/audit/create-audit-log';
@@ -387,19 +388,25 @@ export async function createInventoryStockMovementAction(
 
     const d = parsed.data;
     const result = await db.transaction(async (tx) => {
-      const [warehouse, item] = await Promise.all([
+      const [warehouse, item, workOrder] = await Promise.all([
         tx.query.warehouses.findFirst({
           where: eq(warehouses.id, d.warehouseId),
         }),
         tx.query.inventoryItems.findFirst({
           where: eq(inventoryItems.id, d.itemId),
         }),
+        d.workOrderId
+          ? tx.query.workOrders.findFirst({
+              where: eq(workOrders.id, d.workOrderId),
+            })
+          : Promise.resolve(null),
       ]);
 
       if (!warehouse) throw new Error('Không tìm thấy kho');
       if (!warehouse.isActive) throw new Error('Kho đang ngừng sử dụng');
       if (!item) throw new Error('Không tìm thấy vật tư');
       if (!item.isActive) throw new Error('Vật tư đang ngừng sử dụng');
+      if (d.workOrderId && !workOrder) throw new Error('Không tìm thấy lệnh thi công');
 
       const quantity = d.quantity;
       await tx
@@ -440,6 +447,7 @@ export async function createInventoryStockMovementAction(
           type: d.type,
           warehouseId: d.warehouseId,
           itemId: d.itemId,
+          workOrderId: d.workOrderId ?? null,
           quantity: String(quantity),
           quantityBefore: String(before),
           quantityAfter: String(after),
@@ -466,6 +474,7 @@ export async function createInventoryStockMovementAction(
         movementId: movement.id,
         warehouse,
         item,
+        workOrder,
         before,
         after,
         quantity,
@@ -486,6 +495,8 @@ export async function createInventoryStockMovementAction(
         warehouseCode: result.warehouse.code,
         itemId: input.itemId,
         itemSku: result.item.sku,
+        workOrderId: input.workOrderId ?? null,
+        workOrderCode: result.workOrder?.code ?? null,
         movementType: input.type,
         quantity: result.quantity,
         quantityOnHand: result.after,

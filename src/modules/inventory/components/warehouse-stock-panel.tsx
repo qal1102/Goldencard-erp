@@ -40,6 +40,7 @@ import {
   updateWarehouseAction,
 } from '../actions/warehouse.actions';
 import type {
+  SerializedInventoryWorkOrderOption,
   SerializedInventoryStockMovementRow,
   SerializedInventoryStockRow,
 } from '../lib/warehouse-load';
@@ -100,6 +101,7 @@ const emptyStockMovementForm: InventoryStockMovementInput = {
   type: 'in',
   warehouseId: '',
   itemId: '',
+  workOrderId: undefined,
   quantity: 1,
   note: '',
 };
@@ -271,6 +273,8 @@ type Props = {
   initialStockError?: string | null;
   initialMovements?: SerializedInventoryStockMovementRow[];
   initialMovementError?: string | null;
+  workOrders?: SerializedInventoryWorkOrderOption[];
+  workOrderError?: string | null;
   inventoryItems?: SerializedInventoryItem[];
 };
 
@@ -281,6 +285,8 @@ export function WarehouseStockPanel({
   initialStockError = null,
   initialMovements = [],
   initialMovementError = null,
+  workOrders = [],
+  workOrderError = null,
   inventoryItems = [],
 }: Props) {
   const [warehouses, setWarehouses] = useState(initialWarehouses);
@@ -300,6 +306,7 @@ export function WarehouseStockPanel({
   const [warehouseError, setWarehouseError] = useState<string | null>(initialWarehouseError);
   const [stockError, setStockError] = useState<string | null>(initialStockError);
   const [movementError, setMovementError] = useState<string | null>(initialMovementError);
+  const [workOrderLoadError] = useState<string | null>(workOrderError);
   const [isPending, startTransition] = useTransition();
   const [isStockPending, startStockTransition] = useTransition();
   const [isMovementPending, startMovementTransition] = useTransition();
@@ -380,6 +387,7 @@ export function WarehouseStockPanel({
       type,
       warehouseId: selectedWarehouseId === 'all' ? '' : selectedWarehouseId,
       itemId: '',
+      workOrderId: undefined,
       quantity: 1,
       note: '',
     });
@@ -705,11 +713,12 @@ export function WarehouseStockPanel({
 
         {movements.length > 0 && (
           <div className="mt-3 max-h-96 overflow-auto rounded-md border">
-            <div className="grid min-w-[980px] grid-cols-[110px_150px_140px_1.3fr_110px_110px_110px_130px] border-b bg-muted/60 px-3 py-2 text-xs font-medium">
+            <div className="grid min-w-[1120px] grid-cols-[110px_150px_140px_1.3fr_130px_110px_110px_110px_130px] border-b bg-muted/60 px-3 py-2 text-xs font-medium">
               <span>Loại</span>
               <span>Kho</span>
               <span>Mã vật tư</span>
               <span>Tên vật tư</span>
+              <span>Công trình</span>
               <span>Số lượng</span>
               <span>Trước</span>
               <span>Sau</span>
@@ -718,7 +727,7 @@ export function WarehouseStockPanel({
             {movements.map((row) => (
               <div
                 key={row.id}
-                className="grid min-w-[980px] grid-cols-[110px_150px_140px_1.3fr_110px_110px_110px_130px] border-b px-3 py-2 text-xs last:border-b-0"
+                className="grid min-w-[1120px] grid-cols-[110px_150px_140px_1.3fr_130px_110px_110px_110px_130px] border-b px-3 py-2 text-xs last:border-b-0"
               >
                 <span>
                   <Badge variant={row.type === 'in' ? 'secondary' : 'outline'}>
@@ -728,6 +737,9 @@ export function WarehouseStockPanel({
                 <span className="truncate">{row.warehouseName}</span>
                 <span className="font-mono text-primary">{row.itemSku}</span>
                 <span className="truncate">{row.itemName}</span>
+                <span className="font-mono text-muted-foreground">
+                  {row.workOrderCode ?? '-'}
+                </span>
                 <span className="tabular-nums">
                   {formatNumber(row.quantity)} {row.itemUnit}
                 </span>
@@ -771,6 +783,12 @@ export function WarehouseStockPanel({
               </p>
             )}
 
+            {workOrderLoadError && (
+              <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                {workOrderLoadError}
+              </p>
+            )}
+
             <div className="flex flex-col gap-1.5">
               <Label>Kho</Label>
               <Select
@@ -794,6 +812,40 @@ export function WarehouseStockPanel({
                         {warehouse.name}
                       </SelectItem>
                     ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label>Công trình / lệnh thi công</Label>
+              <Select
+                value={movementForm.workOrderId ?? 'none'}
+                onValueChange={(value) =>
+                  updateMovementField(
+                    'workOrderId',
+                    value && value !== 'none' ? value : undefined,
+                  )
+                }
+                disabled={isMovementPending}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {(value) => {
+                      if (!value || value === 'none') return 'Không gắn công trình';
+                      const workOrder = workOrders.find((entry) => entry.id === value);
+                      return workOrder
+                        ? `${workOrder.code} - ${workOrder.customerName}`
+                        : 'Không gắn công trình';
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Không gắn công trình</SelectItem>
+                  {workOrders.map((workOrder) => (
+                    <SelectItem key={workOrder.id} value={workOrder.id}>
+                      {workOrder.code} - {workOrder.customerName}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

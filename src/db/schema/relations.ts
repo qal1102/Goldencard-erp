@@ -227,7 +227,7 @@ export const contractsRelations = relations(contracts, ({ one }) => ({
   }),
 }));
 
-export const workOrdersRelations = relations(workOrders, ({ one }) => ({
+export const workOrdersRelations = relations(workOrders, ({ one, many }) => ({
   customer: one(customers, {
     fields: [workOrders.customerId],
     references: [customers.id],
@@ -273,6 +273,7 @@ export const workOrdersRelations = relations(workOrders, ({ one }) => ({
     references: [handovers.workOrderId],
     relationName: 'work_order_handover',
   }),
+  stockMovements: many(inventoryStockMovements),
 }));
 
 export const handoversRelations = relations(handovers, ({ one, many }) => ({
@@ -512,6 +513,10 @@ export const inventoryStockMovementsRelations = relations(
     item: one(inventoryItems, {
       fields: [inventoryStockMovements.itemId],
       references: [inventoryItems.id],
+    }),
+    workOrder: one(workOrders, {
+      fields: [inventoryStockMovements.workOrderId],
+      references: [workOrders.id],
     }),
     createdByUser: one(users, {
       fields: [inventoryStockMovements.createdBy],
