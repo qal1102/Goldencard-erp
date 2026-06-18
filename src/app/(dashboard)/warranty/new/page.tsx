@@ -4,10 +4,12 @@ import { auth } from '@/auth';
 import { hasRole } from '@/lib/auth/roles';
 import { queryCustomerById } from '@/modules/crm/lib/customer.queries';
 import { queryHandoverById } from '@/modules/handovers/lib/handover.queries';
+import { WarrantyTicketDirectCreate } from '@/modules/warranty-tickets/components/warranty-ticket-direct-create';
 import {
   WarrantyTicketCreateForm,
   type WarrantyTicketCreatePrefill,
 } from '@/modules/warranty-tickets/components/warranty-ticket-create-form';
+import { queryWarrantyCustomerOptions } from '@/modules/warranty-tickets/lib/warranty-ticket-create-options';
 
 type Props = {
   searchParams: Promise<{ handoverId?: string; customerId?: string }>;
@@ -63,15 +65,20 @@ export default async function NewWarrantyTicketPage({ searchParams }: Props) {
     };
     cancelHref = `/crm/customers/${customerId}`;
   } else {
+    const customers = await queryWarrantyCustomerOptions();
+
     return (
-      <div className="mx-auto w-full max-w-xl space-y-3 py-8 text-center text-sm text-muted-foreground">
-        <p>
-          Chọn <strong>khách hàng</strong> hoặc <strong>phiếu bàn giao đã hoàn tất</strong> rồi bấm
-          &quot;Tạo yêu cầu bảo hành/CSKH&quot;.
-        </p>
-        <ReplaceLink href="/warranty" className="text-primary hover:underline">
-          Quay lại danh sách
-        </ReplaceLink>
+      <div className="mx-auto w-full max-w-xl">
+        <div className="mb-4">
+          <ReplaceLink href="/warranty" className="text-xs text-primary hover:underline">
+            ← Quay lại danh sách
+          </ReplaceLink>
+          <h1 className="mt-2 text-base font-semibold">Tạo yêu cầu bảo hành/CSKH</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Dùng khi khách hàng liên hệ trực tiếp và cần lập phiếu xử lý mới.
+          </p>
+        </div>
+        <WarrantyTicketDirectCreate customers={customers} />
       </div>
     );
   }
