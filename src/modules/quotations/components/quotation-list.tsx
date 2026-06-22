@@ -33,6 +33,10 @@ function formatCurrency(value: string | number | null | undefined): string {
   }).format(num);
 }
 
+function displayQuotationCode(code: string) {
+  return code.replace(/-V\d+$/i, '');
+}
+
 type Props = {
   initialData?: QuotationRow[];
   initialError?: string | null;
@@ -138,8 +142,13 @@ export function QuotationList({ initialData, initialError = null }: Props) {
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 flex-col gap-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-xs font-semibold text-primary">{q.code}</span>
+                  <span className="font-mono text-xs font-semibold text-primary">
+                    {displayQuotationCode(q.code)}
+                  </span>
                   <QuotationStatusBadge status={q.status as QuotationStatus} />
+                  <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                    Bản hiện hành
+                  </span>
                 </div>
                 <p className="truncate text-sm font-medium">{q.customerNameSnapshot}</p>
                 <p className="text-xs text-muted-foreground">

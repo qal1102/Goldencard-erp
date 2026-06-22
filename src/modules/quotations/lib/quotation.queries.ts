@@ -29,9 +29,16 @@ export async function queryQuotations(filters: QuotationFilters = {}) {
   const conditions = [];
   if (filters.status) conditions.push(eq(quotations.status, filters.status));
   if (filters.customerId) conditions.push(eq(quotations.customerId, filters.customerId));
+  conditions.push(sql`
+    ${quotations.revisionNumber} = (
+      select max(q2.revision_number)
+      from quotations q2
+      where q2.survey_id = ${quotations.surveyId}
+    )
+  `);
 
   return db.query.quotations.findMany({
-    where: conditions.length > 0 ? and(...conditions) : undefined,
+    where: and(...conditions),
     with: {
       customer: { columns: { id: true, code: true, fullName: true } },
       survey: { columns: { id: true, code: true } },
@@ -39,6 +46,40 @@ export async function queryQuotations(filters: QuotationFilters = {}) {
     },
     orderBy: [desc(quotations.createdAt)],
     limit: 200,
+  });
+}
+
+export async function queryQuotationRevisionHistoryBySurveyId(surveyId: string) {
+  return db.query.quotations.findMany({
+    where: eq(quotations.surveyId, surveyId),
+    columns: {
+      id: true,
+      code: true,
+      status: true,
+      revisionNumber: true,
+      grandTotal: true,
+      note: true,
+      sentNote: true,
+      responseNote: true,
+      createdAt: true,
+      updatedAt: true,
+      sentAt: true,
+      respondedAt: true,
+      acceptedAt: true,
+    },
+    with: {
+      createdByUser: { columns: { id: true, name: true } },
+      respondedByUser: { columns: { id: true, name: true } },
+      editLogs: {
+        columns: { id: true, note: true, editedAt: true, beforeTotal: true, afterTotal: true },
+        orderBy: (cols, { desc: descOrder }) => [descOrder(cols.editedAt)],
+        limit: 1,
+        with: {
+          editedByUser: { columns: { id: true, name: true } },
+        },
+      },
+    },
+    orderBy: [desc(quotations.revisionNumber)],
   });
 }
 
@@ -128,7 +169,8 @@ export function enrichQuotationDetail<
 export async function queryQuotationDetailById(id: string) {
   const row = await queryQuotationById(id);
   if (!row) return null;
-  return enrichQuotationDetail(row);
+  const revisionHistory = await queryQuotationRevisionHistoryBySurveyId(row.surveyId);
+  return enrichQuotationDetail({ ...row, revisionHistory });
 }
 
 export async function queryQuotationExportCount(quotationId: string): Promise<number> {
@@ -228,6 +270,9 @@ export async function querySurveyHasQuotation(surveyId: string): Promise<boolean
 }
 
 export type QuotationRow = Awaited<ReturnType<typeof queryQuotations>>[number];
+export type QuotationRevisionHistoryRow = Awaited<
+  ReturnType<typeof queryQuotationRevisionHistoryBySurveyId>
+>[number];
 export type QuotationDetail = NonNullable<Awaited<ReturnType<typeof queryQuotationDetailById>>>;
 export type CompletedSurveyOption = Awaited<
   ReturnType<typeof queryCompletedSurveysWithoutQuotation>

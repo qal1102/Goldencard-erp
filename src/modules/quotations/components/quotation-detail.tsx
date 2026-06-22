@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { QuotationStatus } from '../schema/quotation.schema';
+import type { QuotationDetail as QuotationDetailData } from '../lib/quotation.queries';
 import { isQuotationEditable } from '../lib/quotation-resend';
 import { useQuotation } from '../hooks/use-quotations';
 import { LeadConsultationContextCard } from '@/modules/crm/components/lead-consultation-context-card';
@@ -38,6 +39,21 @@ function formatCurrency(value: string | number | null | undefined): string {
     currency: 'VND',
     maximumFractionDigits: 0,
   }).format(num);
+}
+
+function displayQuotationCode(code: string) {
+  return code.replace(/-V\d+$/i, '');
+}
+
+function revisionReason(revision: NonNullable<QuotationDetailData['revisionHistory']>[number]) {
+  const latestEdit = revision.editLogs?.[0];
+  return (
+    revision.responseNote?.trim() ||
+    revision.sentNote?.trim() ||
+    latestEdit?.note?.trim() ||
+    revision.note?.trim() ||
+    'Chưa ghi lý do'
+  );
 }
 
 function formatDate(date: Date | string | null | undefined): string | null {
@@ -108,9 +124,9 @@ export function QuotationDetail({ quotationId, canWrite, canApprove }: Props) {
 
   const status = quotation.status as QuotationStatus;
   const isAccepted = status === 'accepted';
-  const revisionNumber = quotation.revisionNumber ?? 1;
   const canEdit = isQuotationEditable(status) && canWrite;
   const editLogs = quotation.editLogs ?? [];
+  const revisionHistory = quotation.revisionHistory ?? [];
 
   const leadConsultation: LeadConsultationContext | null = quotation.survey?.lead
     ? {
@@ -130,8 +146,8 @@ export function QuotationDetail({ quotationId, canWrite, canApprove }: Props) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-mono text-sm font-semibold">
-              {quotation.code}
-              <span className="text-muted-foreground"> · v{revisionNumber}</span>
+              {displayQuotationCode(quotation.code)}
+              <span className="text-muted-foreground"> · bản hiện hành</span>
             </p>
             <QuotationStatusBadge status={status} />
             {isAccepted && (
@@ -202,6 +218,91 @@ export function QuotationDetail({ quotationId, canWrite, canApprove }: Props) {
         isAccepted={isAccepted}
         canWrite={canWrite}
       />
+
+      {revisionHistory.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Lịch sử báo giá</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <details className="group">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted/60">
+                <span>
+                  Bản hiện hành và {Math.max(revisionHistory.length - 1, 0)} lần chỉnh sửa trước đó
+                </span>
+                <span className="text-xs text-muted-foreground group-open:hidden">
+                  Mở lịch sử
+                </span>
+                <span className="hidden text-xs text-muted-foreground group-open:inline">
+                  Thu gọn
+                </span>
+              </summary>
+
+              <div className="mt-3 overflow-x-auto rounded-lg border">
+                <div className="grid min-w-[760px] grid-cols-[120px_130px_130px_150px_1fr_90px] border-b bg-muted/60 px-3 py-2 text-xs font-medium">
+                  <span>Lần</span>
+                  <span>Trạng thái</span>
+                  <span>Tổng tiền</span>
+                  <span>Thời gian</span>
+                  <span>Lý do / ghi chú</span>
+                  <span></span>
+                </div>
+                {revisionHistory.map((revision) => {
+                  const isCurrent = revision.id === quotation.id;
+                  return (
+                    <div
+                      key={revision.id}
+                      className="grid min-w-[760px] grid-cols-[120px_130px_130px_150px_1fr_90px] items-start border-b px-3 py-2 text-xs last:border-b-0"
+                    >
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-medium">
+                          {isCurrent ? 'Bản hiện hành' : `Lần ${revision.revisionNumber}`}
+                        </span>
+                        <span className="font-mono text-muted-foreground">
+                          {displayQuotationCode(revision.code)}
+                        </span>
+                      </div>
+                      <span>
+                        <QuotationStatusBadge status={revision.status as QuotationStatus} />
+                      </span>
+                      <span className="tabular-nums">{formatCurrency(revision.grandTotal)}</span>
+                      <span className="text-muted-foreground">
+                        {formatDateTime(revision.respondedAt) ||
+                          formatDateTime(revision.sentAt) ||
+                          formatDateTime(revision.updatedAt) ||
+                          formatDateTime(revision.createdAt)}
+                      </span>
+                      <span className="leading-relaxed text-muted-foreground">
+                        {revisionReason(revision)}
+                        {revision.respondedByUser?.name && (
+                          <span className="block">
+                            Ghi nhận bởi {revision.respondedByUser.name}
+                          </span>
+                        )}
+                        {!revision.respondedByUser?.name && revision.createdByUser?.name && (
+                          <span className="block">Tạo bởi {revision.createdByUser.name}</span>
+                        )}
+                      </span>
+                      <span>
+                        {isCurrent ? (
+                          <Badge variant="secondary">Đang xem</Badge>
+                        ) : (
+                          <Link
+                            href={`/quotations/${revision.id}`}
+                            className="text-primary hover:underline"
+                          >
+                            Xem
+                          </Link>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </details>
+          </CardContent>
+        </Card>
+      )}
 
       {leadConsultation && (
         <LeadConsultationContextCard
