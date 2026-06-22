@@ -42,6 +42,12 @@ async function requireWarehouseAdmin(action: string) {
   return session;
 }
 
+async function requireWarehouseViewer() {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error('Unauthorized');
+  return session;
+}
+
 function normalizeOptional(value?: string | null) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
@@ -93,7 +99,7 @@ export async function getWarehousesAction(
   filters: WarehouseFilters = {},
 ): Promise<WarehouseActionResult<ReturnType<typeof serializeWarehouses>>> {
   try {
-    await requireWarehouseAdmin('inventory.warehouses.list');
+    await requireWarehouseViewer();
 
     const parsed = warehouseFiltersSchema.safeParse(filters);
     if (!parsed.success) {
@@ -107,7 +113,7 @@ export async function getWarehousesAction(
       success: false,
       error:
         e instanceof Error && e.message === 'Unauthorized'
-          ? 'Bạn không có quyền quản lý kho.'
+          ? 'Bạn cần đăng nhập để xem danh sách kho.'
           : 'Không thể tải danh sách kho. Vui lòng thử lại.',
     };
   }
@@ -117,7 +123,7 @@ export async function getInventoryStocksAction(): Promise<
   WarehouseActionResult<ReturnType<typeof serializeInventoryStockRows>>
 > {
   try {
-    await requireWarehouseAdmin('inventory.stocks.list');
+    await requireWarehouseViewer();
     const rows = await queryInventoryStockRows();
     return { success: true, data: serializeInventoryStockRows(rows) };
   } catch (e) {
@@ -125,7 +131,7 @@ export async function getInventoryStocksAction(): Promise<
       success: false,
       error:
         e instanceof Error && e.message === 'Unauthorized'
-          ? 'Bạn không có quyền xem tồn kho.'
+          ? 'Bạn cần đăng nhập để xem tồn kho.'
           : 'Không thể tải tồn kho. Vui lòng thử lại.',
     };
   }
@@ -135,7 +141,7 @@ export async function getInventoryStockMovementsAction(): Promise<
   WarehouseActionResult<ReturnType<typeof serializeInventoryStockMovementRows>>
 > {
   try {
-    await requireWarehouseAdmin('inventory.stock_movements.list');
+    await requireWarehouseViewer();
     const rows = await queryInventoryStockMovementRows();
     return { success: true, data: serializeInventoryStockMovementRows(rows) };
   } catch (e) {
@@ -143,7 +149,7 @@ export async function getInventoryStockMovementsAction(): Promise<
       success: false,
       error:
         e instanceof Error && e.message === 'Unauthorized'
-          ? 'Bạn không có quyền xem lịch sử kho.'
+          ? 'Bạn cần đăng nhập để xem lịch sử kho.'
           : 'Không thể tải lịch sử kho. Vui lòng thử lại.',
     };
   }

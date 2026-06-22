@@ -268,6 +268,7 @@ function WarehouseDialog({
 }
 
 type Props = {
+  canManageInventory?: boolean;
   initialWarehouses?: SerializedWarehouse[];
   initialWarehouseError?: string | null;
   initialStocks?: SerializedInventoryStockRow[];
@@ -280,6 +281,7 @@ type Props = {
 };
 
 export function WarehouseStockPanel({
+  canManageInventory = false,
   initialWarehouses = [],
   initialWarehouseError = null,
   initialStocks = [],
@@ -526,16 +528,18 @@ export function WarehouseStockPanel({
               Dùng để biết vật tư nào cần nhập thêm trước khi xuất cho công trình.
             </p>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full sm:w-auto"
-            onClick={() => openMovementDialog('in')}
-            disabled={!hasSetupData}
-          >
-            <ArrowDownToLineIcon className="size-4" />
-            Nhập bổ sung
-          </Button>
+          {canManageInventory && (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => openMovementDialog('in')}
+              disabled={!hasSetupData}
+            >
+              <ArrowDownToLineIcon className="size-4" />
+              Nhập bổ sung
+            </Button>
+          )}
         </div>
 
         {lowStockRows.length === 0 ? (
@@ -582,14 +586,16 @@ export function WarehouseStockPanel({
               được giữ lại lịch sử, nhưng không nên dùng cho phiếu nhập/xuất mới.
             </p>
           </div>
-          <Button
-            type="button"
-            className="w-full sm:w-auto"
-            onClick={() => setDialogMode({ type: 'create' })}
-          >
-            <PlusIcon className="size-4" />
-            Tạo kho
-          </Button>
+          {canManageInventory && (
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
+              onClick={() => setDialogMode({ type: 'create' })}
+            >
+              <PlusIcon className="size-4" />
+              Tạo kho
+            </Button>
+          )}
         </div>
 
         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -642,15 +648,17 @@ export function WarehouseStockPanel({
                     </p>
                   )}
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setDialogMode({ type: 'edit', warehouse })}
-                >
-                  <EditIcon className="size-4" />
-                  Sửa
-                </Button>
+                {canManageInventory && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setDialogMode({ type: 'edit', warehouse })}
+                  >
+                    <EditIcon className="size-4" />
+                    Sửa
+                  </Button>
+                )}
               </div>
             </div>
           ))}
@@ -696,44 +704,48 @@ export function WarehouseStockPanel({
                 ))}
               </SelectContent>
             </Select>
-            <Button
-              type="button"
-              className="w-full sm:w-auto"
-              variant="outline"
-              onClick={() => openMovementDialog('in')}
-              disabled={
-                warehouses.filter((warehouse) => warehouse.isActive).length === 0 ||
-                inventoryItems.filter((item) => item.isActive).length === 0
-              }
-            >
-              <ArrowDownToLineIcon className="size-4" />
-              Nhập kho
-            </Button>
-            <Button
-              type="button"
-              className="w-full sm:w-auto"
-              variant="outline"
-              onClick={() => openMovementDialog('out')}
-              disabled={
-                warehouses.filter((warehouse) => warehouse.isActive).length === 0 ||
-                inventoryItems.filter((item) => item.isActive).length === 0
-              }
-            >
-              <ArrowUpFromLineIcon className="size-4" />
-              Xuất kho
-            </Button>
-            <Button
-              type="button"
-              className="w-full sm:w-auto"
-              onClick={openStockAdjustmentDialog}
-              disabled={
-                warehouses.filter((warehouse) => warehouse.isActive).length === 0 ||
-                inventoryItems.filter((item) => item.isActive).length === 0
-              }
-            >
-              <PackageCheckIcon className="size-4" />
-              Cập nhật tồn
-            </Button>
+            {canManageInventory && (
+              <>
+                <Button
+                  type="button"
+                  className="w-full sm:w-auto"
+                  variant="outline"
+                  onClick={() => openMovementDialog('in')}
+                  disabled={
+                    warehouses.filter((warehouse) => warehouse.isActive).length === 0 ||
+                    inventoryItems.filter((item) => item.isActive).length === 0
+                  }
+                >
+                  <ArrowDownToLineIcon className="size-4" />
+                  Nhập kho
+                </Button>
+                <Button
+                  type="button"
+                  className="w-full sm:w-auto"
+                  variant="outline"
+                  onClick={() => openMovementDialog('out')}
+                  disabled={
+                    warehouses.filter((warehouse) => warehouse.isActive).length === 0 ||
+                    inventoryItems.filter((item) => item.isActive).length === 0
+                  }
+                >
+                  <ArrowUpFromLineIcon className="size-4" />
+                  Xuất kho
+                </Button>
+                <Button
+                  type="button"
+                  className="w-full sm:w-auto"
+                  onClick={openStockAdjustmentDialog}
+                  disabled={
+                    warehouses.filter((warehouse) => warehouse.isActive).length === 0 ||
+                    inventoryItems.filter((item) => item.isActive).length === 0
+                  }
+                >
+                  <PackageCheckIcon className="size-4" />
+                  Cập nhật tồn
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
@@ -849,7 +861,7 @@ export function WarehouseStockPanel({
         )}
       </div>
 
-      {dialogMode && (
+      {canManageInventory && dialogMode && (
         <WarehouseDialog
           key={dialogMode.type === 'edit' ? dialogMode.warehouse.id : 'create'}
           mode={dialogMode}
@@ -862,6 +874,7 @@ export function WarehouseStockPanel({
         />
       )}
 
+      {canManageInventory && (
       <Dialog open={isMovementDialogOpen} onOpenChange={setIsMovementDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <form onSubmit={handleMovementSubmit} className="flex flex-col gap-4">
@@ -1019,7 +1032,9 @@ export function WarehouseStockPanel({
           </form>
         </DialogContent>
       </Dialog>
+      )}
 
+      {canManageInventory && (
       <Dialog open={isStockDialogOpen} onOpenChange={setIsStockDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <form onSubmit={handleStockSubmit} className="flex flex-col gap-4">
@@ -1132,6 +1147,7 @@ export function WarehouseStockPanel({
           </form>
         </DialogContent>
       </Dialog>
+      )}
     </div>
   );
 }

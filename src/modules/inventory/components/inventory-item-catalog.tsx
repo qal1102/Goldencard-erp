@@ -126,6 +126,7 @@ type ImportPreviewRow = {
 type CatalogProps = {
   initialItems?: SerializedInventoryItem[];
   initialError?: string | null;
+  canManageInventory?: boolean;
 };
 
 type DialogMode =
@@ -656,6 +657,7 @@ function InventoryItemDialog({
 export function InventoryItemCatalog({
   initialItems,
   initialError = null,
+  canManageInventory = false,
 }: CatalogProps) {
   const [items, setItems] = useState<SerializedInventoryItem[]>(initialItems ?? []);
   const [search, setSearch] = useState('');
@@ -866,85 +868,131 @@ export function InventoryItemCatalog({
             Bảng danh mục
           </Button>
 
-          <Button
-            type="button"
-            className="w-full sm:w-auto"
-            onClick={() => setDialogMode({ type: 'create' })}
-          >
-            <PlusIcon className="size-4" />
-            Tạo vật tư
-          </Button>
+          {canManageInventory && (
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
+              onClick={() => setDialogMode({ type: 'create' })}
+            >
+              <PlusIcon className="size-4" />
+              Tạo vật tư
+            </Button>
+          )}
         </div>
       </div>
 
-      <div className="rounded-lg border p-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-sm font-medium">File mẫu nhập liệu</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Mẫu tải về chỉ có cột trống để nhập tay. Điền tối thiểu Mã vật tư, Tên vật
-              tư và Đơn vị tính; các cột Có/Không có thể nhập TRUE/FALSE hoặc Có/Không.
-              Muốn sửa hàng loạt thì export catalog hiện tại, chỉnh trong Excel rồi upload
-              lại để hệ thống preview trước khi cập nhật.
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                downloadCsv(templateRows, `inventory-template-${getExportFileDate()}.csv`)
-              }
-            >
-              <DownloadIcon className="size-4" />
-              Mẫu CSV
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                void downloadXlsx(
-                  templateRows,
-                  `inventory-template-${getExportFileDate()}.xlsx`,
-                )
-              }
-            >
-              <FileSpreadsheetIcon className="size-4" />
-              Mẫu Excel
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                downloadCsv(currentExportRows, `inventory-catalog-${getExportFileDate()}.csv`)
-              }
-              disabled={items.length === 0}
-            >
-              <DownloadIcon className="size-4" />
-              Export CSV
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                void downloadXlsx(
-                  currentExportRows,
-                  `inventory-catalog-${getExportFileDate()}.xlsx`,
-                )
-              }
-              disabled={items.length === 0}
-            >
-              <FileSpreadsheetIcon className="size-4" />
-              Export Excel
-            </Button>
+      {canManageInventory ? (
+        <div className="rounded-lg border p-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-sm font-medium">File mẫu nhập liệu</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Mẫu tải về chỉ có cột trống để nhập tay. Điền tối thiểu Mã vật tư, Tên vật
+                tư và Đơn vị tính; các cột Có/Không có thể nhập TRUE/FALSE hoặc Có/Không.
+                Muốn sửa hàng loạt thì export catalog hiện tại, chỉnh trong Excel rồi upload
+                lại để hệ thống preview trước khi cập nhật.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  downloadCsv(templateRows, `inventory-template-${getExportFileDate()}.csv`)
+                }
+              >
+                <DownloadIcon className="size-4" />
+                Mẫu CSV
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  void downloadXlsx(
+                    templateRows,
+                    `inventory-template-${getExportFileDate()}.xlsx`,
+                  )
+                }
+              >
+                <FileSpreadsheetIcon className="size-4" />
+                Mẫu Excel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  downloadCsv(currentExportRows, `inventory-catalog-${getExportFileDate()}.csv`)
+                }
+                disabled={items.length === 0}
+              >
+                <DownloadIcon className="size-4" />
+                Export CSV
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  void downloadXlsx(
+                    currentExportRows,
+                    `inventory-catalog-${getExportFileDate()}.xlsx`,
+                  )
+                }
+                disabled={items.length === 0}
+              >
+                <FileSpreadsheetIcon className="size-4" />
+                Export Excel
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="rounded-lg border p-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-sm font-medium">Danh mục vật tư</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Bạn đang xem dữ liệu kho ở chế độ đọc. Nếu cần tạo mới, import hoặc sửa vật
+                tư, hãy gửi file cho Super Admin để kiểm tra và cập nhật.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  downloadCsv(currentExportRows, `inventory-catalog-${getExportFileDate()}.csv`)
+                }
+                disabled={items.length === 0}
+              >
+                <DownloadIcon className="size-4" />
+                Export CSV
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  void downloadXlsx(
+                    currentExportRows,
+                    `inventory-catalog-${getExportFileDate()}.xlsx`,
+                  )
+                }
+                disabled={items.length === 0}
+              >
+                <FileSpreadsheetIcon className="size-4" />
+                Export Excel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
+      {canManageInventory && (
       <div className="rounded-lg border p-3">
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -1069,10 +1117,12 @@ export function InventoryItemCatalog({
           )}
         </div>
       </div>
+      )}
 
       <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
-        Danh mục vật tư là dữ liệu nền cho tồn kho. Sau khi mã vật tư ổn định,
-        bạn có thể nhập tồn ban đầu, nhập kho hoặc xuất kho ở phần tồn kho phía trên.
+        {canManageInventory
+          ? 'Danh mục vật tư là dữ liệu nền cho tồn kho. Sau khi mã vật tư ổn định, bạn có thể nhập tồn ban đầu, nhập kho hoặc xuất kho ở phần tồn kho phía trên.'
+          : 'Danh mục vật tư là dữ liệu nền cho tồn kho. Bạn có thể tra cứu để chọn đúng vật tư khi làm việc với khách hàng hoặc công trình.'}
       </div>
 
       {error && (
@@ -1116,15 +1166,17 @@ export function InventoryItemCatalog({
                 </div>
                 {item.note && <p className="mt-2 text-sm text-muted-foreground">{item.note}</p>}
               </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => setDialogMode({ type: 'edit', item })}
-              >
-                <EditIcon className="size-4" />
-                Sửa
-              </Button>
+              {canManageInventory && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setDialogMode({ type: 'edit', item })}
+                >
+                  <EditIcon className="size-4" />
+                  Sửa
+                </Button>
+              )}
             </div>
           </div>
         ))}
@@ -1150,7 +1202,9 @@ export function InventoryItemCatalog({
           <DialogHeader>
             <DialogTitle>Bảng danh mục vật tư</DialogTitle>
             <DialogDescription>
-              Xem nhanh danh mục theo bộ lọc hiện tại và mở từng dòng để sửa khi cần.
+              {canManageInventory
+                ? 'Xem nhanh danh mục theo bộ lọc hiện tại và mở từng dòng để sửa khi cần.'
+                : 'Xem nhanh danh mục theo bộ lọc hiện tại.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -1181,17 +1235,19 @@ export function InventoryItemCatalog({
                     {item.isActive ? 'Đang dùng' : 'Ngừng dùng'}
                   </Badge>
                 </span>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setIsQuickTableOpen(false);
-                    setDialogMode({ type: 'edit', item });
-                  }}
-                >
-                  Sửa
-                </Button>
+                {canManageInventory && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setIsQuickTableOpen(false);
+                      setDialogMode({ type: 'edit', item });
+                    }}
+                  >
+                    Sửa
+                  </Button>
+                )}
               </div>
             ))}
           </div>
@@ -1208,7 +1264,7 @@ export function InventoryItemCatalog({
         </DialogContent>
       </Dialog>
 
-      {dialogMode && (
+      {canManageInventory && dialogMode && (
         <InventoryItemDialog
           key={dialogMode.type === 'edit' ? dialogMode.item.id : 'create'}
           mode={dialogMode}

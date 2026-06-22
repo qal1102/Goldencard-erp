@@ -27,6 +27,12 @@ async function requireInventoryAdmin(action: string) {
   return session;
 }
 
+async function requireInventoryViewer() {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error('Unauthorized');
+  return session;
+}
+
 function normalizeOptional(value?: string | null) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
@@ -56,7 +62,7 @@ export async function getInventoryItemsAction(
   filters: InventoryItemFilters = {},
 ): Promise<InventoryActionResult<ReturnType<typeof serializeInventoryItems>>> {
   try {
-    await requireInventoryAdmin('inventory.items.list');
+    await requireInventoryViewer();
 
     const parsed = inventoryItemFiltersSchema.safeParse(filters);
     if (!parsed.success) {
@@ -70,7 +76,7 @@ export async function getInventoryItemsAction(
       success: false,
       error:
         e instanceof Error && e.message === 'Unauthorized'
-          ? 'Bạn không có quyền quản lý danh mục vật tư.'
+          ? 'Bạn cần đăng nhập để xem danh mục vật tư.'
           : 'Không thể tải danh mục vật tư. Vui lòng thử lại.',
     };
   }
