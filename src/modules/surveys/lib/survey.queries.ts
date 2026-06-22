@@ -115,11 +115,16 @@ export async function querySurveysByCustomerId(customerId: string) {
 
 export async function queryTechnicianUsers() {
   return db
-    .select({ id: users.id, name: users.name })
+    .selectDistinct({ id: users.id, name: users.name })
     .from(users)
     .innerJoin(userRoles, eq(users.id, userRoles.userId))
     .innerJoin(roles, eq(userRoles.roleId, roles.id))
-    .where(and(eq(roles.name, 'technician'), eq(users.isActive, true)))
+    .where(
+      and(
+        sql`${roles.name} in ('technician', 'admin', 'director', 'sales')`,
+        eq(users.isActive, true),
+      ),
+    )
     .orderBy(users.name);
 }
 

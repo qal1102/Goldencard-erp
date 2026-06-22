@@ -162,6 +162,7 @@ export function SurveyDetail({
   const resolvedZones = resolveSurveyZones(survey);
   const aggregates = computeSurveyAggregates(resolvedZones);
   const completionRequirements = getSurveyCompletionRequirements(survey);
+  const canConfirmCompletion = canManage && status === 'assigned';
   const hasDbZones = Boolean(survey.zones && survey.zones.length > 0);
   const projectScale = (survey.projectScale ?? 'single') as ProjectScale;
   const projectType = (survey.projectType ?? 'residential') as ProjectType;
@@ -213,7 +214,7 @@ export function SurveyDetail({
       selectedValue === UNASSIGNED_TECHNICIAN_VALUE ? null : selectedValue || null;
     const currentTechId = survey.assignedTo ?? null;
 
-    if (submitTechId && submitTechId === currentTechId) {
+    if (submitTechId === currentTechId) {
       showAssignFeedback({
         type: 'info',
         message: 'Phiếu này đã được phân công cho kỹ thuật viên này',
@@ -222,7 +223,7 @@ export function SurveyDetail({
     }
 
     const result = await updateStatus.mutateAsync({
-      status: 'assigned',
+      status: submitTechId ? 'assigned' : 'pending',
       assignedTo: submitTechId,
     });
     if (!result.success) {
@@ -313,7 +314,8 @@ export function SurveyDetail({
                   </SelectContent>
                 </Select>
                 <Button
-                  size="sm"
+                  size="lg"
+                  className="px-4 font-semibold"
                   onClick={handleAssign}
                   disabled={updateStatus.isPending}
                 >
@@ -330,8 +332,8 @@ export function SurveyDetail({
             {/* Cancel */}
             <Button
               variant="outline"
-              size="sm"
-              className="w-full text-destructive hover:text-destructive"
+              size="lg"
+              className="h-10 w-full font-semibold text-destructive hover:text-destructive"
               onClick={handleCancel}
               disabled={updateStatus.isPending}
             >
@@ -340,6 +342,26 @@ export function SurveyDetail({
             </Button>
           </CardContent>
         </Card>
+      )}
+
+      {canConfirmCompletion && (
+        <div className="flex flex-col gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900 dark:bg-emerald-950/30">
+          {!completionRequirements.canComplete && (
+            <SurveyCompletionReadinessPanel requirements={completionRequirements} />
+          )}
+          {completionRequirements.canComplete &&
+            completionRequirements.warnings.length > 0 && (
+              <SurveyCompletionReadinessPanel requirements={completionRequirements} />
+            )}
+          <Button
+            className="h-11 w-full text-sm font-semibold shadow-sm"
+            onClick={handleComplete}
+            disabled={updateStatus.isPending || !completionRequirements.canComplete}
+          >
+            <CheckCircle2Icon className="size-4" />
+            {updateStatus.isPending ? 'Đang lưu...' : 'Xác nhận khảo sát hoàn thành'}
+          </Button>
+        </div>
       )}
 
       {/* Technician complete */}
@@ -353,7 +375,7 @@ export function SurveyDetail({
               <SurveyCompletionReadinessPanel requirements={completionRequirements} />
             )}
           <Button
-            className="w-full"
+            className="h-11 w-full text-sm font-semibold shadow-sm"
             onClick={handleComplete}
             disabled={updateStatus.isPending || !completionRequirements.canComplete}
           >
@@ -550,7 +572,12 @@ export function SurveyDetail({
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm">Dữ liệu khảo sát</CardTitle>
                 {canEdit && (
-                  <Button variant="outline" size="sm" onClick={() => setEditMode(true)}>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="h-10 px-4 font-semibold"
+                    onClick={() => setEditMode(true)}
+                  >
                     <EditIcon className="size-3.5" />
                     {isCompleted ? 'Hiệu chỉnh' : hasSurveyData ? 'Chỉnh sửa' : 'Nhập liệu'}
                   </Button>
@@ -730,7 +757,7 @@ export function SurveyDetail({
           {existingQuotation ? (
             <Button
               variant="outline"
-              className="w-full"
+              className="h-11 w-full text-sm font-semibold shadow-sm"
               nativeButton={false}
               render={<Link href={`/quotations/${existingQuotation.id}`} />}
             >
@@ -739,7 +766,7 @@ export function SurveyDetail({
             </Button>
           ) : canCreateQuotation ? (
             <Button
-              className="w-full"
+              className="h-11 w-full text-sm font-semibold shadow-sm"
               nativeButton={false}
               render={<Link href={`/quotations/new?surveyId=${surveyId}`} />}
             >

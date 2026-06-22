@@ -733,7 +733,10 @@ export async function updateSurveyStatusAction(
 
     const parsed = updateSurveyStatusSchema.safeParse(input);
     if (!parsed.success) {
-      return { success: false, error: parsed.error.issues[0]?.message ?? 'Dữ liệu không hợp lệ' };
+      return {
+        success: false,
+        error: parsed.error.issues[0]?.message ?? 'Dữ liệu không hợp lệ',
+      };
     }
 
     const existing = await querySurveyById(id);
@@ -745,13 +748,20 @@ export async function updateSurveyStatusAction(
       !hasRole(sessionRoles, 'admin', 'director', 'sales');
 
     if (isTech) {
-      // Technician can only mark their own assigned survey as completed
       if (existing.assignedTo !== session.user.id) {
         return { success: false, error: 'Không có quyền cập nhật phiếu này' };
       }
       if (status !== 'completed') {
-        return { success: false, error: 'Kỹ thuật viên chỉ có thể đánh dấu hoàn thành' };
+        return {
+          success: false,
+          error: 'Kỹ thuật viên chỉ có thể đánh dấu hoàn thành',
+        };
       }
+    } else {
+      requireRole(sessionRoles, ...SURVEY_MANAGE_ROLES);
+    }
+
+    if (status === 'completed') {
       if (existing.status !== 'assigned') {
         return {
           success: false,
@@ -767,22 +777,37 @@ export async function updateSurveyStatusAction(
           error: formatSurveyCompletionBlockedMessage(completionReq),
         };
       }
-    } else {
-      requireRole(sessionRoles, ...SURVEY_MANAGE_ROLES);
-      if (status === 'completed') {
-        return { success: false, error: 'Chỉ kỹ thuật viên mới có thể đánh dấu hoàn thành' };
-      }
     }
 
     const now = new Date();
     const updates: Record<string, unknown> = { status, updatedAt: now };
 
     if (status === 'completed') updates.completedAt = now;
-    if (status === 'assigned' && assignedTo !== undefined) {
+    if ((status === 'assigned' || status === 'pending') && assignedTo !== undefined) {
       updates.assignedTo = assignedTo;
     }
+    if (status === 'pending') updates.completedAt = null;
 
     await db.update(surveys).set(updates).where(eq(surveys.id, id));
+
+    await createAuditLog({
+      userId: session.user.id,
+      action: `survey.status.${status}`,
+      resource: 'survey',
+      resourceId: id,
+      summary:
+        status === 'assigned'
+          ? assignedTo
+            ? `Phân công phiếu khảo sát ${existing.code}`
+            : `Gỡ phân công phiếu khảo sát ${existing.code}`
+          : status === 'completed'
+            ? `Xác nhận hoàn thành khảo sát ${existing.code}`
+            : status === 'cancelled'
+              ? `Hủy phiếu khảo sát ${existing.code}`
+              : `Cập nhật trạng thái khảo sát ${existing.code}`,
+      before: { status: existing.status, assignedTo: existing.assignedTo },
+      after: { status, assignedTo: assignedTo === undefined ? existing.assignedTo : assignedTo },
+    });
 
     if (status === 'assigned' && assignedTo) {
       await safeNotify(() =>

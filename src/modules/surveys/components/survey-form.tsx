@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { PlusIcon } from 'lucide-react';
+import { PlusIcon, SaveIcon } from 'lucide-react';
 import { useEffect } from 'react';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
@@ -64,7 +64,7 @@ export function SurveyForm({
     handleSubmit,
     setValue,
     getValues,
-    formState: { errors, isSubmitting },
+    formState: { errors, isDirty, isSubmitting },
   } = useForm<UpdateSurveyInput>({
     resolver: zodResolver(updateSurveySchema),
     defaultValues: {
@@ -83,6 +83,18 @@ export function SurveyForm({
   const pending = isPending || isSubmitting;
   const projectScale = (useWatch({ control, name: 'projectScale' }) ?? 'single') as ProjectScale;
   const isMulti = projectScale === 'multi';
+
+  useEffect(() => {
+    if (!isDirty) return;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
 
   useEffect(() => {
     if (projectScale === 'single') {
@@ -108,6 +120,13 @@ export function SurveyForm({
 
   const handleAddZone = () => {
     append(createEmptyZone(`Khu ${fields.length + 1}`));
+  };
+
+  const handleCancel = () => {
+    if (isDirty && !confirm('Bạn có thay đổi chưa lưu. Rời khỏi form và bỏ các thay đổi này?')) {
+      return;
+    }
+    onCancel();
   };
 
   return (
@@ -441,13 +460,29 @@ export function SurveyForm({
         </Card>
       )}
 
-      <div className="flex gap-2 justify-end">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>
-          Hủy
-        </Button>
-        <Button type="submit" disabled={pending}>
-          {pending ? 'Đang lưu...' : requireEditNote ? 'Lưu chỉnh sửa' : 'Lưu khảo sát'}
-        </Button>
+      <div className="sticky bottom-0 z-10 -mx-1 flex flex-col gap-2 border-t bg-background/95 p-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-muted-foreground">
+          {isDirty ? 'Có thay đổi chưa lưu' : 'Dữ liệu chỉ được lưu sau khi bấm nút lưu'}
+        </p>
+        <div className="flex gap-2 sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 flex-1 px-4 font-semibold sm:flex-none"
+            onClick={handleCancel}
+            disabled={pending}
+          >
+            Hủy
+          </Button>
+          <Button
+            type="submit"
+            className="h-11 flex-1 px-4 text-sm font-semibold shadow-sm sm:flex-none"
+            disabled={pending}
+          >
+            <SaveIcon className="size-4" />
+            {pending ? 'Đang lưu...' : requireEditNote ? 'Lưu chỉnh sửa' : 'Lưu khảo sát'}
+          </Button>
+        </div>
       </div>
     </form>
   );
