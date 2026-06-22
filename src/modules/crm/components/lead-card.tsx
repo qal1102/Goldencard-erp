@@ -2,6 +2,7 @@ import { TappableListCard } from '@/components/ui/tappable-list-card';
 import type { Lead } from '@/db/schema';
 import type { ProjectProgressView } from '@/lib/project-progress/types';
 import { cn } from '@/lib/utils';
+import { getLeadSalesProgress } from '../lib/lead-sales-progress';
 import type { LeadSource } from '../schema/lead.schema';
 import { LeadProgressSummary } from './lead-progress-summary';
 import { LeadSourceBadge } from './lead-source-badge';
@@ -21,6 +22,8 @@ function formatDate(date: Date | string) {
 }
 
 export function LeadCard({ lead, progress, className }: Props) {
+  const salesProgress = getLeadSalesProgress(lead);
+
   return (
     <TappableListCard
       href={`/crm/leads/${lead.id}`}
@@ -39,6 +42,21 @@ export function LeadCard({ lead, progress, className }: Props) {
       {lead.expectedCapacity && (
         <p className="mt-1.5 text-xs text-muted-foreground">{lead.expectedCapacity}</p>
       )}
+
+      <div
+        className={cn(
+          'mt-2 rounded-md border px-2 py-1.5 text-xs',
+          salesProgress.isFollowUpOverdue
+            ? 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100'
+            : 'bg-muted/50 text-muted-foreground',
+        )}
+      >
+        <p className="font-medium">{salesProgress.nextAction}</p>
+        <p className="mt-0.5">
+          Liên hệ: {salesProgress.lastContactLabel} · {salesProgress.callResultLabel}
+        </p>
+        {lead.followUpAt && <p className="mt-0.5">Hẹn lại: {salesProgress.followUpLabel}</p>}
+      </div>
 
       <div className="mt-2 flex items-center justify-between gap-1">
         <span className="text-xs text-muted-foreground">{formatDate(lead.createdAt)}</span>

@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ALL_STATUS_FILTER } from '@/lib/filters/status-filter';
+import { displayQuotationCode } from '@/modules/quotations/lib/quotation-display';
 import type { ContractRow } from '../lib/contract.queries';
 import {
   CONTRACT_STATUS_LABELS,
@@ -156,7 +157,8 @@ export function ContractList({ initialData, initialError = null }: Props) {
                 <p className="text-xs text-muted-foreground">
                   {c.quotation ? (
                     <>
-                      Tạo từ báo giá <span className="font-mono">{c.quotation.code}</span>
+                      Tạo từ báo giá{' '}
+                      <span className="font-mono">{displayQuotationCode(c.quotation.code)}</span>
                     </>
                   ) : (
                     '—'

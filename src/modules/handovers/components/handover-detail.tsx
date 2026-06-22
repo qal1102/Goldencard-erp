@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
+import { displayQuotationCode } from '@/modules/quotations/lib/quotation-display';
 import {
   HANDOVER_STATUS_LABELS,
   HANDOVER_STATUS_TRANSITIONS,
@@ -243,7 +244,7 @@ export function HandoverDetail({ handoverId, canWrite, canCreateWarranty = false
                 href={`/quotations/${handover.quotation.id}`}
                 className="block font-mono text-primary hover:underline"
               >
-                {handover.quotation.code}
+                {displayQuotationCode(handover.quotation.code)}
               </Link>
             </div>
           ) : null}

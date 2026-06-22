@@ -24,6 +24,7 @@ import type { LeadActivity } from '@/db/schema';
 import { buildFullAddress } from '@/lib/address/format-address';
 import { getProgressRecord } from '@/lib/project-progress/types';
 import { QuotationStatusBadge } from '@/modules/quotations/components/quotation-status-badge';
+import { displayQuotationCode } from '@/modules/quotations/lib/quotation-display';
 import type { QuotationStatus } from '@/modules/quotations/schema/quotation.schema';
 import { CreateSurveyDialog } from '@/modules/surveys/components/create-survey-dialog';
 import { SurveyStatusBadge } from '@/modules/surveys/components/survey-status-badge';
@@ -401,8 +402,7 @@ export function CustomerDetail({
             >
               <div className="flex flex-col gap-0.5">
                 <span className="font-mono text-xs font-semibold text-primary">
-                  {q.code}
-                  {q.revisionNumber > 1 ? ` · v${q.revisionNumber}` : ''}
+                  {displayQuotationCode(q.code)}
                 </span>
                 <span className="text-xs tabular-nums text-muted-foreground">
                   {formatCurrency(q.grandTotal)}

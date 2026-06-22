@@ -25,17 +25,21 @@ export async function nextQuotationCode(): Promise<string> {
   return `BG-${seq.toString().padStart(4, '0')}`;
 }
 
-export async function queryQuotations(filters: QuotationFilters = {}) {
-  const conditions = [];
-  if (filters.status) conditions.push(eq(quotations.status, filters.status));
-  if (filters.customerId) conditions.push(eq(quotations.customerId, filters.customerId));
-  conditions.push(sql`
+export function latestQuotationRevisionCondition() {
+  return sql`
     ${quotations.revisionNumber} = (
       select max(q2.revision_number)
       from quotations q2
       where q2.survey_id = ${quotations.surveyId}
     )
-  `);
+  `;
+}
+
+export async function queryQuotations(filters: QuotationFilters = {}) {
+  const conditions = [];
+  if (filters.status) conditions.push(eq(quotations.status, filters.status));
+  if (filters.customerId) conditions.push(eq(quotations.customerId, filters.customerId));
+  conditions.push(latestQuotationRevisionCondition());
 
   return db.query.quotations.findMany({
     where: and(...conditions),

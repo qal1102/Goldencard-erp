@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { EditableAddressCard } from '@/components/address/editable-address-card';
 import { BackButton } from '@/components/navigation/back-button';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -18,6 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { Lead } from '@/db/schema';
 import { CreateSurveyDialog } from '@/modules/surveys/components/create-survey-dialog';
 import { useLead, useUpdateLeadInstallationAddress, useUpdateLeadStatus } from '../hooks/use-leads';
+import { getLeadSalesProgress } from '../lib/lead-sales-progress';
 import {
   LEAD_SOURCE_LABELS,
   type LeadSource,
@@ -103,6 +105,7 @@ export function LeadDetail({
     Boolean(leadTyped.linkedCustomer ?? leadTyped.customer);
   const canCreateSurvey = canCreateSurveyFromLead || canCreateSurveyFromCustomer;
   const masterCustomer = leadTyped.linkedCustomer ?? leadTyped.customer;
+  const salesProgress = getLeadSalesProgress(leadTyped);
 
   const handleStatusChange = async (status: LeadStatus, lostReason?: string) => {
     const result = await updateStatus.mutateAsync({ status, lostReason });
@@ -172,6 +175,33 @@ export function LeadDetail({
       )}
 
       <LeadProjectProgressCard leadId={leadId} leadStatus={leadTyped.status as LeadStatus} />
+
+      <Card
+        className={
+          salesProgress.isFollowUpOverdue
+            ? 'border-amber-300 dark:border-amber-900'
+            : undefined
+        }
+      >
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between gap-2 text-sm">
+            <span>Theo dõi sales</span>
+            {salesProgress.isFollowUpOverdue && (
+              <Badge variant="outline" className="border-amber-300 text-amber-700">
+                Quá hẹn
+              </Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2">
+          <DetailRow label="Phụ trách" value={leadTyped.assignedUser?.name ?? 'Chưa phân công'} />
+          <DetailRow label="Bước tiếp theo" value={salesProgress.nextAction} />
+          <DetailRow label="Lần liên hệ cuối" value={salesProgress.lastContactLabel} />
+          <DetailRow label="Kết quả gọi gần nhất" value={salesProgress.callResultLabel} />
+          <DetailRow label="Lịch hẹn lại" value={salesProgress.followUpLabel} />
+          <DetailRow label="Trạng thái sales" value={salesProgress.statusLabel} />
+        </CardContent>
+      </Card>
 
       <EditableAddressCard
         title="Địa chỉ lắp đặt dự án"

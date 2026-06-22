@@ -24,6 +24,7 @@ import {
   useUpdateContractInfo,
   useUpdateContractStatus,
 } from '../hooks/use-contracts';
+import { displayQuotationCode } from '@/modules/quotations/lib/quotation-display';
 import { ContractStatusBadge } from './contract-status-badge';
 
 function formatCurrency(value: string | number | null | undefined): string {
@@ -329,13 +330,7 @@ export function ContractDetail({ contractId, canWrite, canApprove }: Props) {
                   href={`/quotations/${quotation.id}`}
                   className="font-mono text-primary hover:underline"
                 >
-                  {quotation.code}
-                  {quotation.revisionNumber != null && (
-                    <span className="text-muted-foreground">
-                      {' '}
-                      · v{quotation.revisionNumber}
-                    </span>
-                  )}
+                  {displayQuotationCode(quotation.code)}
                 </Link>
               </p>
             </div>

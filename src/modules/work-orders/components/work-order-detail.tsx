@@ -27,6 +27,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { useCreateHandoverFromWorkOrder } from '@/modules/handovers/hooks/use-handovers';
+import { displayQuotationCode } from '@/modules/quotations/lib/quotation-display';
 import { useTechnicianUsers } from '@/modules/surveys/hooks/use-surveys';
 import {
   WORK_ORDER_STATUS_LABELS,
@@ -339,7 +340,7 @@ export function WorkOrderDetail({ workOrderId, canWrite }: Props) {
                 href={`/quotations/${workOrder.quotation.id}`}
                 className="block font-mono text-primary hover:underline"
               >
-                {workOrder.quotation.code}
+                {displayQuotationCode(workOrder.quotation.code)}
               </Link>
             </div>
           ) : null}

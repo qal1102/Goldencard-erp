@@ -6,7 +6,6 @@ import { auth } from '@/auth';
 import { db } from '@/db';
 import { inventoryItems } from '@/db/schema';
 import { createAuditLog } from '@/lib/audit/create-audit-log';
-import { requireSuperAdminAction } from '@/lib/auth/super-admin';
 import {
   inventoryItemFiltersSchema,
   inventoryItemFormSchema,
@@ -19,13 +18,6 @@ import { queryInventoryItemBySku, queryInventoryItems } from '../lib/inventory-i
 export type InventoryActionResult<T = void> =
   | { success: true; data: T }
   | { success: false; error: string };
-
-async function requireInventoryAdmin(action: string) {
-  const session = await auth();
-  await requireSuperAdminAction(session, action);
-  if (!session?.user?.id) throw new Error('Unauthorized');
-  return session;
-}
 
 async function requireInventoryViewer() {
   const session = await auth();
@@ -86,7 +78,7 @@ export async function getInventoryExistingSkusAction(
   skus: string[],
 ): Promise<InventoryActionResult<string[]>> {
   try {
-    await requireInventoryAdmin('inventory.items.preview_existing_skus');
+    await requireInventoryViewer();
 
     const normalizedSkus = Array.from(
       new Set(skus.map((sku) => sku.trim().toUpperCase()).filter(Boolean)),
@@ -118,7 +110,7 @@ export async function createInventoryItemAction(
   input: InventoryItemFormInput,
 ): Promise<InventoryActionResult<{ id: string }>> {
   try {
-    const session = await requireInventoryAdmin('inventory.items.create');
+    const session = await requireInventoryViewer();
 
     const parsed = inventoryItemFormSchema.safeParse(input);
     if (!parsed.success) {
@@ -178,7 +170,7 @@ export async function updateInventoryItemAction(
   input: InventoryItemFormInput,
 ): Promise<InventoryActionResult> {
   try {
-    const session = await requireInventoryAdmin('inventory.items.update');
+    const session = await requireInventoryViewer();
 
     const parsed = inventoryItemFormSchema.safeParse(input);
     if (!parsed.success) {
@@ -255,7 +247,7 @@ export async function importInventoryItemsAction(
   input: InventoryItemFormInput[],
 ): Promise<InventoryActionResult<{ created: number; updated: number }>> {
   try {
-    const session = await requireInventoryAdmin('inventory.items.import');
+    const session = await requireInventoryViewer();
 
     if (!Array.isArray(input) || input.length === 0) {
       return { success: false, error: 'Không có dòng vật tư hợp lệ để import' };

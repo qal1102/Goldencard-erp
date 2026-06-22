@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
+import { displayQuotationCode } from '@/modules/quotations/lib/quotation-display';
 import {
   WARRANTY_TICKET_STATUS_LABELS,
   WARRANTY_TICKET_STATUS_TRANSITIONS,
@@ -314,7 +315,7 @@ export function WarrantyTicketDetail({ ticketId, canWrite }: Props) {
             <div>
               <Label className="text-xs text-muted-foreground">Báo giá</Label>
               <Link href={`/quotations/${ticket.quotation.id}`} className="block font-mono text-primary hover:underline">
-                {ticket.quotation.code}
+                {displayQuotationCode(ticket.quotation.code)}
               </Link>
             </div>
           )}

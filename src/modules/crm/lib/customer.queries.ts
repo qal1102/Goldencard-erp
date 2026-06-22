@@ -5,6 +5,7 @@ import type { SQL } from 'drizzle-orm';
 import { db } from '@/db';
 import { customers, leadActivities, leads, quotations, surveys } from '@/db/schema';
 import { modulePerfLog, modulePerfTimed } from '@/lib/server/module-list-log';
+import { latestQuotationRevisionCondition } from '@/modules/quotations/lib/quotation.queries';
 import type { CustomerFilters } from '../schema/customer.schema';
 
 export async function queryCustomerById(id: string) {
@@ -82,7 +83,7 @@ export async function queryCustomerById(id: string) {
   const customerQuotations =
     quotationConditions.length > 0
       ? await db.query.quotations.findMany({
-          where: or(...quotationConditions),
+          where: and(or(...quotationConditions), latestQuotationRevisionCondition()),
           columns: {
             id: true,
             code: true,

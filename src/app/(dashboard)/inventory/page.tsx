@@ -1,6 +1,5 @@
 import { Badge } from '@/components/ui/badge';
 import { verifySession } from '@/lib/auth/dal';
-import { assertSuperAdminFromDb } from '@/lib/auth/super-admin';
 import { InventoryItemCatalog } from '@/modules/inventory/components/inventory-item-catalog';
 import { WarehouseStockPanel } from '@/modules/inventory/components/warehouse-stock-panel';
 import { loadInventoryItemsList } from '@/modules/inventory/lib/inventory-item-load';
@@ -12,8 +11,7 @@ import {
 } from '@/modules/inventory/lib/warehouse-load';
 
 export default async function InventoryPage() {
-  const session = await verifySession();
-  const isSuperAdmin = await assertSuperAdminFromDb(session.user.id);
+  await verifySession();
 
   const [
     itemsResult,
@@ -37,20 +35,20 @@ export default async function InventoryPage() {
           <Badge variant="outline">Vật tư</Badge>
           <Badge variant="outline">Tồn kho</Badge>
           <Badge variant="outline">Nhập / xuất</Badge>
-          {!isSuperAdmin && <Badge variant="outline">Chế độ xem</Badge>}
+          <Badge variant="outline">Nội bộ nhập liệu</Badge>
         </div>
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Kho vật tư</h1>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
             Theo dõi danh mục vật tư, kho vật lý, số tồn theo kho và lịch sử
-            nhập/xuất. Super Admin được thao tác dữ liệu kho; các tài khoản khác
-            có thể xem để nắm vật tư.
+            nhập/xuất. Tất cả tài khoản nội bộ đã đăng nhập có thể cùng nhập liệu;
+            hệ thống vẫn lưu nhật ký người thao tác để truy vết.
           </p>
         </div>
       </div>
 
       <WarehouseStockPanel
-        canManageInventory={isSuperAdmin}
+        canManageInventory
         initialWarehouses={warehousesResult.success ? warehousesResult.data : undefined}
         initialWarehouseError={warehousesResult.success ? null : warehousesResult.error}
         initialStocks={stocksResult.success ? stocksResult.data : undefined}
@@ -63,7 +61,7 @@ export default async function InventoryPage() {
       />
 
       <InventoryItemCatalog
-        canManageInventory={isSuperAdmin}
+        canManageInventory
         initialItems={itemsResult.success ? itemsResult.data : undefined}
         initialError={itemsResult.success ? null : itemsResult.error}
       />

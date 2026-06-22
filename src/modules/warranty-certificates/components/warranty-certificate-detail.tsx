@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { displayQuotationCode } from '@/modules/quotations/lib/quotation-display';
 import { getPublicWarrantyCheckUrl } from '../lib/public-url';
 import { resolveSupportPhone } from '../lib/support-phone';
 import { useWarrantyCertificate } from '../hooks/use-warranty-certificates';
@@ -190,7 +191,7 @@ export function WarrantyCertificateDetail({ certificateId }: Props) {
                 href={`/quotations/${certificate.quotation.id}`}
                 className="block font-mono text-primary hover:underline"
               >
-                {certificate.quotation.code}
+                {displayQuotationCode(certificate.quotation.code)}
               </Link>
             </div>
           )}

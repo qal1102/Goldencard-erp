@@ -7,7 +7,7 @@ import {
   ShieldAlertIcon,
   WrenchIcon,
 } from 'lucide-react';
-import { count, desc, gte, inArray } from 'drizzle-orm';
+import { and, count, desc, gte, inArray } from 'drizzle-orm';
 import { Badge } from '@/components/ui/badge';
 import {
   Card,
@@ -24,6 +24,8 @@ import {
   QUOTATION_STATUS_LABELS,
   type QuotationStatus,
 } from '@/modules/quotations/schema/quotation.schema';
+import { latestQuotationRevisionCondition } from '@/modules/quotations/lib/quotation.queries';
+import { displayQuotationCode } from '@/modules/quotations/lib/quotation-display';
 
 const activeLeadStatuses = [
   'new',
@@ -71,7 +73,12 @@ export default async function DashboardPage() {
     db
       .select({ value: count() })
       .from(quotations)
-      .where(inArray(quotations.status, quotationActionStatuses)),
+      .where(
+        and(
+          inArray(quotations.status, quotationActionStatuses),
+          latestQuotationRevisionCondition(),
+        ),
+      ),
     db
       .select({ value: count() })
       .from(workOrders)
@@ -99,7 +106,10 @@ export default async function DashboardPage() {
         grandTotal: true,
         createdAt: true,
       },
-      where: inArray(quotations.status, quotationActionStatuses),
+      where: and(
+        inArray(quotations.status, quotationActionStatuses),
+        latestQuotationRevisionCondition(),
+      ),
       orderBy: [desc(quotations.createdAt)],
       limit: 5,
     }),
@@ -241,7 +251,7 @@ export default async function DashboardPage() {
                 <div className="min-w-0">
                   <p className="text-[11px] uppercase text-muted-foreground">Mã báo giá</p>
                   <p className="truncate font-mono text-sm font-semibold text-primary">
-                    {quotation.code}
+                    {displayQuotationCode(quotation.code)}
                   </p>
                   <p className="mt-1 text-[11px] uppercase text-muted-foreground">
                     Tổng giá trị

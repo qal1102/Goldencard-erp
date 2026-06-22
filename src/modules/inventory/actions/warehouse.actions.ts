@@ -12,7 +12,6 @@ import {
   warehouses,
 } from '@/db/schema';
 import { createAuditLog } from '@/lib/audit/create-audit-log';
-import { requireSuperAdminAction } from '@/lib/auth/super-admin';
 import { serializeWarehouses } from '../lib/warehouse-serialize';
 import {
   queryInventoryStockMovementRows,
@@ -34,13 +33,6 @@ import {
 export type WarehouseActionResult<T = void> =
   | { success: true; data: T }
   | { success: false; error: string };
-
-async function requireWarehouseAdmin(action: string) {
-  const session = await auth();
-  await requireSuperAdminAction(session, action);
-  if (!session?.user?.id) throw new Error('Unauthorized');
-  return session;
-}
 
 async function requireWarehouseViewer() {
   const session = await auth();
@@ -159,7 +151,7 @@ export async function createWarehouseAction(
   input: WarehouseFormInput,
 ): Promise<WarehouseActionResult<{ id: string }>> {
   try {
-    const session = await requireWarehouseAdmin('inventory.warehouses.create');
+    const session = await requireWarehouseViewer();
 
     const parsed = warehouseFormSchema.safeParse(input);
     if (!parsed.success) {
@@ -220,7 +212,7 @@ export async function updateWarehouseAction(
   input: WarehouseFormInput,
 ): Promise<WarehouseActionResult> {
   try {
-    const session = await requireWarehouseAdmin('inventory.warehouses.update');
+    const session = await requireWarehouseViewer();
 
     const parsed = warehouseFormSchema.safeParse(input);
     if (!parsed.success) {
@@ -290,7 +282,7 @@ export async function adjustInventoryStockAction(
   input: InventoryStockAdjustmentInput,
 ): Promise<WarehouseActionResult> {
   try {
-    const session = await requireWarehouseAdmin('inventory.stocks.adjust');
+    const session = await requireWarehouseViewer();
 
     const parsed = inventoryStockAdjustmentSchema.safeParse(input);
     if (!parsed.success) {
@@ -382,7 +374,7 @@ export async function createInventoryStockMovementAction(
   input: InventoryStockMovementInput,
 ): Promise<WarehouseActionResult> {
   try {
-    const session = await requireWarehouseAdmin('inventory.stock_movements.create');
+    const session = await requireWarehouseViewer();
 
     const parsed = inventoryStockMovementSchema.safeParse(input);
     if (!parsed.success) {

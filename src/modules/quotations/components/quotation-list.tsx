@@ -15,6 +15,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { ALL_STATUS_FILTER } from '@/lib/filters/status-filter';
 import type { QuotationRow } from '../lib/quotation.queries';
+import { displayQuotationCode } from '../lib/quotation-display';
 import {
   QUOTATION_STATUS_LABELS,
   QUOTATION_STATUSES,
@@ -31,10 +32,6 @@ function formatCurrency(value: string | number | null | undefined): string {
     currency: 'VND',
     maximumFractionDigits: 0,
   }).format(num);
-}
-
-function displayQuotationCode(code: string) {
-  return code.replace(/-V\d+$/i, '');
 }
 
 type Props = {

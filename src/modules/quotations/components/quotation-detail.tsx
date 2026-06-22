@@ -18,6 +18,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { QuotationStatus } from '../schema/quotation.schema';
 import type { QuotationDetail as QuotationDetailData } from '../lib/quotation.queries';
+import { displayQuotationCode } from '../lib/quotation-display';
 import { isQuotationEditable } from '../lib/quotation-resend';
 import { useQuotation } from '../hooks/use-quotations';
 import { LeadConsultationContextCard } from '@/modules/crm/components/lead-consultation-context-card';
@@ -39,10 +40,6 @@ function formatCurrency(value: string | number | null | undefined): string {
     currency: 'VND',
     maximumFractionDigits: 0,
   }).format(num);
-}
-
-function displayQuotationCode(code: string) {
-  return code.replace(/-V\d+$/i, '');
 }
 
 function revisionReason(revision: NonNullable<QuotationDetailData['revisionHistory']>[number]) {
