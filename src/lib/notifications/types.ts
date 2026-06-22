@@ -46,8 +46,8 @@ export type NotificationRow = {
   entityId: string | null;
   href: string | null;
   isRead: boolean;
-  readAt: Date | null;
-  createdAt: Date;
+  readAt: Date | string | null;
+  createdAt: Date | string;
 };
 
 export type CreateNotificationsOptions = {

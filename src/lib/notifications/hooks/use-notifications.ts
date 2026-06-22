@@ -7,6 +7,7 @@ import {
   markAllNotificationsReadAction,
   markNotificationReadAction,
 } from '../actions';
+import type { NotificationRow } from '../types';
 
 export const notificationKeys = {
   all: ['notifications'] as const,
@@ -14,7 +15,10 @@ export const notificationKeys = {
   unreadCount: () => ['notifications', 'unread-count'] as const,
 };
 
-export function useNotifications(limit = 20, options?: { enabled?: boolean }) {
+export function useNotifications(
+  limit = 20,
+  options?: { enabled?: boolean; initialData?: NotificationRow[] },
+) {
   return useQuery({
     queryKey: notificationKeys.list(limit),
     queryFn: async () => {
@@ -22,9 +26,11 @@ export function useNotifications(limit = 20, options?: { enabled?: boolean }) {
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
+    initialData: options?.initialData,
     enabled: options?.enabled ?? true,
     staleTime: 60_000,
     refetchInterval: 120_000,
+    refetchOnMount: options?.initialData ? false : true,
     refetchOnWindowFocus: true,
   });
 }

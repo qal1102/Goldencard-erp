@@ -37,7 +37,7 @@ export async function getMyNotificationsAction(
 ): Promise<ActionResult<NotificationRow[]>> {
   try {
     const session = await getSessionOrThrow();
-    const safeLimit = Math.min(Math.max(limit, 1), 50);
+    const safeLimit = Math.min(Math.max(limit, 1), 200);
 
     const rows = await db.query.notifications.findMany({
       where: eq(notifications.recipientUserId, session.user.id),

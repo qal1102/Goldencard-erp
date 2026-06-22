@@ -69,15 +69,23 @@ function NotificationItem({
 function NotificationList({
   notifications,
   isLoading,
+  isError = false,
+  errorMessage,
   onOpen,
   onMarkAllRead,
   isMarkingAll,
+  showFooterLink = true,
+  maxHeightClassName = 'max-h-[min(24rem,60vh)]',
 }: {
   notifications: NotificationRow[] | undefined;
   isLoading: boolean;
+  isError?: boolean;
+  errorMessage?: string;
   onOpen: (notification: NotificationRow) => void;
   onMarkAllRead: () => void;
   isMarkingAll: boolean;
+  showFooterLink?: boolean;
+  maxHeightClassName?: string;
 }) {
   if (isLoading) {
     return (
@@ -88,10 +96,21 @@ function NotificationList({
     );
   }
 
+  if (isError && !notifications?.length) {
+    return (
+      <div className="px-4 py-8 text-center">
+        <p className="text-sm font-medium text-foreground">Chưa tải được thông báo</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {errorMessage || 'Vui lòng tải lại trang hoặc thử lại sau.'}
+        </p>
+      </div>
+    );
+  }
+
   if (!notifications?.length) {
     return (
       <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-        Không có thông báo mới
+        Chưa có thông báo
       </div>
     );
   }
@@ -113,7 +132,7 @@ function NotificationList({
           Đánh dấu tất cả đã đọc
         </Button>
       </div>
-      <ScrollArea className="max-h-[min(24rem,60vh)]">
+      <ScrollArea className={maxHeightClassName}>
         <div className="space-y-1.5 p-2">
           {notifications.map((notification) => (
             <NotificationItem
@@ -124,14 +143,16 @@ function NotificationList({
           ))}
         </div>
       </ScrollArea>
-      <div className="border-t px-3 py-2">
-        <Link
-          href="/notifications"
-          className="inline-flex h-8 w-full items-center justify-center rounded-lg text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          Xem tất cả thông báo
-        </Link>
-      </div>
+      {showFooterLink && (
+        <div className="border-t px-3 py-2">
+          <Link
+            href="/notifications"
+            className="inline-flex h-8 w-full items-center justify-center rounded-lg text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            Xem tất cả thông báo
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
@@ -202,9 +223,26 @@ export function NotificationBell() {
   );
 }
 
-export function NotificationsPanel({ limit = 50 }: { limit?: number }) {
+export function NotificationsPanel({
+  limit = 50,
+  initialNotifications,
+  initialError,
+  showFooterLink = true,
+}: {
+  limit?: number;
+  initialNotifications?: NotificationRow[];
+  initialError?: string | null;
+  showFooterLink?: boolean;
+}) {
   const router = useRouter();
-  const { data: notifications, isLoading } = useNotifications(limit);
+  const {
+    data: notifications,
+    isLoading,
+    isError,
+    error,
+  } = useNotifications(limit, {
+    initialData: initialNotifications,
+  });
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
 
@@ -237,9 +275,13 @@ export function NotificationsPanel({ limit = 50 }: { limit?: number }) {
       <NotificationList
         notifications={notifications}
         isLoading={isLoading}
+        isError={Boolean(initialError) || isError}
+        errorMessage={initialError || (error instanceof Error ? error.message : undefined)}
         onOpen={handleOpenNotification}
         onMarkAllRead={() => markAllRead.mutate()}
         isMarkingAll={markAllRead.isPending}
+        showFooterLink={showFooterLink}
+        maxHeightClassName="max-h-[calc(100vh-16rem)]"
       />
     </div>
   );
