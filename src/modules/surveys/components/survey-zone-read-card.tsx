@@ -85,7 +85,9 @@ export function SurveyZoneReadCard({ zone, defaultOpen = false, isLegacy }: Prop
           label="Loại mái"
           value={
             zone.roofType
-              ? (ROOF_TYPE_LABELS[zone.roofType as RoofType] ?? zone.roofType)
+              ? zone.roofType === 'other' && zone.roofMaterial
+                ? `${ROOF_TYPE_LABELS[zone.roofType as RoofType] ?? zone.roofType} - ${zone.roofMaterial}`
+                : (ROOF_TYPE_LABELS[zone.roofType as RoofType] ?? zone.roofType)
               : null
           }
         />
@@ -102,9 +104,9 @@ export function SurveyZoneReadCard({ zone, defaultOpen = false, isLegacy }: Prop
         />
         <DetailRow label="Vị trí inverter khu vực" value={zone.inverterLocation} />
         <DetailRow label="Độ khó thi công" value={difficultyLabel} />
-        <DetailRow label="Ghi chú vật tư/phương án" value={zone.extraMaterialsNote} />
+        <DetailRow label="Ghi chú vật tư phát sinh cho báo giá" value={zone.extraMaterialsNote} />
         {zone.installationPlanNote && (
-          <DetailRow label="Kế hoạch thi công" value={zone.installationPlanNote} />
+          <DetailRow label="Gợi ý phương án lắp đặt" value={zone.installationPlanNote} />
         )}
         {zone.roofStructureCondition && (
           <DetailRow label="Kết cấu mái" value={zone.roofStructureCondition} />

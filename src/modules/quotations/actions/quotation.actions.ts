@@ -93,6 +93,11 @@ async function getSessionOrThrow() {
 const toNull = (v: string | null | undefined): string | null =>
   v?.trim() ? v.trim() : null;
 
+function buildRevisionCode(sourceCode: string, revisionNumber: number): string | null {
+  const code = `${sourceCode}-V${revisionNumber}`;
+  return code.length <= 20 ? code : null;
+}
+
 /**
  * All financial totals are computed here — never trusted from the client.
  *
@@ -672,12 +677,13 @@ export async function createQuotationRevisionAction(
     }
 
     const nextRevision = (await queryMaxRevisionNumber(source.surveyId)) + 1;
+    const revisionCode = buildRevisionCode(source.code, nextRevision) ?? (await nextQuotationCode());
 
     const revision = await db.transaction(async (tx) => {
       const [row] = await tx
         .insert(quotations)
         .values({
-          code: source.code,
+          code: revisionCode,
           customerId: source.customerId,
           surveyId: source.surveyId,
           revisionNumber: nextRevision,

@@ -63,6 +63,7 @@ export function SurveyZoneFormCard({
 }: Props) {
   const zoneErrors = errors.zones?.[index];
   const zoneName = useWatch({ control, name: `zones.${index}.zoneName` });
+  const roofType = useWatch({ control, name: `zones.${index}.roofType` });
   const recommendedSystemKw = useWatch({ control, name: `zones.${index}.recommendedSystemKw` });
   const panelWattageW = useWatch({ control, name: `zones.${index}.panelWattageW` });
   const recommendedPanelQuantity = useWatch({
@@ -164,6 +165,12 @@ export function SurveyZoneFormCard({
               </Select>
             )}
           />
+          {roofType === 'other' && (
+            <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+              Đã chọn loại mái khác. Ghi rõ loại mái thực tế ở ô vật liệu mái hoặc
+              tình trạng kết cấu mái để báo giá và thi công hiểu đúng.
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -370,21 +377,33 @@ export function SurveyZoneFormCard({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`zone-${index}-extraMaterialsNote`}>Vật tư phụ</Label>
+          <Label htmlFor={`zone-${index}-extraMaterialsNote`}>
+            Ghi chú vật tư phát sinh cho báo giá
+          </Label>
           <Textarea
             id={`zone-${index}-extraMaterialsNote`}
             rows={2}
+            placeholder="VD: cần thêm rail, kẹp, dây DC/AC, phụ kiện chống thấm..."
             {...register(`zones.${index}.extraMaterialsNote`)}
           />
+          <p className="text-xs text-muted-foreground">
+            Đây là ghi chú kỹ thuật để người lập báo giá tham khảo, không thay thế phiếu xuất kho hoặc lệnh thi công.
+          </p>
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`zone-${index}-installationPlanNote`}>Kế hoạch thi công</Label>
+          <Label htmlFor={`zone-${index}-installationPlanNote`}>
+            Gợi ý phương án lắp đặt
+          </Label>
           <Textarea
             id={`zone-${index}-installationPlanNote`}
             rows={2}
+            placeholder="VD: hướng đi dây, vị trí đặt inverter, lưu ý an toàn khi thi công..."
             {...register(`zones.${index}.installationPlanNote`)}
           />
+          <p className="text-xs text-muted-foreground">
+            Kế hoạch thi công chính thức sẽ được chốt ở module Lệnh thi công.
+          </p>
         </div>
       </div>
     </details>
