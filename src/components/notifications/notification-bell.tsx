@@ -6,7 +6,6 @@ import { useEffect, useRef, useState } from 'react';
 import { BellIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { NotificationRow } from '@/lib/notifications/types';
 import {
@@ -132,7 +131,7 @@ function NotificationList({
           Đánh dấu tất cả đã đọc
         </Button>
       </div>
-      <ScrollArea className={maxHeightClassName}>
+      <div className={cn('overflow-y-auto overscroll-contain', maxHeightClassName)}>
         <div className="space-y-1.5 p-2">
           {notifications.map((notification) => (
             <NotificationItem
@@ -142,7 +141,7 @@ function NotificationList({
             />
           ))}
         </div>
-      </ScrollArea>
+      </div>
       {showFooterLink && (
         <div className="border-t px-3 py-2">
           <Link
