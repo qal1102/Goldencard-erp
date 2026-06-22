@@ -1070,9 +1070,9 @@ export function InventoryItemCatalog({
         </div>
       </div>
 
-      <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-        Catalog này chưa trừ tồn thật. Bước này chỉ chuẩn hóa mã vật tư, đơn vị,
-        nhóm và trạng thái để chuẩn bị nối tồn kho/BOM.
+      <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+        Danh mục vật tư là dữ liệu nền cho tồn kho. Sau khi mã vật tư ổn định,
+        bạn có thể nhập tồn ban đầu, nhập kho hoặc xuất kho ở phần tồn kho phía trên.
       </div>
 
       {error && (
@@ -1136,10 +1136,10 @@ export function InventoryItemCatalog({
             <BoxesIcon className="size-4" />
           </div>
           <div>
-            <p className="text-sm font-medium">Bước sau catalog</p>
+            <p className="text-sm font-medium">Luồng kho tiếp theo</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Sau khi mã vật tư ổn, bước tiếp theo là kho vật lý và số tồn theo kho.
-              Sau đó mới nối BOM từ báo giá/lệnh thi công.
+              Khi tồn kho đã ổn, bước tiếp theo nên là phiếu kho chuẩn, giữ vật tư
+              cho công trình và nối BOM từ báo giá/lệnh thi công.
             </p>
           </div>
         </div>

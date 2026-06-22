@@ -20,16 +20,15 @@ export default async function InventoryPage() {
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="secondary">Kho bước 2</Badge>
+          <Badge variant="secondary">Quản lý kho</Badge>
           <Badge variant="outline">Chỉ Super Admin</Badge>
         </div>
         <Card>
           <CardContent className="p-5">
-            <h1 className="text-lg font-semibold">Bạn chưa có quyền quản lý Kho</h1>
+            <h1 className="text-lg font-semibold">Bạn chưa có quyền quản lý kho</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Module Kho hiện đang ở bước catalog vật tư và chỉ mở cho Super Admin.
-              Nếu bạn cần thao tác ở đây, hãy dùng tài khoản Super Admin hoặc cập nhật
-              phân quyền trước.
+              Module kho đang dùng cho danh mục vật tư, kho vật lý, tồn kho và nhập/xuất
+              kho. Chỉ Super Admin được thao tác để tránh sai lệch số tồn.
             </p>
           </CardContent>
         </Card>
@@ -55,15 +54,17 @@ export default async function InventoryPage() {
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="secondary">Kho bước 2</Badge>
-          <Badge variant="outline">Catalog vật tư</Badge>
-          <Badge variant="outline">Chỉ Super Admin</Badge>
+          <Badge variant="secondary">Quản lý kho</Badge>
+          <Badge variant="outline">Vật tư</Badge>
+          <Badge variant="outline">Tồn kho</Badge>
+          <Badge variant="outline">Nhập / xuất</Badge>
         </div>
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Danh mục vật tư</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Kho vật tư</h1>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-            Chuẩn hóa mã vật tư, tên, nhóm, đơn vị và tồn tối thiểu trước khi bật tồn
-            kho thật. Bước này chưa nhập kho, xuất kho, giữ hàng hoặc nối BOM.
+            Theo dõi danh mục vật tư, kho vật lý, số tồn theo kho và lịch sử
+            nhập/xuất. Khi xuất kho có thể gắn với lệnh thi công để giữ được
+            dấu vết công trình.
           </p>
         </div>
       </div>

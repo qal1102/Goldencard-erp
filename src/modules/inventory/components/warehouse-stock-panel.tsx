@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import {
+  AlertTriangleIcon,
   ArrowDownToLineIcon,
   ArrowUpFromLineIcon,
   EditIcon,
@@ -174,8 +175,8 @@ function WarehouseDialog({
           <DialogHeader>
             <DialogTitle>{mode.type === 'edit' ? 'Sửa kho' : 'Tạo kho'}</DialogTitle>
             <DialogDescription>
-              Kho vật lý dùng để theo dõi tồn theo địa điểm. Số tồn sẽ được cập nhật ở
-              bước phiếu nhập/xuất sau.
+              Kho vật lý dùng để theo dõi tồn theo địa điểm. Sau khi tạo kho, bạn có thể
+              cập nhật tồn ban đầu, nhập kho hoặc xuất kho cho công trình.
             </DialogDescription>
           </DialogHeader>
 
@@ -340,6 +341,39 @@ export function WarehouseStockPanel({
     };
   }, [filteredStocks]);
 
+  const lowStockRows = useMemo(() => {
+    const stockByItem = new Map<string, number>();
+    for (const row of filteredStocks) {
+      stockByItem.set(
+        row.itemId,
+        (stockByItem.get(row.itemId) ?? 0) + Number(row.quantityOnHand),
+      );
+    }
+
+    return inventoryItems
+      .filter((item) => item.isActive && Number(item.minStock) > 0)
+      .map((item) => {
+        const quantityOnHand = stockByItem.get(item.id) ?? 0;
+        const minStock = Number(item.minStock);
+        return {
+          id: item.id,
+          sku: item.sku,
+          name: item.name,
+          unit: item.unit,
+          quantityOnHand,
+          minStock,
+          shortage: Math.max(minStock - quantityOnHand, 0),
+        };
+      })
+      .filter((item) => item.shortage > 0)
+      .sort((a, b) => b.shortage - a.shortage)
+      .slice(0, 8);
+  }, [filteredStocks, inventoryItems]);
+
+  const hasSetupData =
+    warehouses.some((warehouse) => warehouse.isActive) &&
+    inventoryItems.some((item) => item.isActive);
+
   const currentFilters = useMemo(
     () => ({
       status: warehouseStatus,
@@ -486,10 +520,66 @@ export function WarehouseStockPanel({
       <div className="rounded-lg border p-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
+            <p className="text-sm font-medium">Cảnh báo tồn thấp</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              So sánh số tồn hiện tại với mức cảnh báo tối thiểu của từng vật tư.
+              Dùng để biết vật tư nào cần nhập thêm trước khi xuất cho công trình.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={() => openMovementDialog('in')}
+            disabled={!hasSetupData}
+          >
+            <ArrowDownToLineIcon className="size-4" />
+            Nhập bổ sung
+          </Button>
+        </div>
+
+        {lowStockRows.length === 0 ? (
+          <div className="mt-3 rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+            <PackageCheckIcon className="mx-auto mb-2 size-5" />
+            Chưa có vật tư nào thấp hơn mức cảnh báo tối thiểu.
+          </div>
+        ) : (
+          <div className="mt-3 grid gap-2 md:grid-cols-2">
+            {lowStockRows.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-start justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangleIcon className="size-4 shrink-0" />
+                    <span className="font-mono text-xs font-semibold">{item.sku}</span>
+                  </div>
+                  <p className="mt-1 truncate font-medium">{item.name}</p>
+                  <p className="mt-0.5 text-xs opacity-80">
+                    Tồn: {formatNumber(item.quantityOnHand)} {item.unit} · Tối thiểu:{' '}
+                    {formatNumber(item.minStock)} {item.unit}
+                  </p>
+                </div>
+                <div className="shrink-0 rounded-md bg-white/70 px-2 py-1 text-right text-xs dark:bg-black/20">
+                  Thiếu
+                  <div className="font-semibold tabular-nums">
+                    {formatNumber(item.shortage)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-lg border p-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
             <p className="text-sm font-medium">Kho vật lý</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Tạo các địa điểm kho để chuẩn bị theo dõi tồn. Bước này chưa cho sửa số
-              tồn trực tiếp.
+              Tạo các địa điểm kho để theo dõi tồn theo nơi lưu trữ. Kho ngừng sử dụng vẫn
+              được giữ lại lịch sử, nhưng không nên dùng cho phiếu nhập/xuất mới.
             </p>
           </div>
           <Button
@@ -578,8 +668,8 @@ export function WarehouseStockPanel({
           <div>
             <p className="text-sm font-medium">Tồn kho theo kho</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Bảng này chỉ đọc dữ liệu tồn hiện có. Tồn sẽ thay đổi khi có phiếu nhập,
-              xuất hoặc điều chỉnh kho ở bước sau.
+              Theo dõi số tồn thực tế theo từng kho. Số tồn thay đổi khi cập nhật tồn ban
+              đầu, nhập kho hoặc xuất kho cho công trình.
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -650,6 +740,13 @@ export function WarehouseStockPanel({
         {stockError && (
           <p className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {stockError}
+          </p>
+        )}
+
+        {!stockError && !hasSetupData && (
+          <p className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+            Cần có ít nhất một kho đang sử dụng và một vật tư đang sử dụng trước khi nhập,
+            xuất hoặc cập nhật tồn.
           </p>
         )}
 
