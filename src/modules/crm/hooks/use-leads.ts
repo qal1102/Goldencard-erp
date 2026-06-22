@@ -28,7 +28,15 @@ import type {
 
 export const leadKeys = {
   all: ['leads'] as const,
-  list: (filters?: LeadFilters) => ['leads', 'list', filters ?? {}] as const,
+  list: (filters?: LeadFilters) =>
+    [
+      'leads',
+      'list',
+      filters?.search ?? '',
+      filters?.status ?? '',
+      filters?.assignedTo ?? '',
+      filters?.salesFilter ?? '',
+    ] as const,
   detail: (id: string) => ['leads', 'detail', id] as const,
   activities: (leadId: string) => ['leads', 'activities', leadId] as const,
   assignableUsers: () => ['leads', 'assignable-users'] as const,

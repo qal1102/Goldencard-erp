@@ -23,6 +23,19 @@ export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   lost: 'Không tiến hành',
 };
 
+export const LEAD_SALES_FILTERS = [
+  'unassigned',
+  'not_contacted',
+  'overdue_follow_up',
+] as const;
+export type LeadSalesFilter = (typeof LEAD_SALES_FILTERS)[number];
+
+export const LEAD_SALES_FILTER_LABELS: Record<LeadSalesFilter, string> = {
+  unassigned: 'Chưa phân công',
+  not_contacted: 'Chưa liên hệ',
+  overdue_follow_up: 'Quá hẹn gọi lại',
+};
+
 export const LEAD_SOURCES = [
   'zalo',
   'facebook',
@@ -186,5 +199,6 @@ export const leadFiltersSchema = z.object({
   search: z.string().optional(),
   status: z.enum(LEAD_STATUSES).optional(),
   assignedTo: z.string().uuid().optional(),
+  salesFilter: z.enum(LEAD_SALES_FILTERS).optional(),
 });
 export type LeadFilters = z.infer<typeof leadFiltersSchema>;

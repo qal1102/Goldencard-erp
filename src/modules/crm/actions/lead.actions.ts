@@ -77,11 +77,13 @@ export async function getLeadsAction(
     const data = await modulePerfTimed('crm-leads', 'queryLeads', () => queryLeads(safeFilters), {
       hasSearch: Boolean(safeFilters.search),
       hasStatus: Boolean(safeFilters.status),
+      salesFilter: safeFilters.salesFilter ?? null,
     });
     modulePerfLog('crm-leads', 'action ok', performance.now() - started, {
       count: data.length,
       hasSearch: Boolean(safeFilters.search),
       hasStatus: Boolean(safeFilters.status),
+      salesFilter: safeFilters.salesFilter ?? null,
     });
     return { success: true, data };
   } catch (e) {

@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, desc, eq, ilike, or, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, isNull, lt, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { leadActivities, leads, users } from '@/db/schema';
 import type { LeadFilters } from '../schema/lead.schema';
@@ -14,6 +14,20 @@ export async function queryLeads(filters: LeadFilters = {}) {
 
   if (filters.assignedTo) {
     conditions.push(eq(leads.assignedTo, filters.assignedTo));
+  }
+
+  if (filters.salesFilter === 'unassigned') {
+    conditions.push(isNull(leads.assignedTo));
+  }
+
+  if (filters.salesFilter === 'not_contacted') {
+    conditions.push(isNull(leads.lastContactedAt));
+    conditions.push(sql`${leads.status} not in ('won', 'lost')`);
+  }
+
+  if (filters.salesFilter === 'overdue_follow_up') {
+    conditions.push(lt(leads.followUpAt, new Date()));
+    conditions.push(sql`${leads.status} not in ('won', 'lost')`);
   }
 
   if (filters.search) {

@@ -13,9 +13,17 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { getLeadStatusLabel } from '../lib/lead-labels';
-import { LEAD_STATUS_LABELS, LEAD_STATUSES, type LeadStatus } from '../schema/lead.schema';
+import {
+  LEAD_SALES_FILTER_LABELS,
+  LEAD_SALES_FILTERS,
+  LEAD_STATUS_LABELS,
+  LEAD_STATUSES,
+  type LeadSalesFilter,
+  type LeadStatus,
+} from '../schema/lead.schema';
 
 const ALL_LEAD_STATUSES_VALUE = '__all__';
+const ALL_SALES_FILTERS_VALUE = '__all_sales__';
 
 export function LeadFilters() {
   const router = useRouter();
@@ -25,6 +33,10 @@ export function LeadFilters() {
 
   const search = searchParams.get('search') ?? '';
   const status = searchParams.get('status') as LeadStatus | null;
+  const salesFilterParam = searchParams.get('salesFilter');
+  const salesFilter = LEAD_SALES_FILTERS.includes(salesFilterParam as LeadSalesFilter)
+    ? (salesFilterParam as LeadSalesFilter)
+    : null;
   const view = searchParams.get('view') === 'list' ? 'list' : 'pipeline';
   const searchTimerRef = useRef<number | null>(null);
 
@@ -62,7 +74,7 @@ export function LeadFilters() {
     }, 400);
   };
 
-  const hasFilters = Boolean(search || status || view === 'list');
+  const hasFilters = Boolean(search || status || salesFilter || view === 'list');
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -96,6 +108,31 @@ export function LeadFilters() {
           {LEAD_STATUSES.map((s) => (
             <SelectItem key={s} value={s}>
               {LEAD_STATUS_LABELS[s]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={salesFilter ?? ALL_SALES_FILTERS_VALUE}
+        onValueChange={(val) =>
+          updateParams('salesFilter', val === ALL_SALES_FILTERS_VALUE ? null : val || null)
+        }
+      >
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Tình trạng sales">
+            {(value) =>
+              value && value !== ALL_SALES_FILTERS_VALUE
+                ? LEAD_SALES_FILTER_LABELS[value as LeadSalesFilter]
+                : null
+            }
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL_SALES_FILTERS_VALUE}>Tất cả tình trạng sales</SelectItem>
+          {LEAD_SALES_FILTERS.map((filter) => (
+            <SelectItem key={filter} value={filter}>
+              {LEAD_SALES_FILTER_LABELS[filter]}
             </SelectItem>
           ))}
         </SelectContent>

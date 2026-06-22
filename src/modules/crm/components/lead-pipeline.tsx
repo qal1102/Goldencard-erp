@@ -9,6 +9,8 @@ import { useProjectProgressForLeads } from '../hooks/use-project-progress';
 import {
   LEAD_STATUSES,
   LEAD_STATUS_LABELS,
+  LEAD_SALES_FILTERS,
+  type LeadSalesFilter,
   type LeadStatus,
 } from '../schema/lead.schema';
 import { LeadCard } from './lead-card';
@@ -51,6 +53,10 @@ export function LeadPipeline() {
   const searchParams = useSearchParams();
   const search = searchParams.get('search') ?? undefined;
   const statusFilter = searchParams.get('status') as LeadStatus | null;
+  const salesFilterParam = searchParams.get('salesFilter');
+  const salesFilter = LEAD_SALES_FILTERS.includes(salesFilterParam as LeadSalesFilter)
+    ? (salesFilterParam as LeadSalesFilter)
+    : null;
   const view = searchParams.get('view') === 'list' ? 'list' : 'pipeline';
 
   const {
@@ -63,6 +69,7 @@ export function LeadPipeline() {
   } = useLeads({
     search,
     status: statusFilter ?? undefined,
+    salesFilter: salesFilter ?? undefined,
   });
 
   const showSkeleton = isPending && !leads;
