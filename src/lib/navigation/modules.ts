@@ -3,6 +3,7 @@ import {
   FileText,
   Handshake,
   BadgeCheck,
+  History,
   LifeBuoy,
   LayoutDashboard,
   Package,
@@ -131,6 +132,14 @@ export const adminNavItems: NavItem[] = [
     icon: Shield,
     phase: "Admin",
     description: "Tạo và quản lý tài khoản nhân viên.",
+  },
+  {
+    id: "admin-activity",
+    label: "Nhật ký hoạt động",
+    href: "/admin/activity",
+    icon: History,
+    phase: "Admin",
+    description: "Xem ai đã thao tác gì trong hệ thống.",
   },
 ];
 
