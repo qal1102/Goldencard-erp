@@ -22,6 +22,7 @@ export * from './surveys';
 export * from './user-roles';
 export * from './users';
 export * from './warehouses';
+export * from './work-order-materials';
 export * from './work-orders';
 export * from './warranty-tickets';
 export * from './warranty-certificates';

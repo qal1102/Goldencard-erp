@@ -4,6 +4,7 @@ import { handovers } from './handovers';
 import { inventoryItems } from './inventory-items';
 import { inventoryStockMovements } from './inventory-stock-movements';
 import { inventoryStocks } from './inventory-stocks';
+import { workOrderMaterials } from './work-order-materials';
 import { warrantyCertificates } from './warranty-certificates';
 import { warrantyTickets } from './warranty-tickets';
 import { warehouses } from './warehouses';
@@ -273,6 +274,7 @@ export const workOrdersRelations = relations(workOrders, ({ one, many }) => ({
     references: [handovers.workOrderId],
     relationName: 'work_order_handover',
   }),
+  materials: many(workOrderMaterials),
   stockMovements: many(inventoryStockMovements),
 }));
 
@@ -474,6 +476,7 @@ export const warehousesRelations = relations(warehouses, ({ one, many }) => ({
 
 export const inventoryItemsRelations = relations(inventoryItems, ({ one, many }) => ({
   stocks: many(inventoryStocks),
+  workOrderMaterials: many(workOrderMaterials),
   stockMovements: many(inventoryStockMovements),
   createdByUser: one(users, {
     fields: [inventoryItems.createdBy],
@@ -484,6 +487,27 @@ export const inventoryItemsRelations = relations(inventoryItems, ({ one, many })
     fields: [inventoryItems.updatedBy],
     references: [users.id],
     relationName: 'inventory_item_updated_by_user',
+  }),
+}));
+
+export const workOrderMaterialsRelations = relations(workOrderMaterials, ({ one }) => ({
+  workOrder: one(workOrders, {
+    fields: [workOrderMaterials.workOrderId],
+    references: [workOrders.id],
+  }),
+  item: one(inventoryItems, {
+    fields: [workOrderMaterials.itemId],
+    references: [inventoryItems.id],
+  }),
+  createdByUser: one(users, {
+    fields: [workOrderMaterials.createdBy],
+    references: [users.id],
+    relationName: 'work_order_material_created_by_user',
+  }),
+  updatedByUser: one(users, {
+    fields: [workOrderMaterials.updatedBy],
+    references: [users.id],
+    relationName: 'work_order_material_updated_by_user',
   }),
 }));
 
