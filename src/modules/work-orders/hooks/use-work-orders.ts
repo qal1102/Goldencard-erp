@@ -13,7 +13,18 @@ import {
   updateWorkOrderInfoAction,
   updateWorkOrderStatusAction,
 } from '../actions/work-order.actions';
+import {
+  cancelWorkOrderMaterialAction,
+  createWorkOrderMaterialAction,
+  getWorkOrderMaterialItemOptionsAction,
+  getWorkOrderMaterialsAction,
+  updateWorkOrderMaterialAction,
+} from '../actions/work-order-material.actions';
 import type { WorkOrderRow } from '../lib/work-order.queries';
+import type {
+  UpdateWorkOrderMaterialInput,
+  WorkOrderMaterialFormInput,
+} from '../schema/work-order-material.schema';
 import type {
   CompleteWorkOrderInput,
   CreateWorkOrderFromContractInput,
@@ -40,6 +51,8 @@ export const workOrderKeys = {
   list: workOrderListQueryKey,
   detail: (id: string) => ['work-orders', 'detail', id] as const,
   byContract: (contractId: string) => ['work-orders', 'by-contract', contractId] as const,
+  materials: (id: string) => ['work-orders', 'materials', id] as const,
+  materialItemOptions: () => ['work-orders', 'material-item-options'] as const,
 };
 
 type UseWorkOrdersOptions = {
@@ -90,6 +103,31 @@ export function useWorkOrderByContract(contractId: string, enabled = true) {
   });
 }
 
+export function useWorkOrderMaterials(workOrderId: string) {
+  return useQuery({
+    queryKey: workOrderKeys.materials(workOrderId),
+    queryFn: async () => {
+      const result = await getWorkOrderMaterialsAction(workOrderId);
+      if (!result.success) throw new Error(result.error);
+      return result.data;
+    },
+    enabled: Boolean(workOrderId),
+    staleTime: 30_000,
+  });
+}
+
+export function useWorkOrderMaterialItemOptions() {
+  return useQuery({
+    queryKey: workOrderKeys.materialItemOptions(),
+    queryFn: async () => {
+      const result = await getWorkOrderMaterialItemOptionsAction();
+      if (!result.success) throw new Error(result.error);
+      return result.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useCreateWorkOrderFromContract() {
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -109,6 +147,55 @@ export function useCreateWorkOrderFromContract() {
         queryClient.invalidateQueries({ queryKey: contractKeys.all });
         queryClient.invalidateQueries({ queryKey: leadKeys.all });
         router.replace(`/work-orders/${result.data.id}`);
+      }
+    },
+  });
+}
+
+export function useCreateWorkOrderMaterial(workOrderId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: WorkOrderMaterialFormInput) =>
+      createWorkOrderMaterialAction(workOrderId, input),
+    onSuccess: (result) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: workOrderKeys.materials(workOrderId) });
+        queryClient.invalidateQueries({ queryKey: workOrderKeys.detail(workOrderId) });
+      }
+    },
+  });
+}
+
+export function useUpdateWorkOrderMaterial(workOrderId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      materialId,
+      input,
+    }: {
+      materialId: string;
+      input: UpdateWorkOrderMaterialInput;
+    }) => updateWorkOrderMaterialAction(workOrderId, materialId, input),
+    onSuccess: (result) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: workOrderKeys.materials(workOrderId) });
+        queryClient.invalidateQueries({ queryKey: workOrderKeys.detail(workOrderId) });
+      }
+    },
+  });
+}
+
+export function useCancelWorkOrderMaterial(workOrderId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (materialId: string) => cancelWorkOrderMaterialAction(workOrderId, materialId),
+    onSuccess: (result) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: workOrderKeys.materials(workOrderId) });
+        queryClient.invalidateQueries({ queryKey: workOrderKeys.detail(workOrderId) });
       }
     },
   });

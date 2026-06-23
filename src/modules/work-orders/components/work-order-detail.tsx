@@ -40,6 +40,7 @@ import {
   useUpdateWorkOrderStatus,
   useWorkOrder,
 } from '../hooks/use-work-orders';
+import { WorkOrderMaterialPlan } from './work-order-material-plan';
 import { WorkOrderStatusBadge } from './work-order-status-badge';
 
 function formatDateTime(date: Date | string | null | undefined): string | null {
@@ -132,6 +133,7 @@ export function WorkOrderDetail({ workOrderId, canWrite }: Props) {
   const status = workOrder.status as WorkOrderStatus;
   const allowedTransitions = WORK_ORDER_STATUS_TRANSITIONS[status] ?? [];
   const canEditInfo = canWrite && status !== 'cancelled' && status !== 'completed';
+  const canEditMaterials = canWrite && status !== 'cancelled' && status !== 'completed';
 
   async function handleStatus(next: WorkOrderStatus) {
     setError(null);
@@ -370,6 +372,8 @@ export function WorkOrderDetail({ workOrderId, canWrite }: Props) {
           )}
         </CardContent>
       </Card>
+
+      <WorkOrderMaterialPlan workOrderId={workOrderId} canWrite={canEditMaterials} />
 
       <Card>
         <CardHeader>
