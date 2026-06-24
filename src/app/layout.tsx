@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { PwaRegister } from "@/components/pwa/pwa-register";
 import { QueryProviders } from "@/lib/query/providers";
 import "./globals.css";
 
@@ -16,6 +17,27 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "GoldenCard ERP",
   description: "Hệ thống ERP nội bộ cho GoldenCard",
+  manifest: "/manifest.webmanifest",
+  applicationName: "GoldenCard ERP",
+  appleWebApp: {
+    capable: true,
+    title: "GoldenCard ERP",
+    statusBarStyle: "default",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  icons: {
+    icon: "/goldencard-icon.svg",
+    apple: "/goldencard-icon.svg",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#111111",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -29,6 +51,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full`}
     >
       <body className="min-h-full flex flex-col">
+        <PwaRegister />
         <QueryProviders>{children}</QueryProviders>
       </body>
     </html>

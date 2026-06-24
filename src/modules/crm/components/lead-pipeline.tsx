@@ -122,7 +122,12 @@ export function LeadPipeline() {
   const visibleStatuses = statusFilter ? [statusFilter] : LEAD_STATUSES;
 
   return (
-    <div className="-mx-4 overflow-x-auto pb-4 sm:mx-0">
+    <div className="relative">
+      <div className="mb-2 flex items-center justify-between gap-3 text-xs text-muted-foreground sm:hidden">
+        <span>Vuốt ngang để xem thêm trạng thái</span>
+        <span aria-hidden="true">→</span>
+      </div>
+      <div className="-mx-4 overflow-x-auto pb-4 sm:mx-0">
       <div className="flex gap-3 px-4 sm:px-0" style={{ minWidth: 'max-content' }}>
         {visibleStatuses.map((status) => {
           const statusLeads = leadsTyped.filter((l) => l.status === status);
@@ -154,6 +159,8 @@ export function LeadPipeline() {
           );
         })}
       </div>
+      </div>
+      <div className="pointer-events-none absolute top-6 right-0 bottom-4 w-10 bg-gradient-to-l from-background to-transparent sm:hidden" />
     </div>
   );
 }

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">GoldenCard ERP maskable icon</title>
+  <rect width="512" height="512" fill="#111111"/>
+  <circle cx="256" cy="256" r="214" fill="#f7c948"/>
+  <rect x="142" y="154" width="228" height="204" rx="34" fill="#111111"/>
+  <rect x="182" y="198" width="148" height="26" rx="13" fill="#f7c948"/>
+  <rect x="182" y="250" width="148" height="26" rx="13" fill="#f7c948"/>
+  <rect x="182" y="302" width="94" height="26" rx="13" fill="#f7c948"/>
+  <path fill="#ffffff" d="M378 118a19 19 0 0 1 18 13l13 40 40 13a19 19 0 0 1 0 36l-40 13-13 40a19 19 0 0 1-36 0l-13-40-40-13a19 19 0 0 1 0-36l40-13 13-40a19 19 0 0 1 18-13Z"/>
+</svg>

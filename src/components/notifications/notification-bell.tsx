@@ -143,10 +143,10 @@ function NotificationList({
         </div>
       </div>
       {showFooterLink && (
-        <div className="border-t px-3 py-2">
+        <div className="border-t bg-muted/30 px-3 py-3">
           <Link
             href="/notifications"
-            className="inline-flex h-8 w-full items-center justify-center rounded-lg text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted active:bg-muted/80"
           >
             Xem tất cả thông báo
           </Link>
