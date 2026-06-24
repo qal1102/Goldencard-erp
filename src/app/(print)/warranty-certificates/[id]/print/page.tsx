@@ -11,15 +11,8 @@ type Props = {
   params: Promise<{ id: string }>;
 };
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params;
-  const certificate = await queryWarrantyCertificateForPrint(id);
-  if (!certificate) {
-    return { title: 'Phiếu bảo hành' };
-  }
-  return {
-    title: `Phiếu bảo hành ${certificate.code} | GoldenCard ERP`,
-  };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: 'Phiếu bảo hành | GoldenCard ERP' };
 }
 
 export default async function WarrantyCertificatePrintPage({ params }: Props) {

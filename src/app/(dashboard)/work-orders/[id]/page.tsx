@@ -37,10 +37,23 @@ export default async function WorkOrderDetailPage({ params }: Props) {
   }
 
   const canWrite = hasRole(roles, 'admin', 'director', 'sales', 'chief_accountant');
+  const canManageMaterials = hasRole(
+    roles,
+    'admin',
+    'director',
+    'chief_accountant',
+    'accountant',
+    'technician',
+  );
 
   return (
     <div className="mx-auto w-full max-w-xl">
-      <WorkOrderDetail key={id} workOrderId={id} canWrite={canWrite} />
+      <WorkOrderDetail
+        key={id}
+        workOrderId={id}
+        canWrite={canWrite}
+        canManageMaterials={canManageMaterials}
+      />
     </div>
   );
 }

@@ -68,7 +68,7 @@ function MaterialStatusBadge({ status }: { status: string }) {
 
 export function WorkOrderMaterialPlan({ workOrderId, canWrite }: Props) {
   const { data: materials, isLoading, isError, error, refetch } = useWorkOrderMaterials(workOrderId);
-  const { data: itemOptions } = useWorkOrderMaterialItemOptions();
+  const { data: itemOptions } = useWorkOrderMaterialItemOptions(canWrite);
   const createMaterial = useCreateWorkOrderMaterial(workOrderId);
   const updateMaterial = useUpdateWorkOrderMaterial(workOrderId);
   const cancelMaterial = useCancelWorkOrderMaterial(workOrderId);

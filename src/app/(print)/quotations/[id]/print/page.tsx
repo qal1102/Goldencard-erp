@@ -10,15 +10,8 @@ type Props = {
   params: Promise<{ id: string }>;
 };
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params;
-  const quotation = await queryQuotationForPrint(id);
-  if (!quotation) {
-    return { title: 'Báo giá' };
-  }
-  return {
-    title: 'Báo giá hệ thống điện mặt trời | GoldenCard',
-  };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: 'Báo giá | GoldenCard ERP' };
 }
 
 export default async function QuotationPrintPage({ params }: Props) {

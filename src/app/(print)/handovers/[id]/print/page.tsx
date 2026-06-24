@@ -10,15 +10,8 @@ type Props = {
   params: Promise<{ id: string }>;
 };
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params;
-  const handover = await queryHandoverForPrint(id);
-  if (!handover) {
-    return { title: 'Biên bản bàn giao' };
-  }
-  return {
-    title: `Biên bản bàn giao ${handover.code} | GoldenCard ERP`,
-  };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: 'Biên bản bàn giao | GoldenCard ERP' };
 }
 
 export default async function HandoverPrintPage({ params }: Props) {

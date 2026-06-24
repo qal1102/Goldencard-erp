@@ -10,15 +10,8 @@ type Props = {
   params: Promise<{ id: string }>;
 };
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params;
-  const contract = await queryContractForPrint(id);
-  if (!contract) {
-    return { title: 'Hợp đồng thi công' };
-  }
-  return {
-    title: `Hợp đồng ${contract.code} | GoldenCard ERP`,
-  };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: 'Hợp đồng | GoldenCard ERP' };
 }
 
 export default async function ContractPrintPage({ params }: Props) {

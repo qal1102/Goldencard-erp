@@ -6,6 +6,7 @@ import { auth } from '@/auth';
 import { db } from '@/db';
 import { inventoryItems } from '@/db/schema';
 import { createAuditLog } from '@/lib/audit/create-audit-log';
+import { requireRole } from '@/lib/auth/roles';
 import {
   inventoryItemFiltersSchema,
   inventoryItemFormSchema,
@@ -22,6 +23,19 @@ export type InventoryActionResult<T = void> =
 async function requireInventoryViewer() {
   const session = await auth();
   if (!session?.user?.id) throw new Error('Unauthorized');
+  return session;
+}
+
+async function requireInventoryManager() {
+  const session = await requireInventoryViewer();
+  requireRole(
+    session.user.roles ?? [],
+    'admin',
+    'director',
+    'chief_accountant',
+    'accountant',
+    'technician',
+  );
   return session;
 }
 
@@ -110,7 +124,7 @@ export async function createInventoryItemAction(
   input: InventoryItemFormInput,
 ): Promise<InventoryActionResult<{ id: string }>> {
   try {
-    const session = await requireInventoryViewer();
+    const session = await requireInventoryManager();
 
     const parsed = inventoryItemFormSchema.safeParse(input);
     if (!parsed.success) {
@@ -170,7 +184,7 @@ export async function updateInventoryItemAction(
   input: InventoryItemFormInput,
 ): Promise<InventoryActionResult> {
   try {
-    const session = await requireInventoryViewer();
+    const session = await requireInventoryManager();
 
     const parsed = inventoryItemFormSchema.safeParse(input);
     if (!parsed.success) {
@@ -247,7 +261,7 @@ export async function importInventoryItemsAction(
   input: InventoryItemFormInput[],
 ): Promise<InventoryActionResult<{ created: number; updated: number }>> {
   try {
-    const session = await requireInventoryViewer();
+    const session = await requireInventoryManager();
 
     if (!Array.isArray(input) || input.length === 0) {
       return { success: false, error: 'Không có dòng vật tư hợp lệ để import' };

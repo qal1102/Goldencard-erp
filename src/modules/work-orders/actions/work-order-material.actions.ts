@@ -6,7 +6,7 @@ import { auth } from '@/auth';
 import { db } from '@/db';
 import { inventoryItems, workOrderMaterials } from '@/db/schema';
 import { createAuditLog } from '@/lib/audit/create-audit-log';
-import { requireRole } from '@/lib/auth/roles';
+import { hasRole, requireRole } from '@/lib/auth/roles';
 import { serializeForClient } from '@/lib/serialize/for-client';
 import { queryWorkOrderById } from '../lib/work-order.queries';
 import {
@@ -37,8 +37,8 @@ const WORK_ORDER_MATERIAL_VIEW_ROLES = [
 const WORK_ORDER_MATERIAL_WRITE_ROLES = [
   'admin',
   'director',
-  'sales',
   'chief_accountant',
+  'accountant',
   'technician',
 ] as const;
 
@@ -46,6 +46,15 @@ async function getSessionOrThrow() {
   const session = await auth();
   if (!session?.user?.id) throw new Error('Unauthorized');
   return session;
+}
+
+type WorkOrderMaterialSession = Awaited<ReturnType<typeof getSessionOrThrow>>;
+
+function isTechnicianOnly(roles: string[]) {
+  return (
+    hasRole(roles, 'technician') &&
+    !hasRole(roles, 'admin', 'director', 'sales', 'chief_accountant', 'accountant')
+  );
 }
 
 function normalizeNote(value?: string | null) {
@@ -68,9 +77,17 @@ function isDuplicateMaterialError(error: unknown) {
   );
 }
 
-async function requireEditableWorkOrder(workOrderId: string) {
+async function requireViewableWorkOrder(workOrderId: string, session: WorkOrderMaterialSession) {
   const workOrder = await queryWorkOrderById(workOrderId);
   if (!workOrder) throw new Error('Không tìm thấy lệnh thi công');
+  if (isTechnicianOnly(session.user.roles ?? []) && workOrder.assignedTo !== session.user.id) {
+    throw new Error('Không có quyền xem vật tư của lệnh thi công này');
+  }
+  return workOrder;
+}
+
+async function requireEditableWorkOrder(workOrderId: string, session: WorkOrderMaterialSession) {
+  const workOrder = await requireViewableWorkOrder(workOrderId, session);
   if (workOrder.status === 'completed' || workOrder.status === 'cancelled') {
     throw new Error('Không thể chỉnh vật tư khi lệnh thi công đã hoàn thành hoặc đã hủy');
   }
@@ -83,6 +100,7 @@ export async function getWorkOrderMaterialsAction(
   try {
     const session = await getSessionOrThrow();
     requireRole(session.user.roles ?? [], ...WORK_ORDER_MATERIAL_VIEW_ROLES);
+    await requireViewableWorkOrder(workOrderId, session);
     const data = await queryWorkOrderMaterials(workOrderId);
     return { success: true, data: serializeForClient(data) };
   } catch (e) {
@@ -125,7 +143,7 @@ export async function createWorkOrderMaterialAction(
       };
     }
 
-    const workOrder = await requireEditableWorkOrder(workOrderId);
+    const workOrder = await requireEditableWorkOrder(workOrderId, session);
     const item = await db.query.inventoryItems.findFirst({
       where: eq(inventoryItems.id, parsed.data.itemId),
       columns: { id: true, sku: true, name: true, unit: true, isActive: true },
@@ -208,7 +226,7 @@ export async function updateWorkOrderMaterialAction(
       };
     }
 
-    const workOrder = await requireEditableWorkOrder(workOrderId);
+    const workOrder = await requireEditableWorkOrder(workOrderId, session);
     const existing = await db.query.workOrderMaterials.findFirst({
       where: eq(workOrderMaterials.id, materialId),
       with: { item: { columns: { sku: true, name: true, unit: true } } },
@@ -264,7 +282,7 @@ export async function cancelWorkOrderMaterialAction(
     const session = await getSessionOrThrow();
     requireRole(session.user.roles ?? [], ...WORK_ORDER_MATERIAL_WRITE_ROLES);
 
-    const workOrder = await requireEditableWorkOrder(workOrderId);
+    const workOrder = await requireEditableWorkOrder(workOrderId, session);
     const existing = await db.query.workOrderMaterials.findFirst({
       where: eq(workOrderMaterials.id, materialId),
       with: { item: { columns: { sku: true, name: true, unit: true } } },

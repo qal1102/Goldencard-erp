@@ -116,7 +116,7 @@ export function useWorkOrderMaterials(workOrderId: string) {
   });
 }
 
-export function useWorkOrderMaterialItemOptions() {
+export function useWorkOrderMaterialItemOptions(enabled = true) {
   return useQuery({
     queryKey: workOrderKeys.materialItemOptions(),
     queryFn: async () => {
@@ -124,6 +124,7 @@ export function useWorkOrderMaterialItemOptions() {
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
+    enabled,
     staleTime: 5 * 60 * 1000,
   });
 }

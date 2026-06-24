@@ -82,9 +82,10 @@ function DetailRow({ label, value }: { label: string; value?: string | number | 
 type Props = {
   workOrderId: string;
   canWrite: boolean;
+  canManageMaterials: boolean;
 };
 
-export function WorkOrderDetail({ workOrderId, canWrite }: Props) {
+export function WorkOrderDetail({ workOrderId, canWrite, canManageMaterials }: Props) {
   const { data: workOrder, isLoading } = useWorkOrder(workOrderId);
   const updateStatus = useUpdateWorkOrderStatus(workOrderId);
   const completeWorkOrder = useCompleteWorkOrder(workOrderId);
@@ -133,7 +134,8 @@ export function WorkOrderDetail({ workOrderId, canWrite }: Props) {
   const status = workOrder.status as WorkOrderStatus;
   const allowedTransitions = WORK_ORDER_STATUS_TRANSITIONS[status] ?? [];
   const canEditInfo = canWrite && status !== 'cancelled' && status !== 'completed';
-  const canEditMaterials = canWrite && status !== 'cancelled' && status !== 'completed';
+  const canEditMaterials =
+    canManageMaterials && status !== 'cancelled' && status !== 'completed';
 
   async function handleStatus(next: WorkOrderStatus) {
     setError(null);
