@@ -33,14 +33,17 @@ The user must open the Home Screen web app and tap a real in-app action such as 
 
 ## Remaining work for real push notifications
 
-The current app has internal notifications in the database and UI. It does not yet send background Web Push notifications to iPhone.
+The app now includes the application code for background Web Push notifications.
 
-To enable true push notifications later, add a separate backend feature:
+Before enabling it in production, finish these production setup steps:
 
-- Generate VAPID keys and set them as production env vars.
-- Add a `push_subscriptions` table.
-- Add an API route to save/remove subscriptions per logged-in user.
-- Add a client button `Bật thông báo` that calls `Notification.requestPermission()` and `PushManager.subscribe()`.
-- Send Web Push from existing notification events.
+- Inspect and apply migration `0034_push_subscriptions.sql`.
+- Generate VAPID keys:
+  `npx web-push generate-vapid-keys`
+- Set Vercel production env vars:
+  - `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
+  - `VAPID_PRIVATE_KEY`
+  - `VAPID_SUBJECT`
+- Redeploy production after the env vars are set.
 
-This should be built as a separate task because it needs a safe DB migration and production env setup.
+Until the migration and env vars are present, the push toggle will not send background notifications. Internal in-app notifications still work.

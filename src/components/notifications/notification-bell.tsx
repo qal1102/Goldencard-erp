@@ -15,6 +15,7 @@ import {
   useUnreadNotificationCount,
 } from '@/lib/notifications/hooks/use-notifications';
 import { cn } from '@/lib/utils';
+import { PushNotificationToggle } from './push-notification-toggle';
 
 function formatDateTime(date: Date | string): string {
   const value = typeof date === 'string' ? new Date(date) : date;
@@ -256,11 +257,13 @@ export function NotificationsPanel({
 
   return (
     <div className="rounded-xl border border-border bg-background">
-      <div className="flex items-center justify-between border-b px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
         <div>
           <h1 className="text-lg font-semibold">Thông báo</h1>
           <p className="text-sm text-muted-foreground">Cập nhật công việc và quy trình nội bộ</p>
         </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          <PushNotificationToggle />
         <Button
           type="button"
           variant="outline"
@@ -270,6 +273,7 @@ export function NotificationsPanel({
         >
           Đánh dấu tất cả đã đọc
         </Button>
+        </div>
       </div>
       <NotificationList
         notifications={notifications}

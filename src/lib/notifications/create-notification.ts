@@ -2,6 +2,7 @@ import 'server-only';
 
 import { db } from '@/db';
 import { notifications } from '@/db/schema';
+import { sendWebPushToUser } from '@/lib/push/send-web-push';
 import { dedupeRecipients } from './dedupe-recipients';
 import type { CreateNotificationInput, CreateNotificationsOptions } from './types';
 
@@ -22,6 +23,12 @@ export async function createNotification(input: CreateNotificationInput): Promis
     .returning({ id: notifications.id });
 
   if (!row) throw new Error('Không thể tạo thông báo');
+  await sendWebPushToUser(input.recipientUserId, {
+    title: input.title,
+    body: input.body,
+    url: input.href,
+    tag: input.type,
+  });
   return row.id;
 }
 
@@ -50,6 +57,17 @@ export async function createNotificationsForUsers(
       entityId: payload.entityId ?? null,
       href: payload.href ?? null,
     })),
+  );
+
+  await Promise.allSettled(
+    uniqueRecipients.map((recipientUserId) =>
+      sendWebPushToUser(recipientUserId, {
+        title: payload.title,
+        body: payload.body,
+        url: payload.href,
+        tag: payload.type,
+      }),
+    ),
   );
 }
 

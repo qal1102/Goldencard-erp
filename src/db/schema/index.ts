@@ -9,6 +9,7 @@ export * from './lead-activities';
 export * from './notifications';
 export * from './leads';
 export * from './permissions';
+export * from './push-subscriptions';
 export * from './quotation-edit-logs';
 export * from './quotation-exports';
 export * from './quotation-items';
