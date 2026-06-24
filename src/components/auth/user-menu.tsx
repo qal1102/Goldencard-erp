@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { useFormStatus } from 'react-dom';
-import { KeyRoundIcon, LoaderIcon, LogOutIcon } from 'lucide-react';
+import { KeyRoundIcon, LoaderIcon, LogOutIcon, UserRoundIcon } from 'lucide-react';
 import { signOutAction } from '@/lib/auth/actions';
 import { Button } from '@/components/ui/button';
 
 type UserMenuProps = {
   name?: string | null;
   email?: string | null;
+  avatarUrl?: string | null;
 };
 
 function getInitials(name: string | null | undefined): string {
@@ -43,13 +44,22 @@ function SignOutButton() {
   );
 }
 
-export function UserMenu({ name, email }: UserMenuProps) {
+export function UserMenu({ name, email, avatarUrl }: UserMenuProps) {
   return (
     <div className="border-t border-sidebar-border p-3">
       <div className="mb-2 flex items-center gap-2.5 px-1">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">
-          {getInitials(name)}
-        </div>
+        {avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={avatarUrl}
+            alt={name ?? 'Avatar'}
+            className="size-9 shrink-0 rounded-lg object-cover ring-1 ring-sidebar-border"
+          />
+        ) : (
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">
+            {getInitials(name)}
+          </div>
+        )}
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium leading-tight text-foreground">
             {name ?? 'Người dùng'}
@@ -61,6 +71,17 @@ export function UserMenu({ name, email }: UserMenuProps) {
       </div>
 
       <div className="flex flex-col gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start gap-2 text-muted-foreground"
+          nativeButton={false}
+          render={<Link href="/settings" />}
+        >
+          <UserRoundIcon className="size-4" />
+          Hồ sơ cá nhân
+        </Button>
+
         <Button
           variant="ghost"
           size="sm"

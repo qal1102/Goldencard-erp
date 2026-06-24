@@ -5,6 +5,7 @@ export type SessionUser = {
   id: string;
   name?: string | null;
   email?: string | null;
+  avatarUrl?: string | null;
   roles: string[];
   isSuperAdmin: boolean;
 };

@@ -1,4 +1,4 @@
-import { verifySession } from '@/lib/auth/dal';
+import { getCurrentUser, verifySession } from '@/lib/auth/dal';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
 
 export default async function DashboardGroupLayout({
@@ -7,13 +7,15 @@ export default async function DashboardGroupLayout({
   children: React.ReactNode;
 }) {
   const session = await verifySession();
+  const currentUser = await getCurrentUser(session.user.id);
 
   const user = {
     id: session.user.id,
-    name: session.user.name,
-    email: session.user.email,
+    name: currentUser?.name ?? session.user.name,
+    email: currentUser?.email ?? session.user.email,
+    avatarUrl: currentUser?.avatarUrl ?? null,
     roles: session.user.roles ?? [],
-    isSuperAdmin: session.user.isSuperAdmin ?? false,
+    isSuperAdmin: currentUser?.isSuperAdmin ?? session.user.isSuperAdmin ?? false,
   };
 
   return <DashboardShell user={user}>{children}</DashboardShell>;

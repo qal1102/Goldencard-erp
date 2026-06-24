@@ -16,7 +16,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
       <div className="flex-1 overflow-y-auto px-3 py-4">
         <NavLinks userRoles={user.roles} isSuperAdmin={user.isSuperAdmin} />
       </div>
-      <UserMenu name={user.name} email={user.email} />
+      <UserMenu name={user.name} email={user.email} avatarUrl={user.avatarUrl} />
     </aside>
   );
 }
