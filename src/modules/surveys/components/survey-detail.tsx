@@ -18,6 +18,7 @@ import { EditAddressDialog } from '@/components/address/edit-address-dialog';
 import { MapLinkButton } from '@/components/address/map-link-button';
 import { BackButton } from '@/components/navigation/back-button';
 import { Button } from '@/components/ui/button';
+import { UserAvatar } from '@/components/auth/user-avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import {
@@ -28,6 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { UserSelectOption } from '@/components/users/user-select-option';
 import {
   GRID_VOLTAGE_LABELS,
   POWER_PHASE_LABELS,
@@ -308,7 +310,7 @@ export function SurveyDetail({
                     <SelectItem value={UNASSIGNED_TECHNICIAN_VALUE}>Chưa phân công</SelectItem>
                     {(technicians ?? []).map((t) => (
                       <SelectItem key={t.id} value={t.id}>
-                        {t.name}
+                        <UserSelectOption user={t} />
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -528,7 +530,11 @@ export function SurveyDetail({
           )}
           {survey.assignedUser && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <UserIcon className="size-3 shrink-0" />
+              <UserAvatar
+                name={survey.assignedUser.name}
+                avatarUrl={survey.assignedUser.avatarUrl}
+                className="size-5 text-[10px]"
+              />
               <span>Kỹ thuật viên: {survey.assignedUser.name}</span>
             </div>
           )}

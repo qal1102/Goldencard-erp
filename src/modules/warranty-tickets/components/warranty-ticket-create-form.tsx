@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { UserSelectOption } from '@/components/users/user-select-option';
 import {
   WARRANTY_TICKET_PRIORITIES,
   WARRANTY_TICKET_PRIORITY_LABELS,
@@ -296,7 +297,7 @@ export function WarrantyTicketCreateForm({
             <SelectItem value="__none__">Chưa phân công</SelectItem>
             {(assignableUsers ?? []).map((user) => (
               <SelectItem key={user.id} value={user.id}>
-                {user.name}
+                <UserSelectOption user={user} />
               </SelectItem>
             ))}
           </SelectContent>

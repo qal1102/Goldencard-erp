@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { AddressInputFields } from '@/components/address/address-input-fields';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -21,6 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { UserSelectOption } from '@/components/users/user-select-option';
 import { addressesAreSame, hasAddress } from '@/lib/address/format-address';
 import { useCreateSurvey, useTechnicianUsers } from '../hooks/use-surveys';
 import { createSurveySchema } from '../schema/survey.schema';
@@ -216,29 +218,17 @@ function CreateSurveyFormBody({
           </div>
         )}
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="cs-address">
-            Địa chỉ khảo sát <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="cs-address"
-            value={form.address}
-            onChange={(e) => handleChange('address', e.target.value)}
-            disabled={sameAsInstallation && hasInstallation}
-            aria-invalid={Boolean(errors.address)}
-          />
-          {errors.address && <p className="text-xs text-destructive">{errors.address}</p>}
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="cs-province">Tỉnh / Thành phố</Label>
-          <Input
-            id="cs-province"
-            value={form.province}
-            onChange={(e) => handleChange('province', e.target.value)}
-            disabled={sameAsInstallation && hasInstallation}
-          />
-        </div>
+        <AddressInputFields
+          idPrefix="cs"
+          address={form.address}
+          province={form.province}
+          onAddressChange={(value) => handleChange('address', value)}
+          onProvinceChange={(value) => handleChange('province', value)}
+          addressLabel="Địa chỉ khảo sát"
+          required
+          disabled={sameAsInstallation && hasInstallation}
+          addressError={errors.address}
+        />
 
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="cs-scheduledAt">Ngày hẹn khảo sát</Label>
@@ -274,7 +264,7 @@ function CreateSurveyFormBody({
               <SelectItem value={UNASSIGNED_TECHNICIAN_VALUE}>Chưa phân công</SelectItem>
               {(technicians ?? []).map((t) => (
                 <SelectItem key={t.id} value={t.id}>
-                  {t.name}
+                  <UserSelectOption user={t} />
                 </SelectItem>
               ))}
             </SelectContent>

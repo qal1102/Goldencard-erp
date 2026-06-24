@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
+import { UserSelectOption } from '@/components/users/user-select-option';
 import { displayQuotationCode } from '@/modules/quotations/lib/quotation-display';
 import {
   WARRANTY_TICKET_STATUS_LABELS,
@@ -376,7 +377,7 @@ export function WarrantyTicketDetail({ ticketId, canWrite }: Props) {
                     <SelectItem value="__none__">Chưa phân công</SelectItem>
                     {(assignableUsers ?? []).map((u) => (
                       <SelectItem key={u.id} value={u.id}>
-                        {u.name}
+                        <UserSelectOption user={u} />
                       </SelectItem>
                     ))}
                   </SelectContent>

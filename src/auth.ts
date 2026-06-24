@@ -79,7 +79,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           id: user.id,
           email: user.email,
           name: user.name,
-          image: user.avatarUrl ?? null,
+          image: null,
           roles: roleRows.map((r) => r.name),
           isSuperAdmin: user.isSuperAdmin,
         };

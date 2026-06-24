@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { AddressInputFields } from '@/components/address/address-input-fields';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -11,7 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { updateAddressSchema } from '@/lib/address/address.schema';
@@ -117,40 +117,19 @@ export function EditAddressDialog({
             </p>
           )}
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="edit-address">{addressFieldLabel}</Label>
-            <Input
-              id="edit-address"
-              value={address}
-              onChange={(e) => {
-                setAddress(e.target.value);
-                setErrors((prev) => ({ ...prev, address: '' }));
-              }}
-              aria-invalid={Boolean(errors.address)}
-            />
-            {errors.address && <p className="text-xs text-destructive">{errors.address}</p>}
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="edit-province">Tỉnh / Thành phố</Label>
-            <Input
-              id="edit-province"
-              value={province}
-              onChange={(e) => setProvince(e.target.value)}
-              placeholder="Nhập tỉnh/thành phố..."
-              list="province-suggestions"
-            />
-            <datalist id="province-suggestions">
-              <option value="Hà Nội" />
-              <option value="Hồ Chí Minh" />
-              <option value="Đà Nẵng" />
-              <option value="Hải Phòng" />
-              <option value="Cần Thơ" />
-              <option value="Bình Dương" />
-              <option value="Đồng Nai" />
-              <option value="Khánh Hòa" />
-            </datalist>
-          </div>
+          <AddressInputFields
+            idPrefix="edit"
+            address={address}
+            province={province}
+            onAddressChange={(value) => {
+              setAddress(value);
+              setErrors((prev) => ({ ...prev, address: '' }));
+            }}
+            onProvinceChange={setProvince}
+            addressLabel={addressFieldLabel}
+            required
+            addressError={errors.address}
+          />
 
           {requireEditNote && (
             <div className="flex flex-col gap-1.5">

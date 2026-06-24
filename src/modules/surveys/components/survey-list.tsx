@@ -1,8 +1,9 @@
 'use client';
 
-import { CalendarIcon, UserIcon } from 'lucide-react';
+import { CalendarIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import { UserAvatar } from '@/components/auth/user-avatar';
 import { ModuleListError } from '@/components/ui/module-list-error';
 import { Button } from '@/components/ui/button';
 import { stopCardNavigation, TappableListCard } from '@/components/ui/tappable-list-card';
@@ -162,7 +163,11 @@ export function SurveyList({ isTechnician, initialData, initialError = null }: P
                 <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
                   {survey.assignedUser && (
                     <span className="flex items-center gap-1">
-                      <UserIcon className="size-3 shrink-0" />
+                      <UserAvatar
+                        name={survey.assignedUser.name}
+                        avatarUrl={survey.assignedUser.avatarUrl}
+                        className="size-5 text-[10px]"
+                      />
                       {survey.assignedUser.name}
                     </span>
                   )}

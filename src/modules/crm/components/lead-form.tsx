@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { LinkIcon } from 'lucide-react';
 import Link from 'next/link';
 import { Controller, useForm, useWatch } from 'react-hook-form';
+import { AddressInputFields } from '@/components/address/address-input-fields';
 import { BackButton } from '@/components/navigation/back-button';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { UserSelectOption } from '@/components/users/user-select-option';
 import { ExistingCustomerPhoneAlert } from './existing-customer-phone-alert';
 import { useCreateLead, useUpdateLead } from '../hooks/use-leads';
 import {
@@ -27,7 +29,7 @@ import {
 } from '../schema/lead.schema';
 import { getAssignableUserLabel, getLeadSourceLabel } from '../lib/lead-labels';
 
-type AssignableUser = { id: string; name: string };
+type AssignableUser = { id: string; name: string; email?: string | null; avatarUrl?: string | null };
 const UNASSIGNED_USER_VALUE = '__unassigned__';
 
 type Props = {
@@ -182,26 +184,30 @@ export function LeadForm({ mode, leadId, defaultValues, assignableUsers, linkedC
               <FieldError message={errors.email?.message} />
             </div>
 
-            <div className="rounded-lg border border-dashed p-3 flex flex-col gap-3">
+            <div className="flex flex-col gap-3 rounded-lg border border-dashed p-3">
               <p className="text-xs font-medium text-muted-foreground">Địa chỉ lắp đặt dự án</p>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="address">
-                Địa chỉ lắp đặt <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="address"
-                placeholder="Số nhà, đường, phường/xã..."
-                {...register('address')}
-                aria-invalid={Boolean(errors.address)}
+              <Controller
+                control={control}
+                name="address"
+                render={({ field: addressField }) => (
+                  <Controller
+                    control={control}
+                    name="province"
+                    render={({ field: provinceField }) => (
+                      <AddressInputFields
+                        idPrefix="lead-installation"
+                        address={addressField.value ?? ''}
+                        province={provinceField.value ?? ''}
+                        onAddressChange={addressField.onChange}
+                        onProvinceChange={provinceField.onChange}
+                        addressLabel="Địa chỉ lắp đặt"
+                        required
+                        addressError={errors.address?.message}
+                      />
+                    )}
+                  />
+                )}
               />
-              <FieldError message={errors.address?.message} />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="province">Tỉnh / Thành phố</Label>
-              <Input id="province" placeholder="Hà Nội" {...register('province')} />
-            </div>
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -308,7 +314,7 @@ export function LeadForm({ mode, leadId, defaultValues, assignableUsers, linkedC
                         <SelectItem value={UNASSIGNED_USER_VALUE}>Chưa phân công</SelectItem>
                         {assignableUsers.map((u) => (
                           <SelectItem key={u.id} value={u.id}>
-                            {u.name}
+                            <UserSelectOption user={u} />
                           </SelectItem>
                         ))}
                       </SelectContent>

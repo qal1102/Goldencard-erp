@@ -18,6 +18,12 @@ function normalizeOptional(value: string | undefined) {
   return trimmed ? trimmed : null;
 }
 
+function auditAvatarValue(value: string | null) {
+  if (!value) return null;
+  if (value.startsWith('data:image/')) return '[uploaded-avatar]';
+  return value;
+}
+
 export async function updateProfileAction(
   _prevState: UpdateProfileFormState,
   formData: FormData,
@@ -88,12 +94,19 @@ export async function updateProfileAction(
     resource: 'user',
     resourceId: currentUser.id,
     summary: `${currentUser.name} đã cập nhật hồ sơ cá nhân`,
-    before,
-    after: nextProfile,
+    before: {
+      ...before,
+      avatarUrl: auditAvatarValue(before.avatarUrl),
+    },
+    after: {
+      ...nextProfile,
+      avatarUrl: auditAvatarValue(nextProfile.avatarUrl),
+    },
   });
 
   revalidatePath('/settings');
   revalidatePath('/settings/security');
+  revalidatePath('/dashboard');
 
   return { success: true, message: 'Đã cập nhật hồ sơ cá nhân' };
 }

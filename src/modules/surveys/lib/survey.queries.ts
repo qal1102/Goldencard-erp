@@ -17,7 +17,7 @@ export async function querySurveys(filters: SurveyFilters = {}) {
     with: {
       customer: { columns: { id: true, code: true, fullName: true } },
       lead: { columns: { id: true, code: true, fullName: true } },
-      assignedUser: { columns: { id: true, name: true } },
+      assignedUser: { columns: { id: true, name: true, avatarUrl: true } },
       createdByUser: { columns: { id: true, name: true } },
       zones: {
         orderBy: (cols, { asc }) => [asc(cols.sortOrder)],
@@ -40,7 +40,7 @@ export async function querySurveysForTechnician(
     with: {
       customer: { columns: { id: true, code: true, fullName: true } },
       lead: { columns: { id: true, code: true, fullName: true } },
-      assignedUser: { columns: { id: true, name: true } },
+      assignedUser: { columns: { id: true, name: true, avatarUrl: true } },
       createdByUser: { columns: { id: true, name: true } },
       zones: {
         orderBy: (cols, { asc }) => [asc(cols.sortOrder)],
@@ -75,7 +75,7 @@ export async function querySurveyById(id: string) {
           lastCallResult: true,
         },
       },
-      assignedUser: { columns: { id: true, name: true, email: true } },
+      assignedUser: { columns: { id: true, name: true, email: true, avatarUrl: true } },
       createdByUser: { columns: { id: true, name: true } },
       checkedInByUser: { columns: { id: true, name: true } },
       zones: {
@@ -104,7 +104,7 @@ export async function querySurveysByCustomerId(customerId: string) {
   return db.query.surveys.findMany({
     where: eq(surveys.customerId, customerId),
     with: {
-      assignedUser: { columns: { id: true, name: true } },
+      assignedUser: { columns: { id: true, name: true, avatarUrl: true } },
       zones: {
         orderBy: (cols, { asc }) => [asc(cols.sortOrder)],
       },
@@ -115,7 +115,7 @@ export async function querySurveysByCustomerId(customerId: string) {
 
 export async function queryTechnicianUsers() {
   return db
-    .selectDistinct({ id: users.id, name: users.name })
+    .selectDistinct({ id: users.id, name: users.name, email: users.email, avatarUrl: users.avatarUrl })
     .from(users)
     .innerJoin(userRoles, eq(users.id, userRoles.userId))
     .innerJoin(roles, eq(userRoles.roleId, roles.id))

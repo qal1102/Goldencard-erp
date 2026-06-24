@@ -41,7 +41,7 @@ export async function queryLeads(filters: LeadFilters = {}) {
     where: conditions.length > 0 ? and(...conditions) : undefined,
     with: {
       assignedUser: {
-        columns: { id: true, name: true },
+        columns: { id: true, name: true, avatarUrl: true },
       },
       createdByUser: {
         columns: { id: true, name: true },
@@ -57,7 +57,7 @@ export async function queryLeadById(id: string) {
     where: eq(leads.id, id),
     with: {
       assignedUser: {
-        columns: { id: true, name: true, email: true },
+        columns: { id: true, name: true, email: true, avatarUrl: true },
       },
       createdByUser: {
         columns: { id: true, name: true },
@@ -90,7 +90,7 @@ export async function queryLeadActivities(leadId: string) {
 
 export async function queryAssignableUsers() {
   return db
-    .select({ id: users.id, name: users.name })
+    .select({ id: users.id, name: users.name, email: users.email, avatarUrl: users.avatarUrl })
     .from(users)
     .where(eq(users.isActive, true))
     .orderBy(users.name);

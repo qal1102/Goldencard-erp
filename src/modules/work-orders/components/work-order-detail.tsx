@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
+import { UserSelectOption } from '@/components/users/user-select-option';
 import { useCreateHandoverFromWorkOrder } from '@/modules/handovers/hooks/use-handovers';
 import { displayQuotationCode } from '@/modules/quotations/lib/quotation-display';
 import { useTechnicianUsers } from '@/modules/surveys/hooks/use-surveys';
@@ -405,7 +406,7 @@ export function WorkOrderDetail({ workOrderId, canWrite, canManageMaterials }: P
                     <SelectItem value="__none__">Chưa phân công</SelectItem>
                     {(technicians ?? []).map((t) => (
                       <SelectItem key={t.id} value={t.id}>
-                        {t.name}
+                        <UserSelectOption user={t} />
                       </SelectItem>
                     ))}
                   </SelectContent>

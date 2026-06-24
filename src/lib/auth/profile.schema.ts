@@ -12,8 +12,16 @@ export const updateProfileSchema = z.object({
   avatarUrl: z
     .string()
     .trim()
-    .url('Avatar phải là link ảnh hợp lệ')
-    .max(1000, 'Link avatar quá dài')
+    .refine(
+      (value) =>
+        !value ||
+        value.startsWith('data:image/png;base64,') ||
+        value.startsWith('data:image/jpeg;base64,') ||
+        value.startsWith('data:image/webp;base64,') ||
+        /^https?:\/\//.test(value),
+      'Avatar phải là ảnh PNG/JPG/WebP hoặc link ảnh hợp lệ',
+    )
+    .max(300_000, 'Ảnh avatar quá lớn, vui lòng chọn ảnh nhỏ hơn')
     .optional()
     .or(z.literal('')),
 });
