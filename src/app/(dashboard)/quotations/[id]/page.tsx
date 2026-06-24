@@ -16,7 +16,7 @@ export default async function QuotationDetailPage({ params }: Props) {
 
   const roles = session?.user?.roles ?? [];
 
-  if (!hasRole(roles, 'admin', 'director', 'sales', 'chief_accountant', 'accountant')) {
+  if (!hasRole(roles, 'admin', 'director', 'sales', 'project_manager', 'chief_engineer', 'chief_accountant', 'accountant')) {
     notFound();
   }
 

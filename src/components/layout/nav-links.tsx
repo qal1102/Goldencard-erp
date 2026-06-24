@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { adminNavItems, mainNavItems } from "@/lib/navigation/modules";
+import { adminNavItems, canViewNavItem, mainNavItems } from "@/lib/navigation/modules";
 import { cn } from "@/lib/utils";
 
 type NavLinksProps = {
@@ -54,16 +54,20 @@ function NavLinkItem({
 export function NavLinks({
   onNavigate,
   className,
+  userRoles = [],
   isSuperAdmin = false,
 }: NavLinksProps) {
   const pathname = usePathname();
+  const visibleMainItems = mainNavItems.filter((item) =>
+    canViewNavItem(item, userRoles, isSuperAdmin),
+  );
 
   return (
     <nav
       className={cn("flex flex-col gap-1", className)}
       aria-label="Điều hướng chính"
     >
-      {mainNavItems.map((item) => (
+      {visibleMainItems.map((item) => (
         <NavLinkItem key={item.id} item={item} pathname={pathname} onNavigate={onNavigate} />
       ))}
 

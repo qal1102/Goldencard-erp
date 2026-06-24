@@ -6,6 +6,7 @@ export type UserSelectOptionData = {
   id: string;
   name: string;
   email?: string | null;
+  jobTitle?: string | null;
   avatarUrl?: string | null;
 };
 
@@ -20,9 +21,9 @@ export function UserSelectOption({ user, description }: UserSelectOptionProps) {
       <UserAvatar name={user.name} avatarUrl={user.avatarUrl} className="size-7" />
       <span className="flex min-w-0 flex-col">
         <span className="truncate leading-tight">{user.name}</span>
-        {(description || user.email) && (
+        {(description || user.jobTitle || user.email) && (
           <span className="truncate text-xs leading-tight text-muted-foreground">
-            {description ?? user.email}
+            {description ?? user.jobTitle ?? user.email}
           </span>
         )}
       </span>

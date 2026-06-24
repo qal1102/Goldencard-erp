@@ -8,6 +8,8 @@ const VIEW_ROLES = [
   'admin',
   'director',
   'sales',
+  'project_manager',
+  'chief_engineer',
   'chief_accountant',
   'accountant',
   'technician',
@@ -23,7 +25,15 @@ export default async function WorkOrdersPage() {
 
   const isTechnician =
     hasRole(roles, 'technician') &&
-    !hasRole(roles, 'admin', 'director', 'sales', 'chief_accountant', 'accountant');
+    !hasRole(
+      roles,
+      'admin',
+      'director',
+      'project_manager',
+      'chief_engineer',
+      'chief_accountant',
+      'accountant',
+    );
 
   const loadResult = await loadWorkOrdersList(
     {},

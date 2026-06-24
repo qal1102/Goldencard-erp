@@ -22,6 +22,7 @@ export async function queryAdminUsers(filters: AdminUserFilters = {}) {
       ilike(users.name, term),
       ilike(users.email, term),
       ilike(users.phone, term),
+      ilike(users.jobTitle, term),
     );
     if (searchCondition) conditions.push(searchCondition);
   }
@@ -45,6 +46,7 @@ export async function queryAdminUsers(filters: AdminUserFilters = {}) {
           name: users.name,
           email: users.email,
           phone: users.phone,
+          jobTitle: users.jobTitle,
           isActive: users.isActive,
           isSuperAdmin: users.isSuperAdmin,
           lastLoginAt: users.lastLoginAt,
@@ -100,6 +102,7 @@ export async function queryAdminUserById(id: string) {
       name: true,
       email: true,
       phone: true,
+      jobTitle: true,
       isActive: true,
       isSuperAdmin: true,
       lastLoginAt: true,

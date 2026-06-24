@@ -21,6 +21,8 @@ export default async function WorkOrderDetailPage({ params }: Props) {
       'admin',
       'director',
       'sales',
+      'project_manager',
+      'chief_engineer',
       'chief_accountant',
       'accountant',
       'technician',
@@ -31,16 +33,35 @@ export default async function WorkOrderDetailPage({ params }: Props) {
 
   const isTechnicianOnly =
     hasRole(roles, 'technician') &&
-    !hasRole(roles, 'admin', 'director', 'sales', 'chief_accountant', 'accountant');
+    !hasRole(
+      roles,
+      'admin',
+      'director',
+      'sales',
+      'project_manager',
+      'chief_engineer',
+      'chief_accountant',
+      'accountant',
+    );
   if (isTechnicianOnly && workOrder.assignedTo !== session?.user?.id) {
     notFound();
   }
 
-  const canWrite = hasRole(roles, 'admin', 'director', 'sales', 'chief_accountant');
+  const canWrite = hasRole(
+    roles,
+    'admin',
+    'director',
+    'sales',
+    'project_manager',
+    'chief_engineer',
+    'chief_accountant',
+  );
   const canManageMaterials = hasRole(
     roles,
     'admin',
     'director',
+    'project_manager',
+    'chief_engineer',
     'chief_accountant',
     'accountant',
     'technician',

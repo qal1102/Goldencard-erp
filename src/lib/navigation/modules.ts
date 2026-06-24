@@ -23,11 +23,56 @@ export type NavItem = {
   icon: LucideIcon;
   phase: string;
   description: string;
+  roles?: string[];
 };
+
+const ALL_BUSINESS_ROLES = [
+  'admin',
+  'director',
+  'sales',
+  'project_manager',
+  'chief_engineer',
+  'technician',
+  'chief_accountant',
+  'accountant',
+  'customer_service',
+];
+
+const SALES_ROLES = ['admin', 'director', 'sales', 'chief_accountant'];
+const FINANCE_ROLES = ['admin', 'director', 'sales', 'chief_accountant', 'accountant'];
+const TECHNICAL_ROLES = [
+  'admin',
+  'director',
+  'sales',
+  'project_manager',
+  'chief_engineer',
+  'technician',
+];
+const INVENTORY_ROLES = [
+  'admin',
+  'director',
+  'project_manager',
+  'chief_engineer',
+  'technician',
+  'chief_accountant',
+  'accountant',
+];
+const AFTER_SALES_ROLES = [
+  'admin',
+  'director',
+  'sales',
+  'project_manager',
+  'chief_engineer',
+  'technician',
+  'chief_accountant',
+  'accountant',
+  'customer_service',
+];
 
 export const mainNavItems: NavItem[] = [
   {
     id: "dashboard",
+    roles: ALL_BUSINESS_ROLES,
     label: "Tổng quan",
     href: "/dashboard",
     icon: LayoutDashboard,
@@ -36,6 +81,7 @@ export const mainNavItems: NavItem[] = [
   },
   {
     id: "crm-leads",
+    roles: SALES_ROLES,
     label: "CRM / Cơ hội",
     href: "/crm/leads",
     icon: UserPlus,
@@ -44,6 +90,7 @@ export const mainNavItems: NavItem[] = [
   },
   {
     id: "crm-customers",
+    roles: [...SALES_ROLES, 'project_manager', 'chief_engineer', 'customer_service'],
     label: "Khách hàng",
     href: "/crm/customers",
     icon: Users,
@@ -52,6 +99,7 @@ export const mainNavItems: NavItem[] = [
   },
   {
     id: "surveys",
+    roles: TECHNICAL_ROLES,
     label: "Khảo sát",
     href: "/surveys",
     icon: ClipboardList,
@@ -60,6 +108,7 @@ export const mainNavItems: NavItem[] = [
   },
   {
     id: "quotations",
+    roles: [...FINANCE_ROLES, 'project_manager', 'chief_engineer'],
     label: "Báo giá",
     href: "/quotations",
     icon: FileText,
@@ -68,6 +117,7 @@ export const mainNavItems: NavItem[] = [
   },
   {
     id: "contracts",
+    roles: [...FINANCE_ROLES, 'project_manager', 'chief_engineer'],
     label: "Hợp đồng",
     href: "/contracts",
     icon: ScrollText,
@@ -76,6 +126,7 @@ export const mainNavItems: NavItem[] = [
   },
   {
     id: "inventory",
+    roles: INVENTORY_ROLES,
     label: "Kho",
     href: "/inventory",
     icon: Package,
@@ -84,6 +135,7 @@ export const mainNavItems: NavItem[] = [
   },
   {
     id: "work-orders",
+    roles: TECHNICAL_ROLES,
     label: "Lệnh thi công",
     href: "/work-orders",
     icon: Wrench,
@@ -92,6 +144,7 @@ export const mainNavItems: NavItem[] = [
   },
   {
     id: "handovers",
+    roles: AFTER_SALES_ROLES,
     label: "Bàn giao",
     href: "/handovers",
     icon: Handshake,
@@ -100,6 +153,7 @@ export const mainNavItems: NavItem[] = [
   },
   {
     id: "warranty",
+    roles: AFTER_SALES_ROLES,
     label: "Bảo hành / CSKH",
     href: "/warranty",
     icon: LifeBuoy,
@@ -108,6 +162,7 @@ export const mainNavItems: NavItem[] = [
   },
   {
     id: "warranty-certificates",
+    roles: AFTER_SALES_ROLES,
     label: "Phiếu bảo hành",
     href: "/warranty-certificates",
     icon: BadgeCheck,
@@ -116,6 +171,7 @@ export const mainNavItems: NavItem[] = [
   },
   {
     id: "settings",
+    roles: ALL_BUSINESS_ROLES,
     label: "Cài đặt",
     href: "/settings",
     icon: Settings,
@@ -142,6 +198,16 @@ export const adminNavItems: NavItem[] = [
     description: "Xem ai đã thao tác gì trong hệ thống.",
   },
 ];
+
+export function canViewNavItem(
+  item: NavItem,
+  userRoles: string[] = [],
+  isSuperAdmin = false,
+): boolean {
+  if (isSuperAdmin) return true;
+  if (!item.roles || item.roles.length === 0) return true;
+  return item.roles.some((role) => userRoles.includes(role));
+}
 
 const allNavItems = [...mainNavItems, ...adminNavItems];
 

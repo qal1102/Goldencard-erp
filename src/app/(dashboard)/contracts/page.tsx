@@ -9,7 +9,7 @@ export default async function ContractsPage() {
   const roles = session.user.roles ?? [];
 
   if (
-    !hasRole(roles, 'admin', 'director', 'sales', 'chief_accountant', 'accountant')
+    !hasRole(roles, 'admin', 'director', 'sales', 'project_manager', 'chief_engineer', 'chief_accountant', 'accountant')
   ) {
     redirect('/dashboard');
   }

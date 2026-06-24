@@ -8,6 +8,7 @@ export const users = pgTable(
   email: varchar('email', { length: 255 }).unique().notNull(),
   name: varchar('name', { length: 255 }).notNull(),
   phone: varchar('phone', { length: 20 }),
+  jobTitle: varchar('job_title', { length: 150 }),
   passwordHash: varchar('password_hash', { length: 255 }),
   avatarUrl: text('avatar_url'),
   isActive: boolean('is_active').default(true).notNull(),

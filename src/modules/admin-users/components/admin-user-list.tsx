@@ -213,6 +213,9 @@ export function AdminUserList({
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="font-medium">{user.name}</p>
+                    {user.jobTitle && (
+                      <p className="text-sm font-medium text-primary">{user.jobTitle}</p>
+                    )}
                     <p className="truncate text-sm text-muted-foreground">{user.email}</p>
                     {user.phone && (
                       <p className="text-sm text-muted-foreground">{user.phone}</p>

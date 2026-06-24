@@ -49,9 +49,9 @@ export type ActionResult<T = void> =
   | { success: true; data: T }
   | { success: false; error: string };
 
-const SURVEY_MANAGE_ROLES = ['admin', 'director', 'sales'] as const;
+const SURVEY_MANAGE_ROLES = ['admin', 'director', 'sales', 'project_manager', 'chief_engineer'] as const;
 /** When a survey has an accepted quotation, only these roles may correct technical data */
-const SURVEY_ACCEPTED_QUOTATION_EDIT_ROLES = ['admin', 'director'] as const;
+const SURVEY_ACCEPTED_QUOTATION_EDIT_ROLES = ['admin', 'director', 'project_manager', 'chief_engineer'] as const;
 
 async function getSessionOrThrow() {
   const session = await auth();
@@ -189,7 +189,7 @@ export async function getSurveysAction(
     const safeFilters = parsed.success ? parsed.data : {};
 
     // Technician sees only their own assigned surveys, with optional status filter
-    if (hasRole(roles, 'technician') && !hasRole(roles, 'admin', 'director', 'sales')) {
+    if (hasRole(roles, 'technician') && !hasRole(roles, ...SURVEY_MANAGE_ROLES)) {
       const data = await querySurveysForTechnician(session.user.id, safeFilters.status);
       return { success: true, data };
     }
@@ -213,7 +213,7 @@ export async function getSurveyAction(
     // Technician can only access surveys assigned to them
     if (
       hasRole(sessionRoles, 'technician') &&
-      !hasRole(sessionRoles, 'admin', 'director', 'sales')
+      !hasRole(sessionRoles, ...SURVEY_MANAGE_ROLES)
     ) {
       if (!data || data.assignedTo !== session.user.id) {
         return { success: false, error: 'Không có quyền truy cập phiếu khảo sát này' };
@@ -274,7 +274,7 @@ export async function updateSurveyAction(
     // Technician can only update surveys assigned to them
     if (
       hasRole(sessionRoles, 'technician') &&
-      !hasRole(sessionRoles, 'admin', 'director', 'sales')
+      !hasRole(sessionRoles, ...SURVEY_MANAGE_ROLES)
     ) {
       if (existing.assignedTo !== session.user.id) {
         return { success: false, error: 'Không có quyền chỉnh sửa phiếu khảo sát này' };
@@ -527,7 +527,7 @@ export async function updateSurveyAddressAction(
     const isCompletedEdit = existing.status === 'completed';
     const isTech =
       hasRole(sessionRoles, 'technician') &&
-      !hasRole(sessionRoles, 'admin', 'director', 'sales');
+      !hasRole(sessionRoles, ...SURVEY_MANAGE_ROLES);
 
     if (isTech) {
       if (existing.assignedTo !== session.user.id) {
@@ -662,7 +662,7 @@ export async function checkInSurveyLocationAction(
 
     const isTech =
       hasRole(sessionRoles, 'technician') &&
-      !hasRole(sessionRoles, 'admin', 'director', 'sales');
+      !hasRole(sessionRoles, ...SURVEY_MANAGE_ROLES);
 
     if (isTech) {
       if (existing.assignedTo !== session.user.id) {
@@ -745,7 +745,7 @@ export async function updateSurveyStatusAction(
     const { status, assignedTo } = parsed.data;
     const isTech =
       hasRole(sessionRoles, 'technician') &&
-      !hasRole(sessionRoles, 'admin', 'director', 'sales');
+      !hasRole(sessionRoles, ...SURVEY_MANAGE_ROLES);
 
     if (isTech) {
       if (existing.assignedTo !== session.user.id) {

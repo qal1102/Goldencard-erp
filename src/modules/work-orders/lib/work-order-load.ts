@@ -10,6 +10,8 @@ const VIEW_ROLES = [
   'admin',
   'director',
   'sales',
+  'project_manager',
+  'chief_engineer',
   'chief_accountant',
   'accountant',
   'technician',
@@ -35,7 +37,15 @@ export async function loadWorkOrdersList(
     const effectiveFilters = { ...parsed.data };
     const isTechnicianOnly =
       hasRole(options.roles, 'technician') &&
-      !hasRole(options.roles, 'admin', 'director', 'sales', 'chief_accountant', 'accountant');
+      !hasRole(
+        options.roles,
+        'admin',
+        'director',
+        'project_manager',
+        'chief_engineer',
+        'chief_accountant',
+        'accountant',
+      );
 
     if (isTechnicianOnly) {
       effectiveFilters.assignedTo = options.userId;

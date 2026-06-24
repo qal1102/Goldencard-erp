@@ -9,6 +9,7 @@ export const updateProfileSchema = z.object({
     .regex(/^[0-9+\-\s().]*$/, 'Số điện thoại không hợp lệ')
     .optional()
     .or(z.literal('')),
+  jobTitle: z.string().trim().max(150, 'Chức danh tối đa 150 ký tự').optional().or(z.literal('')),
   avatarUrl: z
     .string()
     .trim()

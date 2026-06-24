@@ -21,7 +21,8 @@ export async function loadSurveysList(
     }
 
     const isTechnicianOnly =
-      hasRole(roles, 'technician') && !hasRole(roles, 'admin', 'director', 'sales');
+      hasRole(roles, 'technician') &&
+      !hasRole(roles, 'admin', 'director', 'sales', 'project_manager', 'chief_engineer');
 
     const data = serializeForClient(
       isTechnicianOnly

@@ -19,6 +19,7 @@ type ProfileFormProps = {
     name: string;
     email: string;
     phone: string | null;
+    jobTitle: string | null;
     avatarUrl: string | null;
   };
 };
@@ -96,6 +97,17 @@ export function ProfileForm({ user }: ProfileFormProps) {
             disabled={pending}
           />
         </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="profile-job-title">Chức danh hiển thị</Label>
+        <Input
+          id="profile-job-title"
+          name="jobTitle"
+          defaultValue={user.jobTitle ?? ''}
+          placeholder="VD: Quản lý dự án, Kỹ sư trưởng, Kế toán trưởng..."
+          disabled={pending}
+        />
       </div>
 
       <div className="flex flex-col gap-2">

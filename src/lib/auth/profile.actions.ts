@@ -33,6 +33,7 @@ export async function updateProfileAction(
   const parsed = updateProfileSchema.safeParse({
     name: formData.get('name'),
     phone: formData.get('phone'),
+    jobTitle: formData.get('jobTitle'),
     avatarUrl: formData.get('avatarUrl'),
   });
 
@@ -50,6 +51,7 @@ export async function updateProfileAction(
       name: true,
       email: true,
       phone: true,
+      jobTitle: true,
       avatarUrl: true,
       isActive: true,
     },
@@ -62,18 +64,21 @@ export async function updateProfileAction(
   const nextProfile = {
     name: parsed.data.name.trim(),
     phone: normalizeOptional(parsed.data.phone),
+    jobTitle: normalizeOptional(parsed.data.jobTitle),
     avatarUrl: normalizeOptional(parsed.data.avatarUrl),
   };
 
   const before = {
     name: currentUser.name,
     phone: currentUser.phone,
+    jobTitle: currentUser.jobTitle,
     avatarUrl: currentUser.avatarUrl,
   };
 
   const hasChanged =
     before.name !== nextProfile.name ||
     before.phone !== nextProfile.phone ||
+    before.jobTitle !== nextProfile.jobTitle ||
     before.avatarUrl !== nextProfile.avatarUrl;
 
   if (!hasChanged) {

@@ -45,12 +45,21 @@ const WORK_ORDER_VIEW_ROLES = [
   'admin',
   'director',
   'sales',
+  'project_manager',
+  'chief_engineer',
   'chief_accountant',
   'accountant',
   'technician',
 ] as const;
 
-const WORK_ORDER_WRITE_ROLES = ['admin', 'director', 'sales', 'chief_accountant'] as const;
+const WORK_ORDER_WRITE_ROLES = [
+  'admin',
+  'director',
+  'sales',
+  'project_manager',
+  'chief_engineer',
+  'chief_accountant',
+] as const;
 
 async function getSessionOrThrow() {
   const session = await auth();
@@ -96,7 +105,16 @@ export async function getWorkOrdersAction(
 
     const isTechnicianOnly =
       hasRole(roles, 'technician') &&
-      !hasRole(roles, 'admin', 'director', 'sales', 'chief_accountant', 'accountant');
+      !hasRole(
+        roles,
+        'admin',
+        'director',
+        'sales',
+        'project_manager',
+        'chief_engineer',
+        'chief_accountant',
+        'accountant',
+      );
 
     const effectiveFilters = { ...parsed.data };
     if (isTechnicianOnly) {
@@ -132,7 +150,16 @@ export async function getWorkOrderAction(
 
     const isTechnicianOnly =
       hasRole(roles, 'technician') &&
-      !hasRole(roles, 'admin', 'director', 'sales', 'chief_accountant', 'accountant');
+      !hasRole(
+        roles,
+        'admin',
+        'director',
+        'sales',
+        'project_manager',
+        'chief_engineer',
+        'chief_accountant',
+        'accountant',
+      );
     if (isTechnicianOnly && workOrder.assignedTo !== session.user.id) {
       return { success: false, error: 'Không có quyền xem lệnh thi công này' };
     }

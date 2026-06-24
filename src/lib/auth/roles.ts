@@ -2,6 +2,8 @@ export type AppRole =
   | 'admin'
   | 'director'
   | 'sales'
+  | 'project_manager'
+  | 'chief_engineer'
   | 'technician'
   | 'chief_accountant'
   | 'accountant'

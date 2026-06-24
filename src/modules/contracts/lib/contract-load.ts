@@ -10,6 +10,8 @@ const VIEW_ROLES = [
   'admin',
   'director',
   'sales',
+  'project_manager',
+  'chief_engineer',
   'chief_accountant',
   'accountant',
 ] as const;

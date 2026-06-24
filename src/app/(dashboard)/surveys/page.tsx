@@ -8,7 +8,8 @@ export default async function SurveysPage() {
   const session = await verifySession();
   const roles = session.user.roles ?? [];
   const isTechnician =
-    hasRole(roles, 'technician') && !hasRole(roles, 'admin', 'director', 'sales');
+    hasRole(roles, 'technician') &&
+    !hasRole(roles, 'admin', 'director', 'sales', 'project_manager', 'chief_engineer');
   const loadResult = await loadSurveysList({}, roles, session.user.id);
 
   return (

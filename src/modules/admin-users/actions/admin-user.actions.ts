@@ -214,6 +214,7 @@ export async function createAdminUserAction(
 
     const passwordHash = await bcrypt.hash(d.password, 12);
     const phone = d.phone ? normalizePhoneForStorage(d.phone) : null;
+    const jobTitle = d.jobTitle?.trim() || null;
 
     const [created] = await db
       .insert(users)
@@ -221,6 +222,7 @@ export async function createAdminUserAction(
         name: d.name,
         email,
         phone,
+        jobTitle,
         passwordHash,
         isActive: d.isActive,
       })
@@ -244,6 +246,7 @@ export async function createAdminUserAction(
         name: d.name,
         email,
         phone,
+        jobTitle,
         isActive: d.isActive,
         roleNames,
       },
@@ -297,6 +300,7 @@ export async function updateAdminUserAction(
     if (!roleSafety.ok) return { success: false, error: roleSafety.error };
 
     const phone = d.phone ? normalizePhoneForStorage(d.phone) : null;
+    const jobTitle = d.jobTitle?.trim() || null;
 
     await db
       .update(users)
@@ -304,6 +308,7 @@ export async function updateAdminUserAction(
         name: d.name,
         email,
         phone,
+        jobTitle,
         isActive: d.isActive,
         updatedAt: new Date(),
       })
@@ -315,6 +320,7 @@ export async function updateAdminUserAction(
       d.name !== existing.name ||
       email !== existing.email ||
       phone !== (existing.phone ?? null) ||
+      jobTitle !== (existing.jobTitle ?? null) ||
       d.isActive !== existing.isActive;
 
     if (profileChanged) {
@@ -328,12 +334,14 @@ export async function updateAdminUserAction(
           name: existing.name,
           email: existing.email,
           phone: existing.phone,
+          jobTitle: existing.jobTitle,
           isActive: existing.isActive,
         },
         after: {
           name: d.name,
           email,
           phone,
+          jobTitle,
           isActive: d.isActive,
         },
       });

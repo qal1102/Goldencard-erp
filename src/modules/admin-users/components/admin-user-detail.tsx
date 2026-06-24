@@ -43,6 +43,7 @@ function AdminUserManageForm({ user, allRoles }: ManageFormProps) {
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
   const [phone, setPhone] = useState(user.phone ?? '');
+  const [jobTitle, setJobTitle] = useState(user.jobTitle ?? '');
   const [roleIds, setRoleIds] = useState(user.roles.map((r) => r.id));
   const [isActive, setIsActive] = useState(user.isActive);
   const [newPassword, setNewPassword] = useState('');
@@ -58,6 +59,7 @@ function AdminUserManageForm({ user, allRoles }: ManageFormProps) {
       name: name.trim(),
       email: email.trim(),
       phone: phone.trim() || null,
+      jobTitle: jobTitle.trim() || null,
       roleIds,
       isActive,
     });
@@ -140,6 +142,17 @@ function AdminUserManageForm({ user, allRoles }: ManageFormProps) {
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-job-title">Chức danh hiển thị</Label>
+              <Input
+                id="edit-job-title"
+                value={jobTitle}
+                onChange={(e) => setJobTitle(e.target.value)}
+                placeholder="VD: Quản lý dự án, Kỹ sư trưởng, Sales..."
+                autoComplete="organization-title"
               />
             </div>
 

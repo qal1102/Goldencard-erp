@@ -19,11 +19,12 @@ export default async function SurveyDetailPage({ params }: Props) {
 
   // Technician can only view surveys assigned to them
   const isTechnician =
-    hasRole(roles, 'technician') && !hasRole(roles, 'admin', 'director', 'sales');
+    hasRole(roles, 'technician') &&
+    !hasRole(roles, 'admin', 'director', 'sales', 'project_manager', 'chief_engineer');
   if (isTechnician && survey.assignedTo !== userId) notFound();
 
-  const canManage = hasRole(roles, 'admin', 'director', 'sales');
-  const canCorrectAcceptedSurvey = hasRole(roles, 'admin', 'director');
+  const canManage = hasRole(roles, 'admin', 'director', 'sales', 'project_manager', 'chief_engineer');
+  const canCorrectAcceptedSurvey = hasRole(roles, 'admin', 'director', 'project_manager', 'chief_engineer');
   const canCreateQuotation = hasRole(roles, 'admin', 'director', 'sales', 'chief_accountant');
 
   return (

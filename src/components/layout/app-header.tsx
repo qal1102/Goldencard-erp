@@ -50,7 +50,12 @@ export function AppHeader({ title, user }: AppHeaderProps) {
           onNavigate={() => setMenuOpen(false)}
         />
               </div>
-              <UserMenu name={user.name} email={user.email} avatarUrl={user.avatarUrl} />
+              <UserMenu
+                name={user.name}
+                email={user.email}
+                jobTitle={user.jobTitle}
+                avatarUrl={user.avatarUrl}
+              />
             </div>
           </SheetContent>
         </Sheet>

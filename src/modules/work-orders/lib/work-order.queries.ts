@@ -22,7 +22,7 @@ export async function queryWorkOrders(filters: WorkOrderFilters = {}) {
     with: {
       customer: { columns: { id: true, code: true, fullName: true } },
       contract: { columns: { id: true, code: true } },
-      assignedUser: { columns: { id: true, name: true, avatarUrl: true } },
+      assignedUser: { columns: { id: true, name: true, jobTitle: true, avatarUrl: true } },
     },
     orderBy: [desc(workOrders.createdAt)],
     limit: 200,
@@ -40,7 +40,7 @@ export async function queryWorkOrderById(id: string) {
       survey: { columns: { id: true, code: true, status: true } },
       quotation: { columns: { id: true, code: true, status: true } },
       contract: { columns: { id: true, code: true, status: true } },
-      assignedUser: { columns: { id: true, name: true, avatarUrl: true } },
+      assignedUser: { columns: { id: true, name: true, jobTitle: true, avatarUrl: true } },
       createdByUser: { columns: { id: true, name: true } },
       completedByUser: { columns: { id: true, name: true } },
       handover: { columns: { id: true, code: true, status: true } },

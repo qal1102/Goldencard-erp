@@ -9,6 +9,8 @@ const ROLES: { name: string; description: string }[] = [
   { name: 'admin', description: 'Full system access' },
   { name: 'director', description: 'Executive oversight and approvals' },
   { name: 'sales', description: 'CRM, leads, quotations' },
+  { name: 'project_manager', description: 'Project management, technical coordination, delivery oversight' },
+  { name: 'chief_engineer', description: 'Chief engineer, technical review, survey and installation oversight' },
   { name: 'technician', description: 'Survey, BOM, work orders, installation' },
   { name: 'chief_accountant', description: 'Finance, approvals, contract sign-off' },
   { name: 'accountant', description: 'Finance operations, MISA export' },

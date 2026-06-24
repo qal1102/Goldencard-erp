@@ -13,6 +13,7 @@ export default async function DashboardGroupLayout({
     id: session.user.id,
     name: currentUser?.name ?? session.user.name,
     email: currentUser?.email ?? session.user.email,
+    jobTitle: currentUser?.jobTitle ?? null,
     avatarUrl: currentUser?.avatarUrl ?? null,
     roles: session.user.roles ?? [],
     isSuperAdmin: currentUser?.isSuperAdmin ?? session.user.isSuperAdmin ?? false,

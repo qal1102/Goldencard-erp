@@ -18,6 +18,7 @@ export default async function SettingsPage() {
       name: true,
       email: true,
       phone: true,
+      jobTitle: true,
       avatarUrl: true,
     },
   });

@@ -29,6 +29,7 @@ export const getCurrentUser = cache(async (userId: string) => {
       id: true,
       name: true,
       email: true,
+      jobTitle: true,
       avatarUrl: true,
       isActive: true,
       isSuperAdmin: true,

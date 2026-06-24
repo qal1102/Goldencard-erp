@@ -17,6 +17,7 @@ export function AdminUserCreateForm() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [jobTitle, setJobTitle] = useState('');
   const [password, setPassword] = useState('');
   const [roleIds, setRoleIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -31,6 +32,7 @@ export function AdminUserCreateForm() {
       name: name.trim(),
       email: email.trim(),
       phone: phone.trim() || undefined,
+      jobTitle: jobTitle.trim() || undefined,
       password,
       roleIds,
       isActive: true,
@@ -80,6 +82,17 @@ export function AdminUserCreateForm() {
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           autoComplete="tel"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="job-title">Chức danh hiển thị</Label>
+        <Input
+          id="job-title"
+          value={jobTitle}
+          onChange={(e) => setJobTitle(e.target.value)}
+          placeholder="VD: Quản lý dự án, Kỹ sư trưởng, Sales..."
+          autoComplete="organization-title"
         />
       </div>
 

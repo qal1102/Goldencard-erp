@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 type UserMenuProps = {
   name?: string | null;
   email?: string | null;
+  jobTitle?: string | null;
   avatarUrl?: string | null;
 };
 
@@ -44,7 +45,7 @@ function SignOutButton() {
   );
 }
 
-export function UserMenu({ name, email, avatarUrl }: UserMenuProps) {
+export function UserMenu({ name, email, jobTitle, avatarUrl }: UserMenuProps) {
   return (
     <div className="border-t border-sidebar-border p-3">
       <div className="mb-2 flex items-center gap-2.5 px-1">
@@ -65,8 +66,11 @@ export function UserMenu({ name, email, avatarUrl }: UserMenuProps) {
             {name ?? 'Người dùng'}
           </p>
           <p className="truncate text-xs leading-tight text-muted-foreground">
-            {email ?? ''}
+            {jobTitle || email || ''}
           </p>
+          {jobTitle && email && (
+            <p className="truncate text-[11px] leading-tight text-muted-foreground">{email}</p>
+          )}
         </div>
       </div>
 

@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import { ExternalLinkIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,40 +8,43 @@ import { Label } from '@/components/ui/label';
 import { buildFullAddress } from '@/lib/address/format-address';
 
 export const VIETNAM_PROVINCE_SUGGESTIONS = [
-  'Hà Nội',
-  'Hồ Chí Minh',
-  'Hải Phòng',
-  'Đà Nẵng',
-  'Cần Thơ',
-  'Huế',
-  'Lai Châu',
-  'Điện Biên',
-  'Sơn La',
-  'Lạng Sơn',
-  'Quảng Ninh',
-  'Cao Bằng',
-  'Tuyên Quang',
-  'Lào Cai',
-  'Thái Nguyên',
-  'Phú Thọ',
-  'Bắc Ninh',
-  'Hưng Yên',
-  'Ninh Bình',
-  'Thanh Hóa',
-  'Nghệ An',
-  'Hà Tĩnh',
-  'Quảng Trị',
-  'Quảng Ngãi',
-  'Gia Lai',
-  'Đắk Lắk',
-  'Khánh Hòa',
-  'Lâm Đồng',
-  'Đồng Nai',
-  'Tây Ninh',
-  'Đồng Tháp',
-  'An Giang',
-  'Vĩnh Long',
-  'Cà Mau',
+  { value: 'Hà Nội', aliases: ['ha noi', 'hn', 'tp ha noi', 'thanh pho ha noi'] },
+  {
+    value: 'Hồ Chí Minh',
+    aliases: ['ho chi minh', 'hcm', 'tphcm', 'tp hcm', 'sai gon', 'saigon', 'tp ho chi minh'],
+  },
+  { value: 'Hải Phòng', aliases: ['hai phong', 'hp', 'tp hai phong'] },
+  { value: 'Đà Nẵng', aliases: ['da nang', 'dn', 'tp da nang'] },
+  { value: 'Cần Thơ', aliases: ['can tho', 'ct', 'tp can tho'] },
+  { value: 'Huế', aliases: ['hue', 'tp hue', 'thua thien hue'] },
+  { value: 'Lai Châu', aliases: ['lai chau'] },
+  { value: 'Điện Biên', aliases: ['dien bien'] },
+  { value: 'Sơn La', aliases: ['son la'] },
+  { value: 'Lạng Sơn', aliases: ['lang son'] },
+  { value: 'Quảng Ninh', aliases: ['quang ninh'] },
+  { value: 'Cao Bằng', aliases: ['cao bang'] },
+  { value: 'Tuyên Quang', aliases: ['tuyen quang'] },
+  { value: 'Lào Cai', aliases: ['lao cai'] },
+  { value: 'Thái Nguyên', aliases: ['thai nguyen'] },
+  { value: 'Phú Thọ', aliases: ['phu tho'] },
+  { value: 'Bắc Ninh', aliases: ['bac ninh'] },
+  { value: 'Hưng Yên', aliases: ['hung yen'] },
+  { value: 'Ninh Bình', aliases: ['ninh binh'] },
+  { value: 'Thanh Hóa', aliases: ['thanh hoa'] },
+  { value: 'Nghệ An', aliases: ['nghe an'] },
+  { value: 'Hà Tĩnh', aliases: ['ha tinh'] },
+  { value: 'Quảng Trị', aliases: ['quang tri'] },
+  { value: 'Quảng Ngãi', aliases: ['quang ngai'] },
+  { value: 'Gia Lai', aliases: ['gia lai'] },
+  { value: 'Đắk Lắk', aliases: ['dak lak', 'daklak', 'buon ma thuot'] },
+  { value: 'Khánh Hòa', aliases: ['khanh hoa', 'nha trang'] },
+  { value: 'Lâm Đồng', aliases: ['lam dong', 'da lat'] },
+  { value: 'Đồng Nai', aliases: ['dong nai', 'bien hoa'] },
+  { value: 'Tây Ninh', aliases: ['tay ninh'] },
+  { value: 'Đồng Tháp', aliases: ['dong thap'] },
+  { value: 'An Giang', aliases: ['an giang'] },
+  { value: 'Vĩnh Long', aliases: ['vinh long'] },
+  { value: 'Cà Mau', aliases: ['ca mau'] },
 ] as const;
 
 type AddressInputFieldsProps = {
@@ -63,6 +67,16 @@ function openMapsSearch(address: string, province: string) {
   window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`);
 }
 
+function normalizeSearch(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+    .trim();
+}
+
 export function AddressInputFields({
   idPrefix,
   address,
@@ -76,9 +90,22 @@ export function AddressInputFields({
   addressError,
   addressPlaceholder = 'Số nhà, đường, phường/xã, quận/huyện cũ nếu có...',
 }: AddressInputFieldsProps) {
-  const provinceListId = `${idPrefix}-province-suggestions`;
+  const [provinceFocused, setProvinceFocused] = useState(false);
   const addressListId = `${idPrefix}-address-hints`;
   const canOpenMap = Boolean((address || province).trim());
+  const provinceQuery = normalizeSearch(province);
+  const provinceSuggestions = useMemo(() => {
+    if (!provinceQuery) return VIETNAM_PROVINCE_SUGGESTIONS.slice(0, 8);
+    return VIETNAM_PROVINCE_SUGGESTIONS.filter((item) => {
+      const value = normalizeSearch(item.value);
+      return (
+        value.includes(provinceQuery) ||
+        item.aliases.some((alias) => normalizeSearch(alias).includes(provinceQuery))
+      );
+    }).slice(0, 8);
+  }, [provinceQuery]);
+  const showProvinceSuggestions =
+    provinceFocused && !disabled && provinceSuggestions.length > 0;
 
   return (
     <div className="flex flex-col gap-3">
@@ -106,19 +133,36 @@ export function AddressInputFields({
       <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`${idPrefix}-province`}>{provinceLabel}</Label>
-          <Input
-            id={`${idPrefix}-province`}
-            value={province}
-            onChange={(event) => onProvinceChange(event.target.value)}
-            placeholder="Chọn/gõ tỉnh thành theo địa giới mới"
-            list={provinceListId}
-            disabled={disabled}
-          />
-          <datalist id={provinceListId}>
-            {VIETNAM_PROVINCE_SUGGESTIONS.map((item) => (
-              <option key={item} value={item} />
-            ))}
-          </datalist>
+          <div className="relative">
+            <Input
+              id={`${idPrefix}-province`}
+              value={province}
+              onChange={(event) => onProvinceChange(event.target.value)}
+              onFocus={() => setProvinceFocused(true)}
+              onBlur={() => setProvinceFocused(false)}
+              placeholder="Gõ HN, HCM, TP, Đà Nẵng..."
+              disabled={disabled}
+              autoComplete="off"
+            />
+            {showProvinceSuggestions && (
+              <div className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border bg-popover p-1 text-popover-foreground shadow-md">
+                {provinceSuggestions.map((item) => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    className="flex min-h-9 w-full items-center rounded-md px-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      onProvinceChange(item.value);
+                      setProvinceFocused(false);
+                    }}
+                  >
+                    {item.value}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <Button
           type="button"

@@ -24,7 +24,7 @@ export async function queryWarrantyTickets(filters: WarrantyTicketFilters = {}) 
     with: {
       customer: { columns: { id: true, code: true, fullName: true } },
       handover: { columns: { id: true, code: true } },
-      assignedUser: { columns: { id: true, name: true, avatarUrl: true } },
+      assignedUser: { columns: { id: true, name: true, jobTitle: true, avatarUrl: true } },
     },
     orderBy: [desc(warrantyTickets.reportedAt)],
     limit: 200,
@@ -42,7 +42,7 @@ export async function queryWarrantyTicketById(id: string) {
       contract: { columns: { id: true, code: true } },
       workOrder: { columns: { id: true, code: true } },
       handover: { columns: { id: true, code: true, status: true } },
-      assignedUser: { columns: { id: true, name: true, avatarUrl: true } },
+      assignedUser: { columns: { id: true, name: true, jobTitle: true, avatarUrl: true } },
       resolvedByUser: { columns: { id: true, name: true } },
       cancelledByUser: { columns: { id: true, name: true } },
       createdByUser: { columns: { id: true, name: true } },
@@ -97,7 +97,13 @@ export async function queryWarrantyTicketsByLeadIds(leadIds: string[]) {
 
 export async function queryWarrantyAssignableUsers() {
   const rows = await db
-    .selectDistinct({ id: users.id, name: users.name, email: users.email, avatarUrl: users.avatarUrl })
+    .selectDistinct({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      jobTitle: users.jobTitle,
+      avatarUrl: users.avatarUrl,
+    })
     .from(users)
     .innerJoin(userRoles, eq(users.id, userRoles.userId))
     .innerJoin(roles, eq(userRoles.roleId, roles.id))
