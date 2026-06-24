@@ -306,6 +306,10 @@ export function QuotationForm(props: Props) {
             Tạo nhanh từ khảo sát
           </Button>
           <QuickGenerateStatusPanel status={quickGenerateStatus} surveyId={survey.id} />
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
+            Hệ thống chỉ gợi ý khung hạng mục từ khảo sát. Đơn giá mặc định là 0 cho
+            đến khi có catalog vật tư/giá thật; cần nhập giá thực tế trước khi gửi khách.
+          </p>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {errors.items?.root && (

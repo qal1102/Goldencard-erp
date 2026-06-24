@@ -69,18 +69,18 @@ export type GeneratedQuotationItem = {
 
 /** Temporary MVP default prices — will be replaced by Product/SKU catalog later. */
 export const QUOTATION_ITEM_DEFAULT_PRICES = {
-  panelPerUnit: 2_500_000,
-  inverterPerSet: 15_000_000,
-  railPerKwp: 1_500_000,
-  waterproofPackage: 2_000_000,
-  dcCableSet: 3_000_000,
-  dcProtectionSet: 1_500_000,
-  acCableSet: 2_500_000,
-  acCabinetSet: 5_000_000,
-  groundingSet: 2_000_000,
-  laborPerKwp: 3_000_000,
-  transportPackage: 1_500_000,
-  difficultInstallPackage: 5_000_000,
+  panelPerUnit: 0,
+  inverterPerSet: 0,
+  railPerKwp: 0,
+  waterproofPackage: 0,
+  dcCableSet: 0,
+  dcProtectionSet: 0,
+  acCableSet: 0,
+  acCabinetSet: 0,
+  groundingSet: 0,
+  laborPerKwp: 0,
+  transportPackage: 0,
+  difficultInstallPackage: 0,
 } as const;
 
 export type SurveyForQuotationTechnical = SurveyForZoneResolution &
