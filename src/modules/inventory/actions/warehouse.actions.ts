@@ -23,10 +23,12 @@ import {
 import {
   type InventoryStockAdjustmentInput,
   type InventoryStockMovementInput,
+  type InventoryStockTransferInput,
   type WarehouseFilters,
   type WarehouseFormInput,
   inventoryStockAdjustmentSchema,
   inventoryStockMovementSchema,
+  inventoryStockTransferSchema,
   warehouseFiltersSchema,
   warehouseFormSchema,
 } from '../schema/warehouse.schema';
@@ -528,6 +530,185 @@ export async function createInventoryStockMovementAction(
     return {
       success: false,
       error: e instanceof Error ? e.message : 'Không thể tạo phiếu kho',
+    };
+  }
+}
+
+export async function createInventoryStockTransferAction(
+  input: InventoryStockTransferInput,
+): Promise<WarehouseActionResult> {
+  try {
+    const session = await requireWarehouseManager();
+
+    const parsed = inventoryStockTransferSchema.safeParse(input);
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: parsed.error.issues[0]?.message ?? 'Dữ liệu chuyển kho không hợp lệ',
+      };
+    }
+
+    const d = parsed.data;
+    const result = await db.transaction(async (tx) => {
+      const [fromWarehouse, toWarehouse, item] = await Promise.all([
+        tx.query.warehouses.findFirst({ where: eq(warehouses.id, d.fromWarehouseId) }),
+        tx.query.warehouses.findFirst({ where: eq(warehouses.id, d.toWarehouseId) }),
+        tx.query.inventoryItems.findFirst({ where: eq(inventoryItems.id, d.itemId) }),
+      ]);
+
+      if (!fromWarehouse) throw new Error('Không tìm thấy kho xuất');
+      if (!toWarehouse) throw new Error('Không tìm thấy kho nhận');
+      if (!fromWarehouse.isActive) throw new Error('Kho xuất đang ngừng sử dụng');
+      if (!toWarehouse.isActive) throw new Error('Kho nhận đang ngừng sử dụng');
+      if (!item) throw new Error('Không tìm thấy vật tư');
+      if (!item.isActive) throw new Error('Vật tư đang ngừng sử dụng');
+
+      await tx
+        .insert(inventoryStocks)
+        .values([
+          {
+            warehouseId: d.fromWarehouseId,
+            itemId: d.itemId,
+            quantityOnHand: '0',
+            updatedBy: session.user.id,
+          },
+          {
+            warehouseId: d.toWarehouseId,
+            itemId: d.itemId,
+            quantityOnHand: '0',
+            updatedBy: session.user.id,
+          },
+        ])
+        .onConflictDoNothing({
+          target: [inventoryStocks.warehouseId, inventoryStocks.itemId],
+        });
+
+      const lockedRows = await tx.execute<{
+        warehouse_id: string;
+        quantity_on_hand: string;
+        quantity_reserved: string;
+      }>(sql`
+        select warehouse_id, quantity_on_hand, quantity_reserved
+        from inventory_stocks
+        where item_id = ${d.itemId}
+          and warehouse_id in (${d.fromWarehouseId}, ${d.toWarehouseId})
+        order by warehouse_id
+        for update
+      `);
+
+      const fromStock = lockedRows.find((row) => row.warehouse_id === d.fromWarehouseId);
+      const toStock = lockedRows.find((row) => row.warehouse_id === d.toWarehouseId);
+      if (!fromStock || !toStock) throw new Error('Không thể khóa dòng tồn kho');
+
+      const quantity = d.quantity;
+      const fromBefore = Number(fromStock.quantity_on_hand);
+      const fromReserved = Number(fromStock.quantity_reserved);
+      const toBefore = Number(toStock.quantity_on_hand);
+      const fromAfter = fromBefore - quantity;
+      const toAfter = toBefore + quantity;
+
+      if (fromAfter < fromReserved) {
+        throw new Error('Số lượng chuyển vượt tồn khả dụng của kho xuất');
+      }
+
+      const note = normalizeOptional(d.note);
+      const [outMovement, inMovement] = await tx
+        .insert(inventoryStockMovements)
+        .values([
+          {
+            type: 'transfer_out',
+            warehouseId: d.fromWarehouseId,
+            itemId: d.itemId,
+            quantity: String(quantity),
+            quantityBefore: String(fromBefore),
+            quantityAfter: String(fromAfter),
+            note,
+            createdBy: session.user.id,
+          },
+          {
+            type: 'transfer_in',
+            warehouseId: d.toWarehouseId,
+            itemId: d.itemId,
+            quantity: String(quantity),
+            quantityBefore: String(toBefore),
+            quantityAfter: String(toAfter),
+            note,
+            createdBy: session.user.id,
+          },
+        ])
+        .returning({ id: inventoryStockMovements.id });
+
+      await Promise.all([
+        tx
+          .update(inventoryStocks)
+          .set({
+            quantityOnHand: String(fromAfter),
+            updatedBy: session.user.id,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(inventoryStocks.warehouseId, d.fromWarehouseId),
+              eq(inventoryStocks.itemId, d.itemId),
+            ),
+          ),
+        tx
+          .update(inventoryStocks)
+          .set({
+            quantityOnHand: String(toAfter),
+            updatedBy: session.user.id,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(inventoryStocks.warehouseId, d.toWarehouseId),
+              eq(inventoryStocks.itemId, d.itemId),
+            ),
+          ),
+      ]);
+
+      return {
+        movementId: `${outMovement.id}:${inMovement.id}`,
+        fromWarehouse,
+        toWarehouse,
+        item,
+        quantity,
+        fromBefore,
+        fromAfter,
+        toBefore,
+        toAfter,
+      };
+    });
+
+    await createAuditLog({
+      userId: session.user.id,
+      action: 'inventory.stock.transfer',
+      resource: 'inventory_stock_movement',
+      resourceId: result.movementId,
+      summary: `Chuyển kho ${result.item.sku}: ${result.quantity} ${result.item.unit} từ ${result.fromWarehouse.code} sang ${result.toWarehouse.code}`,
+      before: {
+        fromWarehouseId: input.fromWarehouseId,
+        fromWarehouseCode: result.fromWarehouse.code,
+        quantityOnHand: result.fromBefore,
+      },
+      after: {
+        toWarehouseId: input.toWarehouseId,
+        toWarehouseCode: result.toWarehouse.code,
+        itemId: input.itemId,
+        itemSku: result.item.sku,
+        quantity: result.quantity,
+        fromQuantityOnHand: result.fromAfter,
+        toQuantityOnHand: result.toAfter,
+        note: normalizeOptional(input.note),
+      },
+    });
+
+    revalidateInventory();
+    return { success: true, data: undefined };
+  } catch (e) {
+    return {
+      success: false,
+      error: e instanceof Error ? e.message : 'Không thể chuyển kho',
     };
   }
 }

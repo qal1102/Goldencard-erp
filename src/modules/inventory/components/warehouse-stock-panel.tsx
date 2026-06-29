@@ -35,6 +35,7 @@ import {
   adjustInventoryStockAction,
   createWarehouseAction,
   createInventoryStockMovementAction,
+  createInventoryStockTransferAction,
   getInventoryStockMovementsAction,
   getInventoryStocksAction,
   getWarehousesAction,
@@ -50,6 +51,7 @@ import type { SerializedWarehouse } from '../lib/warehouse-serialize';
 import type {
   InventoryStockAdjustmentInput,
   InventoryStockMovementInput,
+  InventoryStockTransferInput,
   WarehouseFilters,
   WarehouseFormInput,
 } from '../schema/warehouse.schema';
@@ -86,6 +88,8 @@ function formatDateTime(value: string) {
 function getMovementLabel(type: string) {
   if (type === 'in') return 'Nhập kho';
   if (type === 'return') return 'Trả kho';
+  if (type === 'transfer_out') return 'Chuyển đi';
+  if (type === 'transfer_in') return 'Chuyển đến';
   return 'Xuất kho';
 }
 
@@ -95,6 +99,9 @@ function getMovementBadgeClass(type: string) {
   }
   if (type === 'return') {
     return 'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-200';
+  }
+  if (type === 'transfer_out' || type === 'transfer_in') {
+    return 'border-indigo-200 bg-indigo-50 text-indigo-800 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-200';
   }
   return 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-200';
 }
@@ -119,6 +126,14 @@ const emptyStockMovementForm: InventoryStockMovementInput = {
   warehouseId: '',
   itemId: '',
   workOrderId: undefined,
+  quantity: 1,
+  note: '',
+};
+
+const emptyStockTransferForm: InventoryStockTransferInput = {
+  fromWarehouseId: '',
+  toWarehouseId: '',
+  itemId: '',
   quantity: 1,
   note: '',
 };
@@ -316,11 +331,15 @@ export function WarehouseStockPanel({
   const [dialogMode, setDialogMode] = useState<DialogMode | null>(null);
   const [isStockDialogOpen, setIsStockDialogOpen] = useState(false);
   const [isMovementDialogOpen, setIsMovementDialogOpen] = useState(false);
+  const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   const [stockForm, setStockForm] = useState<InventoryStockAdjustmentInput>(
     emptyStockAdjustmentForm,
   );
   const [movementForm, setMovementForm] = useState<InventoryStockMovementInput>(
     emptyStockMovementForm,
+  );
+  const [transferForm, setTransferForm] = useState<InventoryStockTransferInput>(
+    emptyStockTransferForm,
   );
   const [warehouseError, setWarehouseError] = useState<string | null>(initialWarehouseError);
   const [stockError, setStockError] = useState<string | null>(initialStockError);
@@ -329,6 +348,7 @@ export function WarehouseStockPanel({
   const [isPending, startTransition] = useTransition();
   const [isStockPending, startStockTransition] = useTransition();
   const [isMovementPending, startMovementTransition] = useTransition();
+  const [isTransferPending, startTransferTransition] = useTransition();
 
   const activeWarehouses = useMemo(
     () => warehouses.filter((warehouse) => warehouse.isActive).length,
@@ -392,6 +412,26 @@ export function WarehouseStockPanel({
     warehouses.some((warehouse) => warehouse.isActive) &&
     inventoryItems.some((item) => item.isActive);
 
+  const movementExistingStock = useMemo(
+    () =>
+      stocks.find(
+        (row) =>
+          row.warehouseId === movementForm.warehouseId &&
+          row.itemId === movementForm.itemId,
+      ),
+    [movementForm.itemId, movementForm.warehouseId, stocks],
+  );
+
+  const transferTargetStock = useMemo(
+    () =>
+      stocks.find(
+        (row) =>
+          row.warehouseId === transferForm.toWarehouseId &&
+          row.itemId === transferForm.itemId,
+      ),
+    [stocks, transferForm.itemId, transferForm.toWarehouseId],
+  );
+
   const currentFilters = useMemo(
     () => ({
       status: warehouseStatus,
@@ -446,6 +486,18 @@ export function WarehouseStockPanel({
     setIsMovementDialogOpen(true);
   }
 
+  function openTransferDialog() {
+    setMovementError(null);
+    setTransferForm({
+      fromWarehouseId: selectedWarehouseId === 'all' ? '' : selectedWarehouseId,
+      toWarehouseId: '',
+      itemId: '',
+      quantity: 1,
+      note: '',
+    });
+    setIsTransferDialogOpen(true);
+  }
+
   function updateStockField<K extends keyof InventoryStockAdjustmentInput>(
     key: K,
     value: InventoryStockAdjustmentInput[K],
@@ -458,6 +510,13 @@ export function WarehouseStockPanel({
     value: InventoryStockMovementInput[K],
   ) {
     setMovementForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateTransferField<K extends keyof InventoryStockTransferInput>(
+    key: K,
+    value: InventoryStockTransferInput[K],
+  ) {
+    setTransferForm((current) => ({ ...current, [key]: value }));
   }
 
   function handleStockSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -508,6 +567,33 @@ export function WarehouseStockPanel({
     });
   }
 
+  function handleTransferSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setMovementError(null);
+
+    startTransferTransition(async () => {
+      const result = await createInventoryStockTransferAction(transferForm);
+      if (!result.success) {
+        setMovementError(result.error);
+        return;
+      }
+
+      const [stocksResult, movementsResult] = await Promise.all([
+        getInventoryStocksAction(),
+        getInventoryStockMovementsAction(),
+      ]);
+      if (stocksResult.success) setStocks(stocksResult.data);
+      else setMovementError(stocksResult.error);
+
+      if (movementsResult.success) setMovements(movementsResult.data);
+      else setMovementError(movementsResult.error);
+
+      if (stocksResult.success && movementsResult.success) {
+        setIsTransferDialogOpen(false);
+      }
+    });
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-3 text-sm text-sky-950 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-100">
@@ -516,7 +602,7 @@ export function WarehouseStockPanel({
           <span>1. Thêm mã vật tư</span>
           <span>2. Tạo kho lưu trữ</span>
           <span>3. Nhập tồn đầu kỳ</span>
-          <span>4. Nhập / xuất / trả kho</span>
+          <span>4. Nhập / xuất / trả / chuyển kho</span>
         </div>
       </div>
 
@@ -766,6 +852,18 @@ export function WarehouseStockPanel({
                 >
                   <ArrowDownToLineIcon className="size-4" />
                   Trả kho
+                </Button>
+                <Button
+                  type="button"
+                  className="w-full border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700 sm:w-auto"
+                  onClick={openTransferDialog}
+                  disabled={
+                    warehouses.filter((warehouse) => warehouse.isActive).length < 2 ||
+                    inventoryItems.filter((item) => item.isActive).length === 0
+                  }
+                >
+                  <RefreshCwIcon className="size-4" />
+                  Chuyển kho
                 </Button>
                 <Button
                   type="button"
@@ -1033,6 +1131,17 @@ export function WarehouseStockPanel({
               />
             </div>
 
+            {(movementForm.type === 'in' || movementForm.type === 'return') &&
+              movementExistingStock &&
+              Number(movementExistingStock.quantityOnHand) > 0 && (
+                <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                  Vật tư này đã có trong kho với tồn hiện tại{' '}
+                  {formatNumber(movementExistingStock.quantityOnHand)}{' '}
+                  {movementExistingStock.itemUnit}. Phiếu này sẽ cộng thêm vào dòng tồn sẵn
+                  có, không tạo mã vật tư mới.
+                </p>
+              )}
+
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="movement-note">Ghi chú</Label>
               <Textarea
@@ -1062,6 +1171,143 @@ export function WarehouseStockPanel({
               </Button>
               <Button type="submit" disabled={isMovementPending}>
                 {isMovementPending ? 'Đang lưu...' : 'Lưu phiếu'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      )}
+
+      {canManageInventory && (
+      <Dialog open={isTransferDialogOpen} onOpenChange={setIsTransferDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <form onSubmit={handleTransferSubmit} className="flex flex-col gap-4">
+            <DialogHeader>
+              <DialogTitle>Chuyển kho</DialogTitle>
+              <DialogDescription>
+                Chuyển cùng một mã vật tư từ kho xuất sang kho nhận. Hệ thống sẽ trừ tồn
+                kho xuất và cộng tồn kho nhận trong cùng một thao tác.
+              </DialogDescription>
+            </DialogHeader>
+
+            {movementError && (
+              <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {movementError}
+              </p>
+            )}
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5">
+                <Label>Kho xuất</Label>
+                <Select
+                  value={transferForm.fromWarehouseId}
+                  onValueChange={(value) => updateTransferField('fromWarehouseId', value ?? '')}
+                  disabled={isTransferPending}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Chọn kho xuất" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {warehouses
+                      .filter((warehouse) => warehouse.isActive)
+                      .map((warehouse) => (
+                        <SelectItem key={warehouse.id} value={warehouse.id}>
+                          {warehouse.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label>Kho nhận</Label>
+                <Select
+                  value={transferForm.toWarehouseId}
+                  onValueChange={(value) => updateTransferField('toWarehouseId', value ?? '')}
+                  disabled={isTransferPending}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Chọn kho nhận" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {warehouses
+                      .filter((warehouse) => warehouse.isActive)
+                      .map((warehouse) => (
+                        <SelectItem key={warehouse.id} value={warehouse.id}>
+                          {warehouse.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label>Vật tư</Label>
+              <Select
+                value={transferForm.itemId}
+                onValueChange={(value) => updateTransferField('itemId', value ?? '')}
+                disabled={isTransferPending}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Chọn vật tư" />
+                </SelectTrigger>
+                <SelectContent>
+                  {inventoryItems
+                    .filter((item) => item.isActive)
+                    .map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.sku} - {item.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="transfer-quantity">Số lượng</Label>
+              <Input
+                id="transfer-quantity"
+                type="number"
+                min="0.001"
+                step="0.001"
+                value={transferForm.quantity}
+                onChange={(e) => updateTransferField('quantity', Number(e.target.value))}
+                disabled={isTransferPending}
+              />
+            </div>
+
+            {transferTargetStock && Number(transferTargetStock.quantityOnHand) > 0 && (
+              <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                Kho nhận đã có vật tư này với tồn hiện tại{' '}
+                {formatNumber(transferTargetStock.quantityOnHand)} {transferTargetStock.itemUnit}.
+                Chuyển kho sẽ cộng thêm vào dòng tồn sẵn có.
+              </p>
+            )}
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="transfer-note">Ghi chú</Label>
+              <Textarea
+                id="transfer-note"
+                value={transferForm.note ?? ''}
+                onChange={(e) => updateTransferField('note', e.target.value)}
+                placeholder="VD: chuyển vật tư từ kho tổng sang kho công trình"
+                rows={3}
+                disabled={isTransferPending}
+              />
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isTransferPending}
+                onClick={() => setIsTransferDialogOpen(false)}
+              >
+                Hủy
+              </Button>
+              <Button type="submit" disabled={isTransferPending}>
+                {isTransferPending ? 'Đang chuyển...' : 'Lưu chuyển kho'}
               </Button>
             </DialogFooter>
           </form>

@@ -68,7 +68,7 @@ export default async function InventoryPage() {
           'Bước 1: Thêm mã vật tư/SKU hoặc import danh mục từ Excel.',
           'Bước 2: Tạo kho vật lý như Kho tổng, kho công trình hoặc kho bảo hành.',
           'Bước 3: Nhập tồn đầu kỳ bằng số kiểm kê thực tế đang có.',
-          'Bước 4: Vận hành hằng ngày bằng phiếu nhập kho, xuất kho, trả kho và điều chỉnh kiểm kê.',
+          'Bước 4: Vận hành hằng ngày bằng phiếu nhập kho, xuất kho, trả kho, chuyển kho và điều chỉnh kiểm kê.',
         ]}
         note="Không xóa cứng vật tư hoặc kho đã phát sinh lịch sử; hãy dùng Ngừng sử dụng để giữ dữ liệu truy vết."
       />
