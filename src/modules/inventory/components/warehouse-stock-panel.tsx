@@ -5,7 +5,10 @@ import {
   AlertTriangleIcon,
   ArrowDownToLineIcon,
   ArrowUpFromLineIcon,
+  BoxesIcon,
+  ChevronDownIcon,
   EditIcon,
+  FilterIcon,
   PackageCheckIcon,
   PlusIcon,
   RefreshCwIcon,
@@ -297,6 +300,7 @@ export function WarehouseStockPanel({
   const [movements, setMovements] = useState(initialMovements);
   const [warehouseStatus, setWarehouseStatus] = useState<WarehouseStatus>(ALL_STATUS);
   const [selectedWarehouseId, setSelectedWarehouseId] = useState('all');
+  const [stockCategoryFilter, setStockCategoryFilter] = useState('all');
   const [dialogMode, setDialogMode] = useState<DialogMode | null>(null);
   const [isStockDialogOpen, setIsStockDialogOpen] = useState(false);
   const [isMovementDialogOpen, setIsMovementDialogOpen] = useState(false);
@@ -319,12 +323,39 @@ export function WarehouseStockPanel({
     [warehouses],
   );
 
-  const filteredStocks = useMemo(
+  const selectedWarehouse = useMemo(
+    () => warehouses.find((warehouse) => warehouse.id === selectedWarehouseId) ?? null,
+    [warehouses, selectedWarehouseId],
+  );
+
+  const stocksForWarehouse = useMemo(
     () =>
       selectedWarehouseId === 'all'
         ? stocks
         : stocks.filter((row) => row.warehouseId === selectedWarehouseId),
     [stocks, selectedWarehouseId],
+  );
+
+  const stockCategoryOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          stocksForWarehouse
+            .map((row) => row.itemCategory?.trim())
+            .filter(Boolean) as string[],
+        ),
+      ).sort((a, b) => a.localeCompare(b, 'vi')),
+    [stocksForWarehouse],
+  );
+
+  const filteredStocks = useMemo(
+    () =>
+      stockCategoryFilter === 'all'
+        ? stocksForWarehouse
+        : stocksForWarehouse.filter(
+            (row) => (row.itemCategory?.trim() || 'Chưa phân nhóm') === stockCategoryFilter,
+          ),
+    [stocksForWarehouse, stockCategoryFilter],
   );
 
   const stockTotals = useMemo(() => {
@@ -372,6 +403,32 @@ export function WarehouseStockPanel({
       .slice(0, 8);
   }, [filteredStocks, inventoryItems]);
 
+  const warehouseCards = useMemo(
+    () =>
+      warehouses.map((warehouse) => {
+        const rows = stocks.filter((row) => row.warehouseId === warehouse.id);
+        const totalOnHand = rows.reduce((sum, row) => sum + Number(row.quantityOnHand), 0);
+        const totalReserved = rows.reduce((sum, row) => sum + Number(row.quantityReserved), 0);
+        return {
+          ...warehouse,
+          stockLines: rows.length,
+          available: totalOnHand - totalReserved,
+        };
+      }),
+    [stocks, warehouses],
+  );
+
+  const groupedStocks = useMemo(() => {
+    const groups = new Map<string, SerializedInventoryStockRow[]>();
+    for (const row of filteredStocks) {
+      const category = row.itemCategory?.trim() || 'Chưa phân nhóm';
+      const list = groups.get(category) ?? [];
+      list.push(row);
+      groups.set(category, list);
+    }
+    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b, 'vi'));
+  }, [filteredStocks]);
+
   const hasSetupData =
     warehouses.some((warehouse) => warehouse.isActive) &&
     inventoryItems.some((item) => item.isActive);
@@ -404,6 +461,11 @@ export function WarehouseStockPanel({
     const nextStatus = value ?? ALL_STATUS;
     setWarehouseStatus(nextStatus);
     loadWarehouses({ status: nextStatus });
+  }
+
+  function selectWarehouse(id: string) {
+    setSelectedWarehouseId(id);
+    setStockCategoryFilter('all');
   }
 
   function openStockAdjustmentDialog() {
@@ -623,10 +685,55 @@ export function WarehouseStockPanel({
           </p>
         )}
 
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
-          {warehouses.map((warehouse) => (
-            <div key={warehouse.id} className="rounded-lg border p-3">
-              <div className="flex items-start justify-between gap-3">
+        <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <button
+            type="button"
+            className={`rounded-lg border p-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/50 ${
+              selectedWarehouseId === 'all' ? 'border-primary bg-primary/5' : ''
+            }`}
+            onClick={() => selectWarehouse('all')}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <BoxesIcon className="size-4 text-primary" />
+                  <p className="font-medium">Tất cả kho</p>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Xem tồn tổng hợp trên toàn bộ kho vật lý.
+                </p>
+              </div>
+              <ChevronDownIcon className="size-4 text-muted-foreground" />
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-md bg-muted px-2 py-1.5">
+                Dòng tồn
+                <div className="font-semibold tabular-nums">{stocks.length}</div>
+              </div>
+              <div className="rounded-md bg-muted px-2 py-1.5">
+                Khả dụng
+                <div className="font-semibold tabular-nums">
+                  {formatNumber(
+                    stocks.reduce((sum, row) => sum + Number(row.quantityOnHand), 0) -
+                      stocks.reduce((sum, row) => sum + Number(row.quantityReserved), 0),
+                  )}
+                </div>
+              </div>
+            </div>
+          </button>
+
+          {warehouseCards.map((warehouse) => (
+            <div
+              key={warehouse.id}
+              className={`rounded-lg border p-3 transition-colors ${
+                selectedWarehouseId === warehouse.id ? 'border-primary bg-primary/5' : ''
+              }`}
+            >
+              <button
+                type="button"
+                className="flex w-full items-start justify-between gap-3 text-left"
+                onClick={() => selectWarehouse(warehouse.id)}
+              >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-mono text-sm font-semibold text-primary">
@@ -648,18 +755,33 @@ export function WarehouseStockPanel({
                     </p>
                   )}
                 </div>
+                <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground" />
+              </button>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div className="rounded-md bg-muted px-2 py-1.5">
+                  Dòng tồn
+                  <div className="font-semibold tabular-nums">{warehouse.stockLines}</div>
+                </div>
+                <div className="rounded-md bg-muted px-2 py-1.5">
+                  Khả dụng
+                  <div className="font-semibold tabular-nums">
+                    {formatNumber(warehouse.available)}
+                  </div>
+                </div>
+              </div>
+
                 {canManageInventory && (
                   <Button
                     type="button"
                     size="sm"
                     variant="outline"
+                    className="mt-3 w-full"
                     onClick={() => setDialogMode({ type: 'edit', warehouse })}
                   >
                     <EditIcon className="size-4" />
                     Sửa
                   </Button>
                 )}
-              </div>
             </div>
           ))}
         </div>
@@ -683,7 +805,7 @@ export function WarehouseStockPanel({
           <div className="flex flex-col gap-2 sm:flex-row">
             <Select
               value={selectedWarehouseId}
-              onValueChange={(value) => setSelectedWarehouseId(value ?? 'all')}
+              onValueChange={(value) => selectWarehouse(value ?? 'all')}
             >
               <SelectTrigger className="w-full sm:w-64">
                 <SelectValue>
@@ -749,6 +871,53 @@ export function WarehouseStockPanel({
           </div>
         </div>
 
+        <div className="mt-3 grid gap-3 rounded-lg border bg-muted/30 p-3 sm:grid-cols-3">
+          <div>
+            <p className="text-xs text-muted-foreground">Kho đang xem</p>
+            <p className="mt-1 truncate font-medium">
+              {selectedWarehouse ? selectedWarehouse.name : 'Tất cả kho'}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Nhóm vật tư/dụng cụ</p>
+            <p className="mt-1 font-medium tabular-nums">{stockCategoryOptions.length}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Khả dụng theo bộ lọc</p>
+            <p className="mt-1 font-medium tabular-nums">
+              {formatNumber(stockTotals.totalOnHand - stockTotals.totalReserved)}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <FilterIcon className="size-3.5" />
+            Lọc nhóm
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={stockCategoryFilter === 'all' ? 'default' : 'outline'}
+              onClick={() => setStockCategoryFilter('all')}
+            >
+              Tất cả
+            </Button>
+            {stockCategoryOptions.map((category) => (
+              <Button
+                key={category}
+                type="button"
+                size="sm"
+                variant={stockCategoryFilter === category ? 'default' : 'outline'}
+                onClick={() => setStockCategoryFilter(category)}
+              >
+                {category}
+              </Button>
+            ))}
+          </div>
+        </div>
+
         {stockError && (
           <p className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {stockError}
@@ -771,7 +940,50 @@ export function WarehouseStockPanel({
         )}
 
         {filteredStocks.length > 0 && (
-          <div className="mt-3 max-h-96 overflow-auto rounded-md border">
+          <div className="mt-3 flex flex-col gap-3">
+            {groupedStocks.map(([category, rows]) => (
+              <details key={category} className="rounded-lg border" open>
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{category}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {rows.length} dòng vật tư trong nhóm này
+                    </p>
+                  </div>
+                  <ChevronDownIcon className="size-4 text-muted-foreground" />
+                </summary>
+                <div className="overflow-auto border-t">
+                  <div className="grid min-w-[920px] grid-cols-[150px_140px_1.3fr_80px_120px_120px_120px] border-b bg-muted/60 px-3 py-2 text-xs font-medium">
+                    <span>Kho</span>
+                    <span>Mã vật tư</span>
+                    <span>Tên vật tư</span>
+                    <span>Đơn vị</span>
+                    <span>Tồn thực tế</span>
+                    <span>Đã giữ</span>
+                    <span>Cập nhật</span>
+                  </div>
+                  {rows.map((row) => (
+                    <div
+                      key={row.id}
+                      className="grid min-w-[920px] grid-cols-[150px_140px_1.3fr_80px_120px_120px_120px] border-b px-3 py-2 text-xs last:border-b-0"
+                    >
+                      <span className="truncate">{row.warehouseName}</span>
+                      <span className="font-mono text-primary">{row.itemSku}</span>
+                      <span className="truncate">{row.itemName}</span>
+                      <span>{row.itemUnit}</span>
+                      <span className="tabular-nums">{formatNumber(row.quantityOnHand)}</span>
+                      <span className="tabular-nums">{formatNumber(row.quantityReserved)}</span>
+                      <span className="text-muted-foreground">{formatDateTime(row.updatedAt)}</span>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            ))}
+          </div>
+        )}
+
+        {filteredStocks.length > 0 && (
+          <div className="hidden">
             <div className="grid min-w-[920px] grid-cols-[150px_140px_1.3fr_80px_120px_120px_120px] border-b bg-muted/60 px-3 py-2 text-xs font-medium">
               <span>Kho</span>
               <span>Mã vật tư</span>
