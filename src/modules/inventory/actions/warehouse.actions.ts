@@ -63,6 +63,12 @@ function normalizeCode(code: string) {
   return code.trim().toUpperCase();
 }
 
+function getMovementLabel(type: InventoryStockMovementInput['type']) {
+  if (type === 'in') return 'Nhập kho';
+  if (type === 'return') return 'Trả kho';
+  return 'Xuất kho';
+}
+
 function revalidateInventory() {
   revalidatePath('/inventory');
 }
@@ -448,7 +454,7 @@ export async function createInventoryStockMovementAction(
 
       const before = Number(lockedStock.quantity_on_hand);
       const reserved = Number(lockedStock.quantity_reserved);
-      const after = d.type === 'in' ? before + quantity : before - quantity;
+      const after = d.type === 'in' || d.type === 'return' ? before + quantity : before - quantity;
       if (d.type === 'out' && after < reserved) {
         throw new Error('Số lượng xuất vượt tồn khả dụng');
       }
@@ -498,7 +504,7 @@ export async function createInventoryStockMovementAction(
       action: `inventory.stock.${input.type}`,
       resource: 'inventory_stock_movement',
       resourceId: result.movementId,
-      summary: `${input.type === 'in' ? 'Nhập kho' : 'Xuất kho'} ${result.item.sku} tại ${result.warehouse.code}: ${result.quantity} ${result.item.unit}`,
+      summary: `${getMovementLabel(input.type)} ${result.item.sku} tại ${result.warehouse.code}: ${result.quantity} ${result.item.unit}`,
       before: {
         quantityOnHand: result.before,
       },

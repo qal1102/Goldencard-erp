@@ -30,7 +30,7 @@ export const inventoryStockAdjustmentSchema = z.object({
 });
 
 export const inventoryStockMovementSchema = z.object({
-  type: z.enum(['in', 'out']),
+  type: z.enum(['in', 'out', 'return']),
   warehouseId: z.string().uuid('Kho không hợp lệ'),
   itemId: z.string().uuid('Vật tư không hợp lệ'),
   workOrderId: z.string().uuid('Lệnh thi công không hợp lệ').optional(),

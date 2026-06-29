@@ -83,6 +83,22 @@ function formatDateTime(value: string) {
   }).format(new Date(value));
 }
 
+function getMovementLabel(type: string) {
+  if (type === 'in') return 'Nhập kho';
+  if (type === 'return') return 'Trả kho';
+  return 'Xuất kho';
+}
+
+function getMovementBadgeClass(type: string) {
+  if (type === 'in') {
+    return 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200';
+  }
+  if (type === 'return') {
+    return 'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-200';
+  }
+  return 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-200';
+}
+
 const emptyForm: WarehouseFormInput = {
   code: '',
   name: '',
@@ -494,6 +510,16 @@ export function WarehouseStockPanel({
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-3 text-sm text-sky-950 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-100">
+        <p className="font-medium">Luồng làm kho đúng thứ tự</p>
+        <div className="mt-2 grid gap-2 text-xs sm:grid-cols-4">
+          <span>1. Thêm mã vật tư</span>
+          <span>2. Tạo kho lưu trữ</span>
+          <span>3. Nhập tồn đầu kỳ</span>
+          <span>4. Nhập / xuất / trả kho</span>
+        </div>
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-lg border p-3">
           <p className="text-xs text-muted-foreground">Tổng kho</p>
@@ -731,6 +757,18 @@ export function WarehouseStockPanel({
                 </Button>
                 <Button
                   type="button"
+                  className="w-full border-violet-600 bg-violet-600 text-white hover:bg-violet-700 sm:w-auto"
+                  onClick={() => openMovementDialog('return')}
+                  disabled={
+                    warehouses.filter((warehouse) => warehouse.isActive).length === 0 ||
+                    inventoryItems.filter((item) => item.isActive).length === 0
+                  }
+                >
+                  <ArrowDownToLineIcon className="size-4" />
+                  Trả kho
+                </Button>
+                <Button
+                  type="button"
                   className="w-full border-amber-500 bg-amber-500 text-white hover:bg-amber-600 sm:w-auto"
                   onClick={openStockAdjustmentDialog}
                   disabled={
@@ -739,7 +777,7 @@ export function WarehouseStockPanel({
                   }
                 >
                   <PackageCheckIcon className="size-4" />
-                  Cập nhật tồn
+                  Kiểm kê / điều chỉnh
                 </Button>
               </>
             )}
@@ -798,9 +836,9 @@ export function WarehouseStockPanel({
 
       <div className="rounded-lg border p-3">
         <div>
-          <p className="text-sm font-medium">Lịch sử nhập/xuất kho</p>
+          <p className="text-sm font-medium">Lịch sử phiếu kho</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Hiển thị 100 thao tác nhập/xuất gần nhất. Cập nhật tồn ban đầu vẫn được ghi
+            Hiển thị 100 thao tác nhập kho, xuất kho và trả kho gần nhất. Điều chỉnh kiểm kê vẫn được ghi
             trong audit log, còn bảng này dành cho phiếu kho có tăng/giảm số tồn.
           </p>
         </div>
@@ -813,7 +851,7 @@ export function WarehouseStockPanel({
 
         {!movementError && movements.length === 0 && (
           <p className="mt-3 rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-            Chưa có lịch sử nhập/xuất kho.
+            Chưa có lịch sử phiếu kho.
           </p>
         )}
 
@@ -836,8 +874,8 @@ export function WarehouseStockPanel({
                 className="grid min-w-[1120px] grid-cols-[110px_150px_140px_1.3fr_130px_110px_110px_110px_130px] border-b px-3 py-2 text-xs last:border-b-0"
               >
                 <span>
-                  <Badge variant={row.type === 'in' ? 'secondary' : 'outline'}>
-                    {row.type === 'in' ? 'Nhập kho' : 'Xuất kho'}
+                  <Badge variant="outline" className={getMovementBadgeClass(row.type)}>
+                    {getMovementLabel(row.type)}
                   </Badge>
                 </span>
                 <span className="truncate">{row.warehouseName}</span>
@@ -876,11 +914,9 @@ export function WarehouseStockPanel({
         <DialogContent className="sm:max-w-lg">
           <form onSubmit={handleMovementSubmit} className="flex flex-col gap-4">
             <DialogHeader>
-              <DialogTitle>
-                {movementForm.type === 'in' ? 'Nhập kho' : 'Xuất kho'}
-              </DialogTitle>
+              <DialogTitle>{getMovementLabel(movementForm.type)}</DialogTitle>
               <DialogDescription>
-                Phiếu kho sẽ cập nhật số tồn hiện tại và lưu lại lịch sử nhập/xuất.
+                Phiếu kho sẽ cập nhật số tồn hiện tại và lưu lại lịch sử nhập, xuất hoặc trả kho.
               </DialogDescription>
             </DialogHeader>
 
@@ -1006,7 +1042,9 @@ export function WarehouseStockPanel({
                 placeholder={
                   movementForm.type === 'in'
                     ? 'VD: nhập hàng từ nhà cung cấp'
-                    : 'VD: xuất cho công trình'
+                    : movementForm.type === 'return'
+                      ? 'VD: trả vật tư dư từ công trình'
+                      : 'VD: xuất cho công trình'
                 }
                 rows={3}
                 disabled={isMovementPending}
@@ -1036,7 +1074,7 @@ export function WarehouseStockPanel({
         <DialogContent className="sm:max-w-lg">
           <form onSubmit={handleStockSubmit} className="flex flex-col gap-4">
             <DialogHeader>
-              <DialogTitle>Cập nhật tồn ban đầu</DialogTitle>
+              <DialogTitle>Nhập tồn đầu kỳ / điều chỉnh kiểm kê</DialogTitle>
               <DialogDescription>
                 Nhập số tồn thực tế hiện có cho một vật tư tại một kho. Đây là số dư
                 hiện tại, chưa phải phiếu nhập/xuất có lịch sử chi tiết.

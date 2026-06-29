@@ -161,7 +161,7 @@ export async function createInventoryItemAction(
       action: 'inventory.item.create',
       resource: 'inventory_item',
       resourceId: created.id,
-      summary: `Tạo vật tư ${sku} - ${d.name}`,
+      summary: `Thêm mã vật tư ${sku} - ${d.name}`,
       after: { sku, name: d.name, unit: d.unit, category: d.category ?? null },
     });
 

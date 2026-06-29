@@ -166,7 +166,11 @@ export function CustomerDetail({
             </Button>
           )}
           {showCreateSurvey && (
-            <Button variant="outline" size="sm" onClick={() => setSurveyDialogOpen(true)}>
+            <Button
+              size="sm"
+              className="bg-sky-600 text-white hover:bg-sky-700"
+              onClick={() => setSurveyDialogOpen(true)}
+            >
               <ClipboardPlusIcon className="size-4" />
               Tạo khảo sát
             </Button>
@@ -191,7 +195,7 @@ export function CustomerDetail({
               {canCreateLead && (
                 <Button
                   size="sm"
-                  variant="outline"
+                  className="bg-emerald-600 text-white hover:bg-emerald-700"
                   nativeButton={false}
                   render={<Link href={`/crm/leads/new?customerId=${customerId}`} />}
                 >

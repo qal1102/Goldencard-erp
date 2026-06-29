@@ -54,23 +54,23 @@ export default async function InventoryPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Kho vật tư</h1>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
             Theo dõi danh mục vật tư, kho vật lý, số tồn theo kho và lịch sử
-            nhập/xuất. Tất cả tài khoản nội bộ có thể xem kho; chỉ kế toán, kỹ thuật,
-            ban giám đốc và quản lý được tạo, nhập/xuất hoặc chỉnh kho. Hệ thống lưu
+            nhập/xuất/trả kho. Tất cả tài khoản nội bộ có thể xem kho; chỉ kế toán, kỹ thuật,
+            ban giám đốc và quản lý được thêm mã vật tư, nhập/xuất/trả kho hoặc kiểm kê. Hệ thống lưu
             nhật ký người thao tác để truy vết.
           </p>
         </div>
       </div>
 
       <ModuleGuide
-        title="Hướng dẫn nhanh kho"
-        description="Kho dùng để quản lý danh mục vật tư, tồn theo từng kho và lịch sử nhập/xuất phục vụ thi công, bảo hành và kiểm kê nội bộ."
+        title="Hướng dẫn quy trình kho"
+        description="Kho chia làm hai phần rõ ràng: danh mục mã vật tư để hệ thống nhận diện hàng hóa, và phiếu kho để ghi nhận số lượng thật phát sinh."
         steps={[
-          'Tạo hoặc nhập danh mục vật tư trước, tránh nhập tồn cho vật tư chưa rõ mã.',
-          'Chọn kho để nhập bổ sung, xuất cho công trình hoặc cập nhật kiểm kê.',
-          'Dùng bộ lọc để xem vật tư đang sử dụng, ngừng sử dụng hoặc hàng tồn thấp.',
-          'Khi nhập Excel, xem màn hình preview và sửa các dòng báo lỗi trước khi xác nhận.',
+          'Bước 1: Thêm mã vật tư/SKU hoặc import danh mục từ Excel.',
+          'Bước 2: Tạo kho vật lý như Kho tổng, kho công trình hoặc kho bảo hành.',
+          'Bước 3: Nhập tồn đầu kỳ bằng số kiểm kê thực tế đang có.',
+          'Bước 4: Vận hành hằng ngày bằng phiếu nhập kho, xuất kho, trả kho và điều chỉnh kiểm kê.',
         ]}
-        note="Tất cả nhân sự nội bộ có thể xem kho; quyền nhập/xuất/chỉnh kho chỉ dành cho nhóm được phân quyền."
+        note="Không xóa cứng vật tư hoặc kho đã phát sinh lịch sử; hãy dùng Ngừng sử dụng để giữ dữ liệu truy vết."
       />
 
       <WarehouseStockPanel

@@ -3,10 +3,13 @@
 import { useMemo, useState, useTransition } from 'react';
 import {
   BoxesIcon,
+  CheckCircle2Icon,
   DownloadIcon,
   EditIcon,
   FileSpreadsheetIcon,
   FileUpIcon,
+  FilterIcon,
+  PauseCircleIcon,
   PlusIcon,
   SearchIcon,
   ShieldCheckIcon,
@@ -46,6 +49,7 @@ import type {
 } from '../schema/inventory-item.schema';
 
 const ALL_STATUS = 'all';
+const ALL_CATEGORY = 'all';
 type CatalogStatus = NonNullable<InventoryItemFilters['status']>;
 
 const catalogStatusLabels: Record<CatalogStatus, string> = {
@@ -214,21 +218,93 @@ function downloadCsv(rows: InventoryExportRow[], filename: string) {
 async function downloadXlsx(rows: InventoryExportRow[], filename: string) {
   const ExcelJS = await import('exceljs');
   const workbook = new ExcelJS.Workbook();
+  const guideSheet = workbook.addWorksheet('Hướng dẫn');
   const worksheet = workbook.addWorksheet('Danh mục vật tư');
+
+  guideSheet.columns = [
+    { header: 'Cột cần nhập', key: 'label', width: 28 },
+    { header: 'Cách điền', key: 'guide', width: 64 },
+    { header: 'Ví dụ', key: 'example', width: 28 },
+  ];
+  guideSheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  guideSheet.getRow(1).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF1D4ED8' },
+  };
+  guideSheet.addRows(
+    inventoryExportColumns.map((column) => ({
+      label: column.label,
+      guide: column.guide,
+      example: String(column.example),
+    })),
+  );
+  guideSheet.views = [{ state: 'frozen', ySplit: 1 }];
+  guideSheet.eachRow((row, rowNumber) => {
+    row.eachCell((cell) => {
+      cell.alignment = { vertical: 'top', wrapText: true };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+      };
+      if (rowNumber > 1) {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: rowNumber % 2 === 0 ? 'FFF8FAFC' : 'FFFFFFFF' },
+        };
+      }
+    });
+  });
 
   worksheet.columns = inventoryExportColumns.map((column) => ({
     header: column.label,
     key: column.key,
     width: column.key === 'name' || column.key === 'note' ? 32 : 18,
   }));
-  worksheet.getRow(1).font = { bold: true };
+  worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
   worksheet.getRow(1).fill = {
     type: 'pattern',
     pattern: 'solid',
-    fgColor: { argb: 'FFEFF6FF' },
+    fgColor: { argb: 'FF047857' },
   };
   worksheet.views = [{ state: 'frozen', ySplit: 1 }];
   worksheet.addRows(rows);
+  worksheet.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: Math.max(rows.length + 1, 1), column: inventoryExportColumns.length },
+  };
+  worksheet.eachRow((row, rowNumber) => {
+    row.eachCell((cell, columnNumber) => {
+      cell.alignment = { vertical: 'top', wrapText: true };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+      };
+      if (rowNumber > 1) {
+        const isActiveColumn = columnNumber === 7;
+        const activeCell = row.getCell(7).value;
+        const isActive = activeCell === true || activeCell === 'TRUE';
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: {
+            argb: isActiveColumn
+              ? isActive
+                ? 'FFDCFCE7'
+                : 'FFFEE2E2'
+              : rowNumber % 2 === 0
+                ? 'FFF8FAFC'
+                : 'FFFFFFFF',
+          },
+        };
+      }
+    });
+  });
 
   const buffer = await workbook.xlsx.writeBuffer();
   downloadBlob(
@@ -394,7 +470,7 @@ async function parseXlsxFile(file: File) {
   const worksheet =
     workbook.getWorksheet('Danh mục vật tư') ??
     workbook.getWorksheet('Danh muc vat tu') ??
-    workbook.worksheets.find((sheet) => sheet.name !== 'Huong dan') ??
+    workbook.worksheets.find((sheet) => !['Huong dan', 'Hướng dẫn'].includes(sheet.name)) ??
     workbook.worksheets[0];
   if (!worksheet) return [];
 
@@ -540,10 +616,10 @@ function InventoryItemDialog({
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <DialogHeader>
             <DialogTitle>
-              {mode.type === 'edit' ? 'Sửa vật tư' : 'Tạo vật tư'}
+              {mode.type === 'edit' ? 'Sửa mã vật tư' : 'Thêm mã vật tư'}
             </DialogTitle>
             <DialogDescription>
-              Dữ liệu này là catalog nền, chưa tự động trừ tồn hoặc nối BOM.
+              Đây là danh mục mã vật tư/SKU để hệ thống nhận diện hàng hóa. Bước này chưa nhập số lượng tồn kho.
             </DialogDescription>
           </DialogHeader>
 
@@ -683,7 +759,7 @@ function InventoryItemDialog({
               </Button>
             )}
             <Button type="submit" name="intent" value="save" disabled={isPending}>
-              {isPending ? 'Đang lưu...' : 'Lưu vật tư'}
+              {isPending ? 'Đang lưu...' : 'Lưu mã vật tư'}
             </Button>
           </DialogFooter>
         </form>
@@ -700,6 +776,7 @@ export function InventoryItemCatalog({
   const [items, setItems] = useState<SerializedInventoryItem[]>(initialItems ?? []);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<CatalogStatus>(ALL_STATUS);
+  const [category, setCategory] = useState(ALL_CATEGORY);
   const [error, setError] = useState<string | null>(initialError);
   const [dialogMode, setDialogMode] = useState<DialogMode | null>(null);
   const [isQuickTableOpen, setIsQuickTableOpen] = useState(false);
@@ -732,7 +809,15 @@ export function InventoryItemCatalog({
     [items],
   );
 
-  const currentExportRows = useMemo(() => exportRowsFromItems(items), [items]);
+  const visibleItems = useMemo(
+    () =>
+      category === ALL_CATEGORY
+        ? items
+        : items.filter((item) => (item.category || '') === category),
+    [category, items],
+  );
+
+  const currentExportRows = useMemo(() => exportRowsFromItems(visibleItems), [visibleItems]);
   const importStats = useMemo(
     () => ({
       total: importPreview.length,
@@ -778,6 +863,26 @@ export function InventoryItemCatalog({
     const nextStatus = value ?? ALL_STATUS;
     setStatus(nextStatus);
     loadItems({ status: nextStatus });
+  }
+
+  function handleToggleItemActive(item: SerializedInventoryItem) {
+    setError(null);
+    startTransition(async () => {
+      const result = await updateInventoryItemAction(item.id, {
+        ...itemToForm(item),
+        isActive: !item.isActive,
+      });
+
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+
+      const refreshed = await getInventoryItemsAction(currentFilters);
+      if (refreshed.success) {
+        setItems(refreshed.data);
+      }
+    });
   }
 
   async function handleImportFile(file: File | null) {
@@ -895,12 +1000,31 @@ export function InventoryItemCatalog({
             </SelectContent>
           </Select>
 
+          <Select value={category} onValueChange={(value) => setCategory(value || ALL_CATEGORY)}>
+            <SelectTrigger className="w-full sm:w-56">
+              <SelectValue placeholder="Tất cả nhóm vật tư" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_CATEGORY}>Tất cả nhóm vật tư</SelectItem>
+              {categoryOptions.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <div className="flex min-h-9 w-full items-center gap-2 rounded-md border bg-muted/30 px-3 text-xs text-muted-foreground sm:w-auto">
+            <FilterIcon className="size-3.5" />
+            Đang hiển thị {visibleItems.length}/{items.length}
+          </div>
+
           <Button
             type="button"
             variant="outline"
             className="w-full sm:ml-auto sm:w-auto"
             onClick={() => setIsQuickTableOpen(true)}
-            disabled={items.length === 0}
+            disabled={visibleItems.length === 0}
           >
             <TablePropertiesIcon className="size-4" />
             Bảng danh mục
@@ -913,7 +1037,7 @@ export function InventoryItemCatalog({
               onClick={() => setDialogMode({ type: 'create' })}
             >
               <PlusIcon className="size-4" />
-              Tạo vật tư
+              Thêm mã vật tư
             </Button>
           )}
         </div>
@@ -927,7 +1051,7 @@ export function InventoryItemCatalog({
               <p className="mt-1 text-xs text-muted-foreground">
                 Mẫu tải về chỉ có cột trống để nhập tay. Điền tối thiểu Mã vật tư, Tên vật
                 tư và Đơn vị tính; các cột Có/Không có thể nhập TRUE/FALSE hoặc Có/Không.
-                Muốn sửa hàng loạt thì export catalog hiện tại, chỉnh trong Excel rồi upload
+                Muốn sửa hàng loạt thì export danh mục hiện tại, chỉnh trong Excel rồi upload
                 lại để hệ thống preview trước khi cập nhật.
               </p>
             </div>
@@ -964,7 +1088,7 @@ export function InventoryItemCatalog({
                 onClick={() =>
                   downloadCsv(currentExportRows, `inventory-catalog-${getExportFileDate()}.csv`)
                 }
-                disabled={items.length === 0}
+                disabled={currentExportRows.length === 0}
               >
                 <DownloadIcon className="size-4" />
                 Export CSV
@@ -979,7 +1103,7 @@ export function InventoryItemCatalog({
                     `inventory-catalog-${getExportFileDate()}.xlsx`,
                   )
                 }
-                disabled={items.length === 0}
+                disabled={currentExportRows.length === 0}
               >
                 <FileSpreadsheetIcon className="size-4" />
                 Export Excel
@@ -1005,7 +1129,7 @@ export function InventoryItemCatalog({
                 onClick={() =>
                   downloadCsv(currentExportRows, `inventory-catalog-${getExportFileDate()}.csv`)
                 }
-                disabled={items.length === 0}
+                disabled={currentExportRows.length === 0}
               >
                 <DownloadIcon className="size-4" />
                 Export CSV
@@ -1020,7 +1144,7 @@ export function InventoryItemCatalog({
                     `inventory-catalog-${getExportFileDate()}.xlsx`,
                   )
                 }
-                disabled={items.length === 0}
+                disabled={currentExportRows.length === 0}
               >
                 <FileSpreadsheetIcon className="size-4" />
                 Export Excel
@@ -1076,7 +1200,7 @@ export function InventoryItemCatalog({
                   Tổng dòng: <span className="font-semibold">{importStats.total}</span>
                 </div>
                 <div className="rounded-md border px-3 py-2">
-                  Tạo mới: <span className="font-semibold">{importStats.created}</span>
+                  Thêm mới: <span className="font-semibold">{importStats.created}</span>
                 </div>
                 <div className="rounded-md border px-3 py-2">
                   Cập nhật: <span className="font-semibold">{importStats.updated}</span>
@@ -1106,7 +1230,7 @@ export function InventoryItemCatalog({
                         variant={row.status === 'error' ? 'destructive' : 'secondary'}
                       >
                         {row.status === 'new'
-                          ? 'Tạo mới'
+                          ? 'Thêm mới'
                           : row.status === 'update'
                             ? 'Cập nhật'
                             : 'Lỗi'}
@@ -1173,20 +1297,27 @@ export function InventoryItemCatalog({
         <p className="text-xs text-muted-foreground">Đang cập nhật danh mục...</p>
       )}
 
-      {!error && !isPending && items.length === 0 && (
+      {!error && !isPending && visibleItems.length === 0 && (
         <p className="rounded-lg border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
           Chưa có vật tư phù hợp.
         </p>
       )}
 
       <div className="flex flex-col gap-3">
-        {items.map((item) => (
+        {visibleItems.map((item) => (
           <div key={item.id} className="rounded-lg border p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-mono text-sm font-semibold text-primary">{item.sku}</p>
-                  <Badge variant={item.isActive ? 'secondary' : 'outline'}>
+                  <Badge
+                    variant={item.isActive ? 'secondary' : 'outline'}
+                    className={
+                      item.isActive
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200'
+                        : 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200'
+                    }
+                  >
                     {item.isActive ? 'Đang sử dụng' : 'Ngừng sử dụng'}
                   </Badge>
                   {item.isSerializable && (
@@ -1203,6 +1334,27 @@ export function InventoryItemCatalog({
                   <span>Tồn tối thiểu: {formatNumber(item.minStock)}</span>
                 </div>
                 {item.note && <p className="mt-2 text-sm text-muted-foreground">{item.note}</p>}
+                {canManageInventory && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={item.isActive ? 'outline' : 'default'}
+                    className={
+                      item.isActive
+                        ? 'mt-3 border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-900 dark:text-rose-200 dark:hover:bg-rose-950/30'
+                        : 'mt-3 bg-emerald-600 text-white hover:bg-emerald-700'
+                    }
+                    disabled={isPending}
+                    onClick={() => handleToggleItemActive(item)}
+                  >
+                    {item.isActive ? (
+                      <PauseCircleIcon className="size-4" />
+                    ) : (
+                      <CheckCircle2Icon className="size-4" />
+                    )}
+                    {item.isActive ? 'Ngừng sử dụng' : 'Kích hoạt lại'}
+                  </Button>
+                )}
               </div>
               {canManageInventory && (
                 <Button
@@ -1247,7 +1399,7 @@ export function InventoryItemCatalog({
           </DialogHeader>
 
           <div className="max-h-[70vh] overflow-auto rounded-md border">
-            <div className="grid min-w-[900px] grid-cols-[130px_1.3fr_150px_90px_120px_120px_80px] border-b bg-muted/60 px-3 py-2 text-xs font-medium">
+            <div className="sticky top-0 z-10 grid min-w-[900px] grid-cols-[130px_1.3fr_150px_90px_120px_120px_80px] border-b bg-muted px-3 py-2 text-xs font-medium shadow-sm">
               <span>Mã vật tư</span>
               <span>Tên vật tư</span>
               <span>Nhóm</span>
@@ -1256,7 +1408,7 @@ export function InventoryItemCatalog({
               <span>Trạng thái</span>
               <span></span>
             </div>
-            {items.map((item) => (
+            {visibleItems.map((item) => (
               <div
                 key={item.id}
                 className="grid min-w-[900px] grid-cols-[130px_1.3fr_150px_90px_120px_120px_80px] items-center border-b px-3 py-2 text-xs last:border-b-0"
@@ -1269,7 +1421,14 @@ export function InventoryItemCatalog({
                 <span>{item.unit}</span>
                 <span className="tabular-nums">{formatNumber(item.minStock)}</span>
                 <span>
-                  <Badge variant={item.isActive ? 'secondary' : 'outline'}>
+                  <Badge
+                    variant={item.isActive ? 'secondary' : 'outline'}
+                    className={
+                      item.isActive
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200'
+                        : 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200'
+                    }
+                  >
                     {item.isActive ? 'Đang dùng' : 'Ngừng dùng'}
                   </Badge>
                 </span>
