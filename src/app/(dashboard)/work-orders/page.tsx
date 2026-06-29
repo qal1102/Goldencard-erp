@@ -1,4 +1,5 @@
 import { AccessDeniedMessage } from '@/components/ui/access-denied-message';
+import { ModuleGuide } from '@/components/ui/module-guide';
 import { verifySession } from '@/lib/auth/dal';
 import { hasRole } from '@/lib/auth/roles';
 import { WorkOrderList } from '@/modules/work-orders/components/work-order-list';
@@ -50,6 +51,19 @@ export default async function WorkOrdersPage() {
             : 'Danh sách lệnh thi công từ hợp đồng đã ký'}
         </p>
       </div>
+      <ModuleGuide
+        className="mb-4"
+        title="Hướng dẫn nhanh thi công"
+        description="Lệnh thi công dùng để giao việc từ hợp đồng đã ký cho quản lý dự án, kỹ sư trưởng và đội kỹ thuật."
+        steps={[
+          'Tạo lệnh từ hợp đồng đã ký, không tạo rời khỏi quy trình.',
+          'Phân công người phụ trách chính và nhân sự tham gia.',
+          'Kỹ thuật cập nhật tiến độ, ghi chú hiện trường và vấn đề phát sinh.',
+          'Khi hoàn thành, chuyển sang bàn giao để xác nhận với khách.',
+        ]}
+        note={isTechnician ? 'Bạn chỉ thấy các lệnh liên quan tới mình.' : 'Quản lý nên cập nhật người phụ trách rõ để mọi người biết ai chịu trách nhiệm chính.'}
+      />
+
       <WorkOrderList
         isTechnician={isTechnician}
         initialData={loadResult.success ? loadResult.data : undefined}

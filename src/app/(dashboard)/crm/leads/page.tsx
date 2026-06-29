@@ -2,6 +2,7 @@ import { PlusIcon } from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { Button } from '@/components/ui/button';
+import { ModuleGuide } from '@/components/ui/module-guide';
 import { Skeleton } from '@/components/ui/skeleton';
 import { verifySession } from '@/lib/auth/dal';
 import { hasRole } from '@/lib/auth/roles';
@@ -27,6 +28,18 @@ export default async function CrmLeadsPage() {
           </Button>
         )}
       </div>
+
+      <ModuleGuide
+        title="Hướng dẫn nhanh CRM"
+        description="Dùng màn hình này để ghi nhận cơ hội mới, theo dõi sales đã liên hệ tới đâu và quyết định khi nào chuyển thành khách hàng thật."
+        steps={[
+          'Tạo cơ hội khi có khách mới hoặc nguồn giới thiệu mới.',
+          'Cập nhật trạng thái sau mỗi lần gọi, nhắn tin hoặc khách phản hồi.',
+          'Khi khách đủ thông tin và có nhu cầu rõ, chuyển sang hồ sơ khách hàng.',
+          'Tránh tạo trùng bằng cách tìm số điện thoại hoặc tên trước khi thêm mới.',
+        ]}
+        note="Sales nên ghi chú kết quả liên hệ thật rõ để quản lý nhìn pipeline là biết khách đang ở bước nào."
+      />
 
       <Suspense fallback={<Skeleton className="h-8 w-full" />}>
         <LeadFilters />

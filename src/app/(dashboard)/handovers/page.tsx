@@ -1,4 +1,5 @@
 import { AccessDeniedMessage } from '@/components/ui/access-denied-message';
+import { ModuleGuide } from '@/components/ui/module-guide';
 import { verifySession } from '@/lib/auth/dal';
 import { hasRole } from '@/lib/auth/roles';
 import { HandoverList } from '@/modules/handovers/components/handover-list';
@@ -31,6 +32,19 @@ export default async function HandoversPage() {
           Phiếu bàn giao sau khi hoàn thành thi công
         </p>
       </div>
+      <ModuleGuide
+        className="mb-4"
+        title="Hướng dẫn nhanh bàn giao"
+        description="Bàn giao là bước xác nhận công trình đã hoàn tất với khách, trước khi cấp phiếu bảo hành và mở theo dõi sau bán hàng."
+        steps={[
+          'Tạo bàn giao từ lệnh thi công đã hoàn thành.',
+          'Kiểm tra hạng mục đã làm, ảnh nghiệm thu và ghi chú còn tồn.',
+          'Khi khách xác nhận, hoàn tất bàn giao để cấp bảo hành.',
+          'Nếu còn vấn đề, ghi rõ để đội thi công xử lý trước khi đóng hồ sơ.',
+        ]}
+        note="Bàn giao sạch giúp bảo hành và CSKH về sau tra cứu đúng công trình."
+      />
+
       <HandoverList
         initialData={loadResult.success ? loadResult.data : undefined}
         initialError={loadResult.success ? null : loadResult.error}

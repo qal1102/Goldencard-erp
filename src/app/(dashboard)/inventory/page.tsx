@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/badge';
+import { ModuleGuide } from '@/components/ui/module-guide';
 import { verifySession } from '@/lib/auth/dal';
 import { hasRole } from '@/lib/auth/roles';
 import { InventoryItemCatalog } from '@/modules/inventory/components/inventory-item-catalog';
@@ -59,6 +60,18 @@ export default async function InventoryPage() {
           </p>
         </div>
       </div>
+
+      <ModuleGuide
+        title="Hướng dẫn nhanh kho"
+        description="Kho dùng để quản lý danh mục vật tư, tồn theo từng kho và lịch sử nhập/xuất phục vụ thi công, bảo hành và kiểm kê nội bộ."
+        steps={[
+          'Tạo hoặc nhập danh mục vật tư trước, tránh nhập tồn cho vật tư chưa rõ mã.',
+          'Chọn kho để nhập bổ sung, xuất cho công trình hoặc cập nhật kiểm kê.',
+          'Dùng bộ lọc để xem vật tư đang sử dụng, ngừng sử dụng hoặc hàng tồn thấp.',
+          'Khi nhập Excel, xem màn hình preview và sửa các dòng báo lỗi trước khi xác nhận.',
+        ]}
+        note="Tất cả nhân sự nội bộ có thể xem kho; quyền nhập/xuất/chỉnh kho chỉ dành cho nhóm được phân quyền."
+      />
 
       <WarehouseStockPanel
         canManageInventory={canManageInventory}
