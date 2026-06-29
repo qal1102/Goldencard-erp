@@ -177,6 +177,35 @@ export async function queryQuotationDetailById(id: string) {
   return enrichQuotationDetail({ ...row, revisionHistory });
 }
 
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
+export async function queryQuotationDetailByIdentifier(identifier: string) {
+  const value = decodeURIComponent(identifier).trim();
+  if (!value) return null;
+  if (isUuid(value)) return queryQuotationDetailById(value);
+
+  const code = value.toUpperCase();
+  const quotationByCode = await db.query.quotations.findFirst({
+    where: eq(quotations.code, code),
+    columns: { id: true },
+  });
+  if (quotationByCode) return queryQuotationDetailById(quotationByCode.id);
+
+  const [quotationBySurveyCode] = await db
+    .select({ id: quotations.id })
+    .from(quotations)
+    .innerJoin(surveys, eq(quotations.surveyId, surveys.id))
+    .where(eq(surveys.code, code))
+    .orderBy(desc(quotations.revisionNumber))
+    .limit(1);
+
+  return quotationBySurveyCode ? queryQuotationDetailById(quotationBySurveyCode.id) : null;
+}
+
 export async function queryQuotationExportCount(quotationId: string): Promise<number> {
   const [row] = await db
     .select({ count: sql<number>`count(*)::int` })

@@ -157,7 +157,7 @@ export function QuotationList({ initialData, initialError = null }: Props) {
                   {formatCurrency(q.grandTotal)}
                 </span>
                 <Button
-                  variant="outline"
+                  variant="default"
                   size="sm"
                   nativeButton={false}
                   render={<Link href={`/quotations/${q.id}`} />}

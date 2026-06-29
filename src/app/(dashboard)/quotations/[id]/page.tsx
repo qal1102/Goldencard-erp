@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { auth } from '@/auth';
 import { hasRole } from '@/lib/auth/roles';
-import { queryQuotationById } from '@/modules/quotations/lib/quotation.queries';
+import { queryQuotationDetailByIdentifier } from '@/modules/quotations/lib/quotation.queries';
 import { QuotationDetail } from '@/modules/quotations/components/quotation-detail';
 
 type Props = {
@@ -11,7 +11,10 @@ type Props = {
 export default async function QuotationDetailPage({ params }: Props) {
   const { id } = await params;
 
-  const [session, quotation] = await Promise.all([auth(), queryQuotationById(id)]);
+  const [session, quotation] = await Promise.all([
+    auth(),
+    queryQuotationDetailByIdentifier(id),
+  ]);
   if (!quotation) notFound();
 
   const roles = session?.user?.roles ?? [];
@@ -26,7 +29,7 @@ export default async function QuotationDetailPage({ params }: Props) {
   return (
     <div className="mx-auto w-full max-w-xl">
       <QuotationDetail
-        quotationId={id}
+        quotationId={quotation.id}
         canWrite={canWrite}
         canApprove={canApprove}
       />

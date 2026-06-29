@@ -149,7 +149,7 @@ export function SurveyList({ isTechnician, initialData, initialError = null }: P
                     </p>
                   </div>
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
                     nativeButton={false}
                     render={<Link href={`/surveys/${survey.id}`} />}

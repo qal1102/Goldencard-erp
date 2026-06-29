@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { auth } from '@/auth';
 import { hasRole } from '@/lib/auth/roles';
-import { querySurveyById } from '@/modules/surveys/lib/survey.queries';
+import { querySurveyByIdentifier } from '@/modules/surveys/lib/survey.queries';
 import { SurveyDetail } from '@/modules/surveys/components/survey-detail';
 
 type Props = {
@@ -11,7 +11,7 @@ type Props = {
 export default async function SurveyDetailPage({ params }: Props) {
   const { id } = await params;
 
-  const [session, survey] = await Promise.all([auth(), querySurveyById(id)]);
+  const [session, survey] = await Promise.all([auth(), querySurveyByIdentifier(id)]);
   if (!survey) notFound();
 
   const roles = session?.user?.roles ?? [];
@@ -30,7 +30,7 @@ export default async function SurveyDetailPage({ params }: Props) {
   return (
     <div className="mx-auto w-full max-w-xl">
       <SurveyDetail
-        surveyId={id}
+        surveyId={survey.id}
         canManage={canManage}
         canCorrectAcceptedSurvey={canCorrectAcceptedSurvey}
         isTechnician={isTechnician}

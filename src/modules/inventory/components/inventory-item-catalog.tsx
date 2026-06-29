@@ -243,31 +243,58 @@ function normalizeHeader(header: unknown) {
   const text = String(header ?? '').trim();
   const match = text.match(/\(([^)]+)\)/);
   const normalized = (match?.[1] ?? text).trim();
+  const lookupKey = normalized
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
   const aliasMap: Record<string, InventoryExportColumnKey> = {
     'Mã vật tư': 'sku',
     'Ma vat tu': 'sku',
+    'ma vat tu': 'sku',
+    sku: 'sku',
     'Tên vật tư': 'name',
     'Ten vat tu': 'name',
+    'ten vat tu': 'name',
+    name: 'name',
     'Nhóm vật tư': 'category',
     'Nhom vat tu': 'category',
+    'nhom vat tu': 'category',
+    category: 'category',
     'Đơn vị tính': 'unit',
     'Don vi tinh': 'unit',
+    'don vi tinh': 'unit',
+    unit: 'unit',
     'Mức cảnh báo tồn thấp': 'minStock',
     'Muc canh bao ton thap': 'minStock',
     'Tồn tối thiểu': 'minStock',
     'Ton toi thieu': 'minStock',
+    'muc canh bao ton thap': 'minStock',
+    'ton toi thieu': 'minStock',
+    minstock: 'minStock',
     'Có quản lý số serial': 'isSerializable',
     'Co quan ly so serial': 'isSerializable',
     'Theo dõi serial': 'isSerializable',
     'Theo doi serial': 'isSerializable',
+    'co quan ly so serial': 'isSerializable',
+    'theo doi serial': 'isSerializable',
+    isserializable: 'isSerializable',
     'Đang sử dụng': 'isActive',
     'Dang su dung': 'isActive',
     'Trạng thái sử dụng': 'isActive',
     'Trang thai su dung': 'isActive',
+    'dang su dung': 'isActive',
+    'trang thai su dung': 'isActive',
+    isactive: 'isActive',
     'Ghi chú': 'note',
     'Ghi chu': 'note',
+    'ghi chu': 'note',
+    note: 'note',
   };
-  return aliasMap[normalized] ?? normalized;
+  return aliasMap[normalized] ?? aliasMap[lookupKey] ?? normalized;
 }
 
 function parseBooleanCell(value: unknown) {
@@ -298,7 +325,17 @@ function parseNumberCell(value: unknown) {
   return { value: numeric, error: null };
 }
 
-function parseCsvLine(line: string) {
+function detectCsvDelimiter(headerLine: string) {
+  const candidates = [',', ';', '\t'];
+  return candidates
+    .map((delimiter) => ({
+      delimiter,
+      count: parseCsvLine(headerLine, delimiter).length,
+    }))
+    .sort((a, b) => b.count - a.count)[0]?.delimiter ?? ',';
+}
+
+function parseCsvLine(line: string, delimiter = ',') {
   const cells: string[] = [];
   let current = '';
   let inQuotes = false;
@@ -318,7 +355,7 @@ function parseCsvLine(line: string) {
       continue;
     }
 
-    if (char === ',' && !inQuotes) {
+    if (char === delimiter && !inQuotes) {
       cells.push(current);
       current = '';
       continue;
@@ -338,9 +375,10 @@ function parseCsvText(text: string) {
     .filter((line) => line.trim().length > 0);
   if (lines.length === 0) return [];
 
-  const headers = parseCsvLine(lines[0]).map(normalizeHeader);
+  const delimiter = detectCsvDelimiter(lines[0]);
+  const headers = parseCsvLine(lines[0], delimiter).map(normalizeHeader);
   return lines.slice(1).map((line, index) => {
-    const cells = parseCsvLine(line);
+    const cells = parseCsvLine(line, delimiter);
     return {
       rowNumber: index + 2,
       values: Object.fromEntries(headers.map((header, i) => [header, cells[i] ?? ''])),
@@ -1003,7 +1041,7 @@ export function InventoryItemCatalog({
                 sẽ cập nhật, SKU mới sẽ tạo mới.
               </p>
             </div>
-            <label className="inline-flex h-7 cursor-pointer items-center justify-center gap-1 rounded-md border px-2.5 text-[0.8rem] font-medium transition-colors hover:bg-muted">
+            <label className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
               <FileUpIcon className="size-3.5" />
               Chọn file
               <input

@@ -53,9 +53,57 @@ export async function querySurveysForTechnician(
 
 export type SurveyRow = Awaited<ReturnType<typeof querySurveys>>[number];
 
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
 export async function querySurveyById(id: string) {
   return db.query.surveys.findFirst({
     where: eq(surveys.id, id),
+    with: {
+      customer: {
+        columns: { id: true, code: true, fullName: true, phone: true, address: true },
+      },
+      lead: {
+        columns: {
+          id: true,
+          code: true,
+          fullName: true,
+          phone: true,
+          address: true,
+          province: true,
+          consultationNote: true,
+          customerRequirements: true,
+          preferredInstallTime: true,
+          followUpAt: true,
+          lastCallResult: true,
+        },
+      },
+      assignedUser: { columns: { id: true, name: true, email: true, jobTitle: true, avatarUrl: true } },
+      createdByUser: { columns: { id: true, name: true } },
+      checkedInByUser: { columns: { id: true, name: true } },
+      zones: {
+        orderBy: (cols, { asc }) => [asc(cols.sortOrder)],
+      },
+      editLogs: {
+        orderBy: (cols, { desc }) => [desc(cols.editedAt)],
+        with: {
+          editedByUser: { columns: { id: true, name: true } },
+        },
+      },
+    },
+  });
+}
+
+export async function querySurveyByIdentifier(identifier: string) {
+  const value = decodeURIComponent(identifier).trim();
+  if (!value) return undefined;
+  if (isUuid(value)) return querySurveyById(value);
+
+  return db.query.surveys.findFirst({
+    where: eq(surveys.code, value.toUpperCase()),
     with: {
       customer: {
         columns: { id: true, code: true, fullName: true, phone: true, address: true },

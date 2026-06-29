@@ -531,8 +531,7 @@ export function WarehouseStockPanel({
           {canManageInventory && (
             <Button
               type="button"
-              variant="outline"
-              className="w-full sm:w-auto"
+              className="w-full border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto"
               onClick={() => openMovementDialog('in')}
               disabled={!hasSetupData}
             >
@@ -708,8 +707,7 @@ export function WarehouseStockPanel({
               <>
                 <Button
                   type="button"
-                  className="w-full sm:w-auto"
-                  variant="outline"
+                  className="w-full border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto"
                   onClick={() => openMovementDialog('in')}
                   disabled={
                     warehouses.filter((warehouse) => warehouse.isActive).length === 0 ||
@@ -721,8 +719,7 @@ export function WarehouseStockPanel({
                 </Button>
                 <Button
                   type="button"
-                  className="w-full sm:w-auto"
-                  variant="outline"
+                  className="w-full border-sky-600 bg-sky-600 text-white hover:bg-sky-700 sm:w-auto"
                   onClick={() => openMovementDialog('out')}
                   disabled={
                     warehouses.filter((warehouse) => warehouse.isActive).length === 0 ||
@@ -734,7 +731,7 @@ export function WarehouseStockPanel({
                 </Button>
                 <Button
                   type="button"
-                  className="w-full sm:w-auto"
+                  className="w-full border-amber-500 bg-amber-500 text-white hover:bg-amber-600 sm:w-auto"
                   onClick={openStockAdjustmentDialog}
                   disabled={
                     warehouses.filter((warehouse) => warehouse.isActive).length === 0 ||
