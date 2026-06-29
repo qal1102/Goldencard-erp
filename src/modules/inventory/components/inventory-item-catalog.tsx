@@ -662,7 +662,6 @@ export function InventoryItemCatalog({
   const [items, setItems] = useState<SerializedInventoryItem[]>(initialItems ?? []);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<CatalogStatus>(ALL_STATUS);
-  const [categoryFilter, setCategoryFilter] = useState('all');
   const [error, setError] = useState<string | null>(initialError);
   const [dialogMode, setDialogMode] = useState<DialogMode | null>(null);
   const [isQuickTableOpen, setIsQuickTableOpen] = useState(false);
@@ -696,13 +695,6 @@ export function InventoryItemCatalog({
   );
 
   const currentExportRows = useMemo(() => exportRowsFromItems(items), [items]);
-  const visibleItems = useMemo(
-    () =>
-      categoryFilter === 'all'
-        ? items
-        : items.filter((item) => (item.category?.trim() || 'Chưa phân nhóm') === categoryFilter),
-    [categoryFilter, items],
-  );
   const importStats = useMemo(
     () => ({
       total: importPreview.length,
@@ -747,7 +739,6 @@ export function InventoryItemCatalog({
   function handleStatusChange(value: CatalogStatus | null) {
     const nextStatus = value ?? ALL_STATUS;
     setStatus(nextStatus);
-    setCategoryFilter('all');
     loadItems({ status: nextStatus });
   }
 
@@ -863,25 +854,6 @@ export function InventoryItemCatalog({
               <SelectItem value="all">{catalogStatusLabels.all}</SelectItem>
               <SelectItem value="active">{catalogStatusLabels.active}</SelectItem>
               <SelectItem value="inactive">{catalogStatusLabels.inactive}</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={categoryFilter}
-            onValueChange={(value) => setCategoryFilter(value ?? 'all')}
-          >
-            <SelectTrigger className="w-full sm:w-56">
-              <SelectValue>
-                {(value) => (value === 'all' ? 'Tất cả nhóm vật tư' : value)}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tất cả nhóm vật tư</SelectItem>
-              {categoryOptions.map((category) => (
-                <SelectItem key={category} value={category}>
-                  {category}
-                </SelectItem>
-              ))}
             </SelectContent>
           </Select>
 
@@ -1163,14 +1135,14 @@ export function InventoryItemCatalog({
         <p className="text-xs text-muted-foreground">Đang cập nhật danh mục...</p>
       )}
 
-      {!error && !isPending && visibleItems.length === 0 && (
+      {!error && !isPending && items.length === 0 && (
         <p className="rounded-lg border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
           Chưa có vật tư phù hợp.
         </p>
       )}
 
       <div className="flex flex-col gap-3">
-        {visibleItems.map((item) => (
+        {items.map((item) => (
           <div key={item.id} className="rounded-lg border p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
@@ -1246,7 +1218,7 @@ export function InventoryItemCatalog({
               <span>Trạng thái</span>
               <span></span>
             </div>
-            {visibleItems.map((item) => (
+            {items.map((item) => (
               <div
                 key={item.id}
                 className="grid min-w-[900px] grid-cols-[130px_1.3fr_150px_90px_120px_120px_80px] items-center border-b px-3 py-2 text-xs last:border-b-0"
