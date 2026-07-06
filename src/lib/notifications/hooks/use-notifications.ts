@@ -28,8 +28,8 @@ export function useNotifications(
     },
     initialData: options?.initialData,
     enabled: options?.enabled ?? true,
-    staleTime: 60_000,
-    refetchInterval: 120_000,
+    staleTime: 20_000,
+    refetchInterval: 30_000,
     refetchOnMount: options?.initialData ? false : true,
     refetchOnWindowFocus: true,
   });
@@ -43,8 +43,8 @@ export function useUnreadNotificationCount() {
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
-    staleTime: 60_000,
-    refetchInterval: 90_000,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
     refetchOnWindowFocus: true,
   });
 }

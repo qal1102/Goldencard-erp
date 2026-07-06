@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { BellIcon } from 'lucide-react';
+import { BellIcon, XIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -160,11 +160,16 @@ function NotificationList({
 export function NotificationBell() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [toastNotification, setToastNotification] = useState<NotificationRow | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const previousUnreadCountRef = useRef<number | null>(null);
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
   const { data: notifications, isLoading } = useNotifications(15, { enabled: open });
+  const { data: latestNotifications } = useNotifications(1);
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
+  const latestNotification = latestNotifications?.[0] ?? null;
 
   useEffect(() => {
     if (!open) return;
@@ -178,6 +183,45 @@ export function NotificationBell() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [open]);
+
+  useEffect(() => {
+    const nav = navigator as Navigator & {
+      setAppBadge?: (contents?: number) => Promise<void>;
+      clearAppBadge?: () => Promise<void>;
+    };
+
+    if (unreadCount > 0) {
+      void nav.setAppBadge?.(unreadCount);
+    } else {
+      void nav.clearAppBadge?.();
+    }
+  }, [unreadCount]);
+
+  useEffect(() => {
+    const previous = previousUnreadCountRef.current;
+    previousUnreadCountRef.current = unreadCount;
+
+    if (
+      previous == null ||
+      unreadCount <= previous ||
+      unreadCount === 0 ||
+      open ||
+      !latestNotification ||
+      document.visibilityState !== 'visible'
+    ) {
+      return;
+    }
+
+    setToastNotification(latestNotification);
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastNotification(null);
+    }, 7000);
+
+    return () => {
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    };
+  }, [latestNotification, open, unreadCount]);
 
   async function handleOpenNotification(notification: NotificationRow) {
     if (!notification.isRead) {
@@ -217,6 +261,45 @@ export function NotificationBell() {
             onMarkAllRead={() => markAllRead.mutate()}
             isMarkingAll={markAllRead.isPending}
           />
+        </div>
+      )}
+
+      {toastNotification && (
+        <div className="fixed bottom-4 right-4 z-50 w-[min(calc(100vw-2rem),22rem)] overflow-hidden rounded-xl border border-border bg-background shadow-xl">
+          <button
+            type="button"
+            className="block w-full px-4 py-3 text-left transition-colors hover:bg-muted/70 active:bg-muted/90"
+            onClick={() => void handleOpenNotification(toastNotification)}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wide text-primary">
+                  Thông báo mới
+                </p>
+                <p className="mt-1 line-clamp-1 text-sm font-semibold">
+                  {toastNotification.title}
+                </p>
+                {toastNotification.body && (
+                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                    {toastNotification.body}
+                  </p>
+                )}
+              </div>
+              <span className="mt-1 shrink-0 rounded-full bg-destructive px-2 py-0.5 text-[10px] font-bold text-white">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            </div>
+          </button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="absolute right-1.5 top-1.5"
+            aria-label="Đóng thông báo"
+            onClick={() => setToastNotification(null)}
+          >
+            <XIcon className="size-4" />
+          </Button>
         </div>
       )}
     </div>
