@@ -1,10 +1,10 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { db } from '@/db';
-import { inventoryItems, workOrderMaterials } from '@/db/schema';
+import { inventoryItems, inventoryStocks, warehouses, workOrderMaterials } from '@/db/schema';
 import { createAuditLog } from '@/lib/audit/create-audit-log';
 import { hasRole, requireRole } from '@/lib/auth/roles';
 import { serializeForClient } from '@/lib/serialize/for-client';
@@ -15,8 +15,10 @@ import {
   queryWorkOrderMaterials,
 } from '../lib/work-order-material.queries';
 import {
+  type ReserveWorkOrderMaterialInput,
   type UpdateWorkOrderMaterialInput,
   type WorkOrderMaterialFormInput,
+  reserveWorkOrderMaterialSchema,
   workOrderMaterialFormSchema,
   updateWorkOrderMaterialSchema,
 } from '../schema/work-order-material.schema';
@@ -270,6 +272,303 @@ export async function updateWorkOrderMaterialAction(
     return {
       success: false,
       error: e instanceof Error ? e.message : 'Không thể cập nhật vật tư dự trù',
+    };
+  }
+}
+
+export async function getWorkOrderMaterialStockOptionsAction(
+  itemId: string,
+): Promise<
+  WorkOrderMaterialActionResult<
+    {
+      warehouseId: string;
+      warehouseCode: string;
+      warehouseName: string;
+      quantityOnHand: string;
+      quantityReserved: string;
+      quantityAvailable: string;
+    }[]
+  >
+> {
+  try {
+    const session = await getSessionOrThrow();
+    requireRole(session.user.roles ?? [], ...WORK_ORDER_MATERIAL_VIEW_ROLES);
+
+    const item = await db.query.inventoryItems.findFirst({
+      where: eq(inventoryItems.id, itemId),
+      columns: { id: true },
+    });
+    if (!item) return { success: false, error: 'Không tìm thấy vật tư' };
+
+    const rows = await db
+      .select({
+        warehouseId: warehouses.id,
+        warehouseCode: warehouses.code,
+        warehouseName: warehouses.name,
+        quantityOnHand: sql<string>`coalesce(${inventoryStocks.quantityOnHand}, 0)`,
+        quantityReserved: sql<string>`coalesce(${inventoryStocks.quantityReserved}, 0)`,
+        quantityAvailable: sql<string>`coalesce(${inventoryStocks.quantityOnHand}, 0) - coalesce(${inventoryStocks.quantityReserved}, 0)`,
+      })
+      .from(warehouses)
+      .leftJoin(
+        inventoryStocks,
+        and(
+          eq(inventoryStocks.warehouseId, warehouses.id),
+          eq(inventoryStocks.itemId, itemId),
+        ),
+      )
+      .where(eq(warehouses.isActive, true));
+
+    return { success: true, data: serializeForClient(rows) };
+  } catch (e) {
+    return {
+      success: false,
+      error: e instanceof Error ? e.message : 'Không thể tải tồn khả dụng',
+    };
+  }
+}
+
+export async function reserveWorkOrderMaterialAction(
+  workOrderId: string,
+  materialId: string,
+  input: ReserveWorkOrderMaterialInput,
+): Promise<WorkOrderMaterialActionResult> {
+  try {
+    const session = await getSessionOrThrow();
+    requireRole(session.user.roles ?? [], ...WORK_ORDER_MATERIAL_WRITE_ROLES);
+
+    const parsed = reserveWorkOrderMaterialSchema.safeParse(input);
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: parsed.error.issues[0]?.message ?? 'Dữ liệu giữ vật tư không hợp lệ',
+      };
+    }
+
+    const workOrder = await requireEditableWorkOrder(workOrderId, session);
+    const d = parsed.data;
+
+    const result = await db.transaction(async (tx) => {
+      const material = await tx.query.workOrderMaterials.findFirst({
+        where: eq(workOrderMaterials.id, materialId),
+        with: { item: { columns: { sku: true, name: true, unit: true } } },
+      });
+      if (!material || material.workOrderId !== workOrderId) {
+        throw new Error('Không tìm thấy dòng vật tư');
+      }
+      if (material.status === 'cancelled' || material.status === 'issued') {
+        throw new Error('Không thể giữ vật tư ở trạng thái này');
+      }
+
+      const warehouse = await tx.query.warehouses.findFirst({
+        where: eq(warehouses.id, d.warehouseId),
+      });
+      if (!warehouse || !warehouse.isActive) throw new Error('Kho không hợp lệ');
+
+      await tx
+        .insert(inventoryStocks)
+        .values({
+          warehouseId: d.warehouseId,
+          itemId: material.itemId,
+          quantityOnHand: '0',
+          updatedBy: session.user.id,
+        })
+        .onConflictDoNothing({
+          target: [inventoryStocks.warehouseId, inventoryStocks.itemId],
+        });
+
+      const lockedRows = await tx.execute<{
+        quantity_on_hand: string;
+        quantity_reserved: string;
+      }>(sql`
+        select quantity_on_hand, quantity_reserved
+        from inventory_stocks
+        where warehouse_id = ${d.warehouseId}
+          and item_id = ${material.itemId}
+        for update
+      `);
+      const lockedStock = lockedRows[0];
+      if (!lockedStock) throw new Error('Không thể khóa dòng tồn kho');
+
+      const planned = Number(material.plannedQuantity);
+      const alreadyReservedForOrder = Number(material.reservedQuantity);
+      const issued = Number(material.issuedQuantity);
+      const remainingNeed = Math.max(planned - alreadyReservedForOrder - issued, 0);
+      if (d.quantity > remainingNeed) {
+        throw new Error('Số lượng giữ vượt nhu cầu còn lại của lệnh thi công');
+      }
+
+      const onHand = Number(lockedStock.quantity_on_hand);
+      const reserved = Number(lockedStock.quantity_reserved);
+      const available = onHand - reserved;
+      if (d.quantity > available) {
+        throw new Error('Số lượng giữ vượt tồn khả dụng của kho');
+      }
+
+      const nextStockReserved = reserved + d.quantity;
+      const nextMaterialReserved = alreadyReservedForOrder + d.quantity;
+
+      await tx
+        .update(inventoryStocks)
+        .set({
+          quantityReserved: String(nextStockReserved),
+          updatedBy: session.user.id,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(inventoryStocks.warehouseId, d.warehouseId),
+            eq(inventoryStocks.itemId, material.itemId),
+          ),
+        );
+
+      await tx
+        .update(workOrderMaterials)
+        .set({
+          reservedQuantity: String(nextMaterialReserved),
+          status: nextMaterialReserved > 0 ? 'approved' : material.status,
+          updatedBy: session.user.id,
+          updatedAt: new Date(),
+        })
+        .where(eq(workOrderMaterials.id, materialId));
+
+      return { material, warehouse, nextMaterialReserved };
+    });
+
+    await createAuditLog({
+      userId: session.user.id,
+      action: 'work_order.material.reserve',
+      resource: 'work_order',
+      resourceId: workOrderId,
+      summary: `Giữ ${input.quantity} ${result.material.item.unit} ${result.material.item.sku} từ ${result.warehouse.code} cho ${workOrder.code}`,
+      after: {
+        materialId,
+        itemId: result.material.itemId,
+        itemSku: result.material.item.sku,
+        warehouseId: input.warehouseId,
+        warehouseCode: result.warehouse.code,
+        reservedQuantity: result.nextMaterialReserved,
+        note: normalizeNote(input.note),
+      },
+    });
+
+    revalidateWorkOrder(workOrderId);
+    revalidatePath('/inventory');
+    return { success: true, data: undefined };
+  } catch (e) {
+    return {
+      success: false,
+      error: e instanceof Error ? e.message : 'Không thể giữ vật tư',
+    };
+  }
+}
+
+export async function releaseWorkOrderMaterialReservationAction(
+  workOrderId: string,
+  materialId: string,
+  input: ReserveWorkOrderMaterialInput,
+): Promise<WorkOrderMaterialActionResult> {
+  try {
+    const session = await getSessionOrThrow();
+    requireRole(session.user.roles ?? [], ...WORK_ORDER_MATERIAL_WRITE_ROLES);
+
+    const parsed = reserveWorkOrderMaterialSchema.safeParse(input);
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: parsed.error.issues[0]?.message ?? 'Dữ liệu hủy giữ vật tư không hợp lệ',
+      };
+    }
+
+    const workOrder = await requireEditableWorkOrder(workOrderId, session);
+    const d = parsed.data;
+
+    const result = await db.transaction(async (tx) => {
+      const material = await tx.query.workOrderMaterials.findFirst({
+        where: eq(workOrderMaterials.id, materialId),
+        with: { item: { columns: { sku: true, name: true, unit: true } } },
+      });
+      if (!material || material.workOrderId !== workOrderId) {
+        throw new Error('Không tìm thấy dòng vật tư');
+      }
+
+      const warehouse = await tx.query.warehouses.findFirst({
+        where: eq(warehouses.id, d.warehouseId),
+      });
+      if (!warehouse) throw new Error('Không tìm thấy kho');
+
+      const lockedRows = await tx.execute<{
+        quantity_reserved: string;
+      }>(sql`
+        select quantity_reserved
+        from inventory_stocks
+        where warehouse_id = ${d.warehouseId}
+          and item_id = ${material.itemId}
+        for update
+      `);
+      const lockedStock = lockedRows[0];
+      if (!lockedStock) throw new Error('Kho này chưa giữ vật tư này');
+
+      const stockReserved = Number(lockedStock.quantity_reserved);
+      const materialReserved = Number(material.reservedQuantity);
+      if (d.quantity > stockReserved || d.quantity > materialReserved) {
+        throw new Error('Số lượng hủy giữ vượt số lượng đang giữ');
+      }
+
+      const nextStockReserved = stockReserved - d.quantity;
+      const nextMaterialReserved = materialReserved - d.quantity;
+
+      await tx
+        .update(inventoryStocks)
+        .set({
+          quantityReserved: String(nextStockReserved),
+          updatedBy: session.user.id,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(inventoryStocks.warehouseId, d.warehouseId),
+            eq(inventoryStocks.itemId, material.itemId),
+          ),
+        );
+
+      await tx
+        .update(workOrderMaterials)
+        .set({
+          reservedQuantity: String(nextMaterialReserved),
+          status: nextMaterialReserved > 0 ? material.status : 'planned',
+          updatedBy: session.user.id,
+          updatedAt: new Date(),
+        })
+        .where(eq(workOrderMaterials.id, materialId));
+
+      return { material, warehouse, nextMaterialReserved };
+    });
+
+    await createAuditLog({
+      userId: session.user.id,
+      action: 'work_order.material.release_reservation',
+      resource: 'work_order',
+      resourceId: workOrderId,
+      summary: `Hủy giữ ${input.quantity} ${result.material.item.unit} ${result.material.item.sku} từ ${result.warehouse.code} cho ${workOrder.code}`,
+      after: {
+        materialId,
+        itemId: result.material.itemId,
+        itemSku: result.material.item.sku,
+        warehouseId: input.warehouseId,
+        warehouseCode: result.warehouse.code,
+        reservedQuantity: result.nextMaterialReserved,
+        note: normalizeNote(input.note),
+      },
+    });
+
+    revalidateWorkOrder(workOrderId);
+    revalidatePath('/inventory');
+    return { success: true, data: undefined };
+  } catch (e) {
+    return {
+      success: false,
+      error: e instanceof Error ? e.message : 'Không thể hủy giữ vật tư',
     };
   }
 }

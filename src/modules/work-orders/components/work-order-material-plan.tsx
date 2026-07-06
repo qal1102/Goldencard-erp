@@ -5,6 +5,14 @@ import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -19,6 +27,9 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   useCancelWorkOrderMaterial,
   useCreateWorkOrderMaterial,
+  useReleaseWorkOrderMaterialReservation,
+  useReserveWorkOrderMaterial,
+  useWorkOrderMaterialStockOptions,
   useUpdateWorkOrderMaterial,
   useWorkOrderMaterialItemOptions,
   useWorkOrderMaterials,
@@ -39,9 +50,23 @@ type MaterialDraft = {
   note: string;
 };
 
+type ReservationDialogMode = 'reserve' | 'release';
+
+type ReservationDraft = {
+  warehouseId: string;
+  quantity: string;
+  note: string;
+};
+
 const emptyDraft: MaterialDraft = {
   itemId: '',
   plannedQuantity: '',
+  note: '',
+};
+
+const emptyReservationDraft: ReservationDraft = {
+  warehouseId: '',
+  quantity: '',
   note: '',
 };
 
@@ -72,9 +97,21 @@ export function WorkOrderMaterialPlan({ workOrderId, canWrite }: Props) {
   const createMaterial = useCreateWorkOrderMaterial(workOrderId);
   const updateMaterial = useUpdateWorkOrderMaterial(workOrderId);
   const cancelMaterial = useCancelWorkOrderMaterial(workOrderId);
+  const reserveMaterial = useReserveWorkOrderMaterial(workOrderId);
+  const releaseReservation = useReleaseWorkOrderMaterialReservation(workOrderId);
   const [draft, setDraft] = useState<MaterialDraft>(emptyDraft);
+  const [reservationDraft, setReservationDraft] = useState<ReservationDraft>(
+    emptyReservationDraft,
+  );
+  const [reservationMode, setReservationMode] = useState<ReservationDialogMode>('reserve');
+  const [reservationMaterial, setReservationMaterial] = useState<
+    NonNullable<typeof materials>[number] | null
+  >(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [reservationError, setReservationError] = useState<string | null>(null);
+  const { data: stockOptions, isFetching: isLoadingStockOptions } =
+    useWorkOrderMaterialStockOptions(reservationMaterial?.itemId ?? null, Boolean(reservationMaterial));
 
   const activeMaterials = useMemo(
     () => (materials ?? []).filter((row) => row.status !== 'cancelled'),
@@ -83,7 +120,11 @@ export function WorkOrderMaterialPlan({ workOrderId, canWrite }: Props) {
 
   const selectedItem = itemOptions?.find((item) => item.id === draft.itemId);
   const isSubmitting = createMaterial.isPending || updateMaterial.isPending;
+  const isReservationSubmitting = reserveMaterial.isPending || releaseReservation.isPending;
   const hasDraft = Boolean(draft.itemId || draft.plannedQuantity || draft.note);
+  const selectedStockOption = stockOptions?.find(
+    (option) => option.warehouseId === reservationDraft.warehouseId,
+  );
 
   function updateDraft<K extends keyof MaterialDraft>(key: K, value: MaterialDraft[K]) {
     setDraft((prev) => ({ ...prev, [key]: value }));
@@ -93,6 +134,29 @@ export function WorkOrderMaterialPlan({ workOrderId, canWrite }: Props) {
     setDraft(emptyDraft);
     setEditingId(null);
     setFormError(null);
+  }
+
+  function updateReservationDraft<K extends keyof ReservationDraft>(
+    key: K,
+    value: ReservationDraft[K],
+  ) {
+    setReservationDraft((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function openReservationDialog(
+    mode: ReservationDialogMode,
+    row: NonNullable<typeof materials>[number],
+  ) {
+    setReservationMode(mode);
+    setReservationMaterial(row);
+    setReservationDraft(emptyReservationDraft);
+    setReservationError(null);
+  }
+
+  function closeReservationDialog() {
+    setReservationMaterial(null);
+    setReservationDraft(emptyReservationDraft);
+    setReservationError(null);
   }
 
   async function submitForm() {
@@ -138,6 +202,41 @@ export function WorkOrderMaterialPlan({ workOrderId, canWrite }: Props) {
     if (!result.success) setFormError(result.error);
   }
 
+  async function submitReservation() {
+    if (!reservationMaterial) return;
+
+    setReservationError(null);
+    const quantity = Number(reservationDraft.quantity);
+    if (!reservationDraft.warehouseId) {
+      setReservationError('Vui lòng chọn kho');
+      return;
+    }
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      setReservationError('Số lượng phải lớn hơn 0');
+      return;
+    }
+
+    const input = {
+      warehouseId: reservationDraft.warehouseId,
+      quantity,
+      note: reservationDraft.note,
+    };
+
+    const result =
+      reservationMode === 'reserve'
+        ? await reserveMaterial.mutateAsync({
+            materialId: reservationMaterial.id,
+            input,
+          })
+        : await releaseReservation.mutateAsync({
+            materialId: reservationMaterial.id,
+            input,
+          });
+
+    if (result.success) closeReservationDialog();
+    else setReservationError(result.error);
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -149,6 +248,12 @@ export function WorkOrderMaterialPlan({ workOrderId, canWrite }: Props) {
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
+        <p className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-950 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-100">
+          Dự trù là nhu cầu vật tư của lệnh thi công. Giữ vật tư sẽ khóa một phần tồn
+          khả dụng trong kho để tránh đội khác xuất nhầm; xuất kho thật vẫn thực hiện ở
+          module Kho.
+        </p>
+
         {canWrite && (
           <div className="rounded-lg border bg-muted/20 p-3">
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_120px]">
@@ -269,7 +374,28 @@ export function WorkOrderMaterialPlan({ workOrderId, canWrite }: Props) {
                   </div>
 
                   {canWrite && row.status !== 'cancelled' && row.status !== 'issued' && (
-                    <div className="flex gap-1">
+                    <div className="flex flex-wrap gap-1">
+                      {Number(row.plannedQuantity) - Number(row.reservedQuantity) - Number(row.issuedQuantity) > 0 && (
+                        <Button
+                          size="sm"
+                          className="bg-emerald-600 text-white hover:bg-emerald-700"
+                          disabled={isSubmitting || isReservationSubmitting}
+                          onClick={() => openReservationDialog('reserve', row)}
+                        >
+                          Giữ vật tư
+                        </Button>
+                      )}
+                      {Number(row.reservedQuantity) > 0 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-amber-300 text-amber-700 hover:bg-amber-50"
+                          disabled={isSubmitting || isReservationSubmitting}
+                          onClick={() => openReservationDialog('release', row)}
+                        >
+                          Hủy giữ
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="outline"
@@ -318,6 +444,113 @@ export function WorkOrderMaterialPlan({ workOrderId, canWrite }: Props) {
             ))}
           </div>
         )}
+
+        <Dialog open={Boolean(reservationMaterial)} onOpenChange={(open) => {
+          if (!open) closeReservationDialog();
+        }}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>
+                {reservationMode === 'reserve' ? 'Giữ vật tư cho công trình' : 'Hủy giữ vật tư'}
+              </DialogTitle>
+              <DialogDescription>
+                {reservationMaterial
+                  ? `${reservationMaterial.itemSku} - ${reservationMaterial.itemName}`
+                  : 'Chọn kho và số lượng cần thao tác.'}
+              </DialogDescription>
+            </DialogHeader>
+
+            {reservationError && (
+              <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {reservationError}
+              </p>
+            )}
+
+            <div className="flex flex-col gap-1.5">
+              <Label>Kho</Label>
+              <Select
+                value={reservationDraft.warehouseId}
+                onValueChange={(value) => updateReservationDraft('warehouseId', value ?? '')}
+                disabled={isReservationSubmitting || isLoadingStockOptions}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={isLoadingStockOptions ? 'Đang tải kho...' : 'Chọn kho'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {(stockOptions ?? []).map((option) => (
+                    <SelectItem key={option.warehouseId} value={option.warehouseId}>
+                      {option.warehouseName} - khả dụng {formatQuantity(option.quantityAvailable)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedStockOption && (
+              <div className="grid gap-2 rounded-md border bg-muted/30 p-3 text-xs sm:grid-cols-3">
+                <div>
+                  <span className="text-muted-foreground">Tồn thực tế</span>
+                  <p className="font-medium">{formatQuantity(selectedStockOption.quantityOnHand)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Đã giữ</span>
+                  <p className="font-medium">{formatQuantity(selectedStockOption.quantityReserved)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Khả dụng</span>
+                  <p className="font-medium">{formatQuantity(selectedStockOption.quantityAvailable)}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="reservation-quantity">Số lượng</Label>
+              <Input
+                id="reservation-quantity"
+                type="number"
+                min="0.001"
+                step="0.001"
+                value={reservationDraft.quantity}
+                onChange={(event) => updateReservationDraft('quantity', event.target.value)}
+                disabled={isReservationSubmitting}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="reservation-note">Ghi chú</Label>
+              <Textarea
+                id="reservation-note"
+                value={reservationDraft.note}
+                onChange={(event) => updateReservationDraft('note', event.target.value)}
+                rows={2}
+                placeholder="VD: giữ cho đội thi công trước ngày lắp"
+                disabled={isReservationSubmitting}
+              />
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isReservationSubmitting}
+                onClick={closeReservationDialog}
+              >
+                Hủy
+              </Button>
+              <Button
+                type="button"
+                disabled={isReservationSubmitting}
+                onClick={() => void submitReservation()}
+              >
+                {isReservationSubmitting
+                  ? 'Đang lưu...'
+                  : reservationMode === 'reserve'
+                    ? 'Giữ vật tư'
+                    : 'Hủy giữ'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );

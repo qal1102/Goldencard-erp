@@ -58,7 +58,7 @@ export default async function WorkOrdersPage() {
         steps={[
           'Tạo lệnh từ hợp đồng đã ký, không tạo rời khỏi quy trình.',
           'Phân công người phụ trách chính và nhân sự tham gia.',
-          'Kỹ thuật cập nhật tiến độ, ghi chú hiện trường và vấn đề phát sinh.',
+          'Lập vật tư dự trù, giữ vật tư trong kho nếu cần chuẩn bị trước cho đội thi công.',
           'Khi hoàn thành, chuyển sang bàn giao để xác nhận với khách.',
         ]}
         note={isTechnician ? 'Bạn chỉ thấy các lệnh liên quan tới mình.' : 'Quản lý nên cập nhật người phụ trách rõ để mọi người biết ai chịu trách nhiệm chính.'}

@@ -33,5 +33,12 @@ export const updateWorkOrderMaterialSchema = workOrderMaterialFormSchema.pick({
   note: true,
 });
 
+export const reserveWorkOrderMaterialSchema = z.object({
+  warehouseId: z.string().uuid('Kho không hợp lệ'),
+  quantity: quantitySchema,
+  note: z.string().trim().max(2000, 'Ghi chú tối đa 2000 ký tự').optional(),
+});
+
 export type WorkOrderMaterialFormInput = z.infer<typeof workOrderMaterialFormSchema>;
 export type UpdateWorkOrderMaterialInput = z.infer<typeof updateWorkOrderMaterialSchema>;
+export type ReserveWorkOrderMaterialInput = z.infer<typeof reserveWorkOrderMaterialSchema>;

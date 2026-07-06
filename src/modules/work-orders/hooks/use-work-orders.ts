@@ -16,12 +16,16 @@ import {
 import {
   cancelWorkOrderMaterialAction,
   createWorkOrderMaterialAction,
+  getWorkOrderMaterialStockOptionsAction,
   getWorkOrderMaterialItemOptionsAction,
   getWorkOrderMaterialsAction,
+  releaseWorkOrderMaterialReservationAction,
+  reserveWorkOrderMaterialAction,
   updateWorkOrderMaterialAction,
 } from '../actions/work-order-material.actions';
 import type { WorkOrderRow } from '../lib/work-order.queries';
 import type {
+  ReserveWorkOrderMaterialInput,
   UpdateWorkOrderMaterialInput,
   WorkOrderMaterialFormInput,
 } from '../schema/work-order-material.schema';
@@ -53,6 +57,7 @@ export const workOrderKeys = {
   byContract: (contractId: string) => ['work-orders', 'by-contract', contractId] as const,
   materials: (id: string) => ['work-orders', 'materials', id] as const,
   materialItemOptions: () => ['work-orders', 'material-item-options'] as const,
+  materialStockOptions: (itemId: string) => ['work-orders', 'material-stock-options', itemId] as const,
 };
 
 type UseWorkOrdersOptions = {
@@ -129,6 +134,19 @@ export function useWorkOrderMaterialItemOptions(enabled = true) {
   });
 }
 
+export function useWorkOrderMaterialStockOptions(itemId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: workOrderKeys.materialStockOptions(itemId ?? ''),
+    queryFn: async () => {
+      const result = await getWorkOrderMaterialStockOptionsAction(itemId ?? '');
+      if (!result.success) throw new Error(result.error);
+      return result.data;
+    },
+    enabled: Boolean(itemId) && enabled,
+    staleTime: 30_000,
+  });
+}
+
 export function useCreateWorkOrderFromContract() {
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -197,6 +215,46 @@ export function useCancelWorkOrderMaterial(workOrderId: string) {
       if (result.success) {
         queryClient.invalidateQueries({ queryKey: workOrderKeys.materials(workOrderId) });
         queryClient.invalidateQueries({ queryKey: workOrderKeys.detail(workOrderId) });
+      }
+    },
+  });
+}
+
+export function useReserveWorkOrderMaterial(workOrderId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      materialId,
+      input,
+    }: {
+      materialId: string;
+      input: ReserveWorkOrderMaterialInput;
+    }) => reserveWorkOrderMaterialAction(workOrderId, materialId, input),
+    onSuccess: (result) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: workOrderKeys.materials(workOrderId) });
+        queryClient.invalidateQueries({ queryKey: ['work-orders', 'material-stock-options'] });
+      }
+    },
+  });
+}
+
+export function useReleaseWorkOrderMaterialReservation(workOrderId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      materialId,
+      input,
+    }: {
+      materialId: string;
+      input: ReserveWorkOrderMaterialInput;
+    }) => releaseWorkOrderMaterialReservationAction(workOrderId, materialId, input),
+    onSuccess: (result) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: workOrderKeys.materials(workOrderId) });
+        queryClient.invalidateQueries({ queryKey: ['work-orders', 'material-stock-options'] });
       }
     },
   });
