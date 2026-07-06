@@ -65,10 +65,48 @@ function normalizeCode(code: string) {
   return code.trim().toUpperCase();
 }
 
+async function generateWarehouseCode() {
+  const rows = await db
+    .select({ code: warehouses.code })
+    .from(warehouses)
+    .where(sql`${warehouses.code} like 'KHO-%'`);
+
+  const maxNumber = rows.reduce((max, row) => {
+    const match = row.code.match(/^KHO-(\d+)$/);
+    if (!match) return max;
+    return Math.max(max, Number(match[1]));
+  }, 0);
+
+  return `KHO-${String(maxNumber + 1).padStart(4, '0')}`;
+}
+
 function getMovementLabel(type: InventoryStockMovementInput['type']) {
   if (type === 'in') return 'Nhập kho';
   if (type === 'return') return 'Trả kho';
   return 'Xuất kho';
+}
+
+function getMovementDocumentPrefix(type: InventoryStockMovementInput['type'] | 'transfer') {
+  if (type === 'in') return 'NK';
+  if (type === 'out') return 'XK';
+  if (type === 'return') return 'TK';
+  return 'CK';
+}
+
+async function generateMovementDocumentCode(type: InventoryStockMovementInput['type'] | 'transfer') {
+  const prefix = getMovementDocumentPrefix(type);
+  const rows = await db
+    .select({ documentCode: inventoryStockMovements.documentCode })
+    .from(inventoryStockMovements)
+    .where(sql`${inventoryStockMovements.documentCode} like ${`${prefix}-%`}`);
+
+  const maxNumber = rows.reduce((max, row) => {
+    const match = row.documentCode?.match(new RegExp(`^${prefix}-(\\d+)$`));
+    if (!match) return max;
+    return Math.max(max, Number(match[1]));
+  }, 0);
+
+  return `${prefix}-${String(maxNumber + 1).padStart(4, '0')}`;
 }
 
 function revalidateInventory() {
@@ -184,7 +222,7 @@ export async function createWarehouseAction(
     }
 
     const d = parsed.data;
-    const code = normalizeCode(d.code);
+    const code = d.code.trim() ? normalizeCode(d.code) : await generateWarehouseCode();
     if (await queryWarehouseByCode(code)) {
       return { success: false, error: 'Mã kho đã tồn tại' };
     }
@@ -250,7 +288,7 @@ export async function updateWarehouseAction(
     if (!existing) return { success: false, error: 'Không tìm thấy kho' };
 
     const d = parsed.data;
-    const code = normalizeCode(d.code);
+    const code = d.code.trim() ? normalizeCode(d.code) : existing.code;
     if (await queryWarehouseByCode(code, id)) {
       return { success: false, error: 'Mã kho đã tồn tại' };
     }
@@ -407,6 +445,7 @@ export async function createInventoryStockMovementAction(
     }
 
     const d = parsed.data;
+    const documentCode = await generateMovementDocumentCode(d.type);
     const result = await db.transaction(async (tx) => {
       const [warehouse, item, workOrder] = await Promise.all([
         tx.query.warehouses.findFirst({
@@ -464,6 +503,7 @@ export async function createInventoryStockMovementAction(
       const [movement] = await tx
         .insert(inventoryStockMovements)
         .values({
+          documentCode,
           type: d.type,
           warehouseId: d.warehouseId,
           itemId: d.itemId,
@@ -492,6 +532,7 @@ export async function createInventoryStockMovementAction(
 
       return {
         movementId: movement.id,
+        documentCode,
         warehouse,
         item,
         workOrder,
@@ -506,7 +547,7 @@ export async function createInventoryStockMovementAction(
       action: `inventory.stock.${input.type}`,
       resource: 'inventory_stock_movement',
       resourceId: result.movementId,
-      summary: `${getMovementLabel(input.type)} ${result.item.sku} tại ${result.warehouse.code}: ${result.quantity} ${result.item.unit}`,
+      summary: `${result.documentCode} - ${getMovementLabel(input.type)} ${result.item.sku} tại ${result.warehouse.code}: ${result.quantity} ${result.item.unit}`,
       before: {
         quantityOnHand: result.before,
       },
@@ -518,6 +559,7 @@ export async function createInventoryStockMovementAction(
         workOrderId: input.workOrderId ?? null,
         workOrderCode: result.workOrder?.code ?? null,
         movementType: input.type,
+        documentCode: result.documentCode,
         quantity: result.quantity,
         quantityOnHand: result.after,
         note: normalizeOptional(input.note),
@@ -549,6 +591,7 @@ export async function createInventoryStockTransferAction(
     }
 
     const d = parsed.data;
+    const documentCode = await generateMovementDocumentCode('transfer');
     const result = await db.transaction(async (tx) => {
       const [fromWarehouse, toWarehouse, item] = await Promise.all([
         tx.query.warehouses.findFirst({ where: eq(warehouses.id, d.fromWarehouseId) }),
@@ -616,6 +659,7 @@ export async function createInventoryStockTransferAction(
         .insert(inventoryStockMovements)
         .values([
           {
+            documentCode,
             type: 'transfer_out',
             warehouseId: d.fromWarehouseId,
             itemId: d.itemId,
@@ -626,6 +670,7 @@ export async function createInventoryStockTransferAction(
             createdBy: session.user.id,
           },
           {
+            documentCode,
             type: 'transfer_in',
             warehouseId: d.toWarehouseId,
             itemId: d.itemId,
@@ -669,6 +714,7 @@ export async function createInventoryStockTransferAction(
 
       return {
         movementId: `${outMovement.id}:${inMovement.id}`,
+        documentCode,
         fromWarehouse,
         toWarehouse,
         item,
@@ -685,7 +731,7 @@ export async function createInventoryStockTransferAction(
       action: 'inventory.stock.transfer',
       resource: 'inventory_stock_movement',
       resourceId: result.movementId,
-      summary: `Chuyển kho ${result.item.sku}: ${result.quantity} ${result.item.unit} từ ${result.fromWarehouse.code} sang ${result.toWarehouse.code}`,
+      summary: `${result.documentCode} - Chuyển kho ${result.item.sku}: ${result.quantity} ${result.item.unit} từ ${result.fromWarehouse.code} sang ${result.toWarehouse.code}`,
       before: {
         fromWarehouseId: input.fromWarehouseId,
         fromWarehouseCode: result.fromWarehouse.code,
@@ -696,6 +742,7 @@ export async function createInventoryStockTransferAction(
         toWarehouseCode: result.toWarehouse.code,
         itemId: input.itemId,
         itemSku: result.item.sku,
+        documentCode: result.documentCode,
         quantity: result.quantity,
         fromQuantityOnHand: result.fromAfter,
         toQuantityOnHand: result.toAfter,

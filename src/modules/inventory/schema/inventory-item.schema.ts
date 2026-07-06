@@ -13,7 +13,6 @@ export const inventoryItemFormSchema = z.object({
   sku: z
     .string()
     .trim()
-    .min(1, 'Mã vật tư là bắt buộc')
     .max(80, 'Mã vật tư tối đa 80 ký tự'),
   name: z
     .string()
@@ -21,6 +20,20 @@ export const inventoryItemFormSchema = z.object({
     .min(1, 'Tên vật tư là bắt buộc')
     .max(255, 'Tên vật tư tối đa 255 ký tự'),
   category: z.string().trim().max(120, 'Nhóm vật tư tối đa 120 ký tự').optional(),
+  specification: z.string().trim().max(255, 'Quy cách/kích cỡ tối đa 255 ký tự').optional(),
+  imageUrl: z
+    .string()
+    .trim()
+    .refine((value) => {
+      if (!value) return true;
+      try {
+        new URL(value);
+        return true;
+      } catch {
+        return false;
+      }
+    }, 'Link ảnh không hợp lệ')
+    .optional(),
   unit: z
     .string()
     .trim()

@@ -64,6 +64,7 @@ export type QuotationExportFormat = (typeof QUOTATION_EXPORT_FORMATS)[number];
 // Line-item sub-schema (shared by create and update)
 // ---------------------------------------------------------------------------
 const quotationItemSchema = z.object({
+  inventoryItemId: z.string().uuid('Vật tư kho không hợp lệ').nullable().optional(),
   productName: z
     .string()
     .min(1, 'Tên sản phẩm là bắt buộc')

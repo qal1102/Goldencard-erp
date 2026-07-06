@@ -80,6 +80,29 @@ export function QuotationPrintDocument({ model, quotationId }: Props) {
 
         <section className={`${styles.quotationPrintSection} ${styles.quotationPrintSectionTable}`}>
           <h2 className={styles.quotationPrintSectionTitle}>Nội dung báo giá</h2>
+          {model.mainEquipment.length > 0 && (
+            <div className={styles.quotationPrintEquipmentGrid}>
+              {model.mainEquipment.map((item) => (
+                <figure key={item.sku} className={styles.quotationPrintEquipmentCard}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={item.imageUrl}
+                    alt={item.name}
+                    className={styles.quotationPrintEquipmentImage}
+                  />
+                  <figcaption className={styles.quotationPrintEquipmentCaption}>
+                    <span className={styles.quotationPrintEquipmentSku}>{item.sku}</span>
+                    <span className={styles.quotationPrintEquipmentName}>{item.name}</span>
+                    {item.specification && (
+                      <span className={styles.quotationPrintEquipmentSpec}>
+                        {item.specification}
+                      </span>
+                    )}
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          )}
           {model.itemsFallback ? (
             <p className={styles.quotationPrintFallbackText}>{ITEMS_FALLBACK}</p>
           ) : (

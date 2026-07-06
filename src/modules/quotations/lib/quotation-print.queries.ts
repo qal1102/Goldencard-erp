@@ -34,12 +34,24 @@ export async function queryQuotationForPrint(id: string) {
       items: {
         columns: {
           sortOrder: true,
+          inventoryItemId: true,
           productName: true,
           description: true,
           quantity: true,
           unit: true,
           unitPrice: true,
           lineTotal: true,
+        },
+        with: {
+          inventoryItem: {
+            columns: {
+              sku: true,
+              name: true,
+              category: true,
+              specification: true,
+              imageUrl: true,
+            },
+          },
         },
         orderBy: (items, { asc }) => [asc(items.sortOrder)],
       },

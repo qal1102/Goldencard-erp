@@ -8,6 +8,7 @@ import { queryQuotationById } from '@/modules/quotations/lib/quotation.queries';
 import { buildSurveyTechnicalSource } from '@/modules/quotations/lib/generate-quotation-items';
 import { isQuotationEditable } from '@/modules/quotations/lib/quotation-resend';
 import { querySurveyById } from '@/modules/surveys/lib/survey.queries';
+import { queryActiveInventoryItemOptions } from '@/modules/inventory/lib/inventory-item.queries';
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -33,7 +34,10 @@ export default async function EditQuotationPage({ params }: Props) {
 
   const surveyRef = quotation.survey;
   const surveyId = surveyRef && !Array.isArray(surveyRef) ? surveyRef.id : null;
-  const linkedSurvey = surveyId != null ? await querySurveyById(surveyId) : null;
+  const [linkedSurvey, inventoryItems] = await Promise.all([
+    surveyId != null ? querySurveyById(surveyId) : Promise.resolve(null),
+    queryActiveInventoryItemOptions(),
+  ]);
 
   const isSentEdit = quotation.status === 'sent';
 
@@ -117,6 +121,7 @@ export default async function EditQuotationPage({ params }: Props) {
               vatRate: inferredVatRate,
               editNote: '',
               items: (quotation.items ?? []).map((item) => ({
+                inventoryItemId: item.inventoryItemId ?? null,
                 productName: item.productName,
                 description: item.description ?? '',
                 quantity: parseFloat(item.quantity),
@@ -124,6 +129,7 @@ export default async function EditQuotationPage({ params }: Props) {
                 unitPrice: parseFloat(item.unitPrice),
               })),
             }}
+            inventoryItems={inventoryItems}
           />
         );
       })()}

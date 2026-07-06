@@ -74,6 +74,7 @@ export async function queryInventoryStockMovementRows() {
   return db
     .select({
       id: inventoryStockMovements.id,
+      documentCode: inventoryStockMovements.documentCode,
       type: inventoryStockMovements.type,
       warehouseId: warehouses.id,
       warehouseCode: warehouses.code,

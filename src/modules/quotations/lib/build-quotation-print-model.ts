@@ -24,6 +24,14 @@ export type QuotationPrintLineItem = {
   lineTotal: string;
 };
 
+export type QuotationPrintMainEquipment = {
+  name: string;
+  sku: string;
+  category: string;
+  specification: string | null;
+  imageUrl: string;
+};
+
 export type QuotationPrintTermsSection = {
   title: string;
   body: string;
@@ -41,6 +49,7 @@ export type QuotationPrintModel = {
     contactPerson: string | null;
   };
   items: QuotationPrintLineItem[];
+  mainEquipment: QuotationPrintMainEquipment[];
   itemsFallback: boolean;
   totals: {
     subtotal: string;
@@ -131,6 +140,31 @@ function buildLineItems(source: QuotationPrintSource): QuotationPrintLineItem[] 
   }));
 }
 
+function isMainEquipmentCategory(category?: string | null) {
+  return ['Tấm pin', 'Inverter', 'Tủ điện', 'Thiết bị bảo vệ'].includes(category ?? '');
+}
+
+function buildMainEquipment(source: QuotationPrintSource): QuotationPrintMainEquipment[] {
+  const bySku = new Map<string, QuotationPrintMainEquipment>();
+
+  for (const item of source.items ?? []) {
+    const inventoryItem = item.inventoryItem;
+    if (!inventoryItem?.imageUrl || !isMainEquipmentCategory(inventoryItem.category)) {
+      continue;
+    }
+
+    bySku.set(inventoryItem.sku, {
+      name: inventoryItem.name,
+      sku: inventoryItem.sku,
+      category: inventoryItem.category ?? 'Thiết bị chính',
+      specification: inventoryItem.specification,
+      imageUrl: inventoryItem.imageUrl,
+    });
+  }
+
+  return Array.from(bySku.values()).slice(0, 4);
+}
+
 function buildTermsSections(source: QuotationPrintSource): QuotationPrintTermsSection[] {
   const validityBody = source.validUntil
     ? `Báo giá có hiệu lực đến ngày ${formatDocumentDate(source.validUntil)}.`
@@ -173,6 +207,7 @@ export function buildQuotationPrintModel(source: QuotationPrintSource): Quotatio
   const tax = parseFloat(source.taxAmount ?? '0');
   const vatRate = source.vatRate ? parseFloat(source.vatRate) : null;
   const items = buildLineItems(source);
+  const mainEquipment = buildMainEquipment(source);
 
   return {
     footerTrace: buildFooterTrace(source),
@@ -185,6 +220,7 @@ export function buildQuotationPrintModel(source: QuotationPrintSource): Quotatio
       contactPerson: null,
     },
     items,
+    mainEquipment,
     itemsFallback: items.length === 0,
     totals: {
       subtotal: formatCurrency(source.subtotal),

@@ -457,6 +457,10 @@ export const quotationItemsRelations = relations(quotationItems, ({ one }) => ({
     fields: [quotationItems.quotationId],
     references: [quotations.id],
   }),
+  inventoryItem: one(inventoryItems, {
+    fields: [quotationItems.inventoryItemId],
+    references: [inventoryItems.id],
+  }),
 }));
 
 export const warehousesRelations = relations(warehouses, ({ one, many }) => ({
@@ -478,6 +482,7 @@ export const inventoryItemsRelations = relations(inventoryItems, ({ one, many })
   stocks: many(inventoryStocks),
   workOrderMaterials: many(workOrderMaterials),
   stockMovements: many(inventoryStockMovements),
+  quotationItems: many(quotationItems),
   createdByUser: one(users, {
     fields: [inventoryItems.createdBy],
     references: [users.id],

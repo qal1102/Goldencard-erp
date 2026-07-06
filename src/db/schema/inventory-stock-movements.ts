@@ -9,6 +9,7 @@ export const inventoryStockMovements = pgTable(
   'inventory_stock_movements',
   {
     id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    documentCode: varchar('document_code', { length: 30 }),
     type: varchar('type', { length: 20 }).notNull(),
     warehouseId: uuid('warehouse_id')
       .notNull()
@@ -28,6 +29,7 @@ export const inventoryStockMovements = pgTable(
   },
   (table) => [
     index('inventory_stock_movements_warehouse_id_idx').on(table.warehouseId),
+    index('inventory_stock_movements_document_code_idx').on(table.documentCode),
     index('inventory_stock_movements_item_id_idx').on(table.itemId),
     index('inventory_stock_movements_work_order_id_idx').on(table.workOrderId),
     index('inventory_stock_movements_type_idx').on(table.type),

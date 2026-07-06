@@ -1,10 +1,17 @@
 'use server';
 
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { db } from '@/db';
-import { quotationEditLogs, quotationExports, quotationItems, quotations, surveys } from '@/db/schema';
+import {
+  inventoryItems,
+  quotationEditLogs,
+  quotationExports,
+  quotationItems,
+  quotations,
+  surveys,
+} from '@/db/schema';
 import { requireRole } from '@/lib/auth/roles';
 import { serializeForClient } from '@/lib/serialize/for-client';
 import { devModuleLogError, MODULE_LIST_ERROR } from '@/lib/server/module-list-log';
@@ -131,6 +138,24 @@ function calculateTotals(
   return { lineTotals, subtotal, discountAmount, taxableAmount, taxAmount, grandTotal };
 }
 
+async function validateQuotationInventoryItemIds(items: { inventoryItemId?: string | null }[]) {
+  const ids = Array.from(
+    new Set(items.map((item) => item.inventoryItemId).filter(Boolean) as string[]),
+  );
+  if (ids.length === 0) return null;
+
+  const rows = await db
+    .select({ id: inventoryItems.id })
+    .from(inventoryItems)
+    .where(inArray(inventoryItems.id, ids));
+
+  if (rows.length !== ids.length) {
+    return 'Có vật tư kho không tồn tại hoặc đã bị xóa. Vui lòng chọn lại vật tư trong báo giá.';
+  }
+
+  return null;
+}
+
 function revalidateQuotationPaths(quotationId: string, surveyId?: string | null) {
   revalidatePath('/quotations');
   revalidatePath(`/quotations/${quotationId}`);
@@ -156,6 +181,8 @@ export async function createQuotationAction(
     }
 
     const d = parsed.data;
+    const inventoryError = await validateQuotationInventoryItemIds(d.items);
+    if (inventoryError) return { success: false, error: inventoryError };
 
     const survey = await db.query.surveys.findFirst({
       where: eq(surveys.id, d.surveyId),
@@ -224,6 +251,7 @@ export async function createQuotationAction(
         d.items.map((item, idx) => ({
           quotationId: row.id,
           sortOrder: idx,
+          inventoryItemId: item.inventoryItemId ?? null,
           productName: item.productName,
           description: toNull(item.description),
           quantity: item.quantity.toString(),
@@ -334,6 +362,8 @@ export async function updateQuotationAction(
     }
 
     const d = parsed.data;
+    const inventoryError = await validateQuotationInventoryItemIds(d.items);
+    if (inventoryError) return { success: false, error: inventoryError };
     const isSentEdit = existingStatus === 'sent';
 
     if (isSentEdit) {
@@ -363,6 +393,7 @@ export async function updateQuotationAction(
         d.items.map((item, idx) => ({
           quotationId: id,
           sortOrder: idx,
+          inventoryItemId: item.inventoryItemId ?? null,
           productName: item.productName,
           description: toNull(item.description),
           quantity: item.quantity.toString(),
@@ -728,6 +759,7 @@ export async function createQuotationRevisionAction(
           items.map((item) => ({
             quotationId: row.id,
             sortOrder: item.sortOrder,
+            inventoryItemId: item.inventoryItemId,
             productName: item.productName,
             description: item.description,
             quantity: item.quantity,

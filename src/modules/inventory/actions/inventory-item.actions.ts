@@ -1,6 +1,6 @@
 'use server';
 
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { db } from '@/db';
@@ -13,6 +13,7 @@ import {
   type InventoryItemFilters,
   type InventoryItemFormInput,
 } from '../schema/inventory-item.schema';
+import { getInventorySkuPrefix } from '../lib/inventory-item-config';
 import { serializeInventoryItems } from '../lib/inventory-item-serialize';
 import { queryInventoryItemBySku, queryInventoryItems } from '../lib/inventory-item.queries';
 
@@ -42,6 +43,22 @@ async function requireInventoryManager() {
 function normalizeOptional(value?: string | null) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+async function generateInventorySku(category?: string | null, name?: string | null) {
+  const prefix = getInventorySkuPrefix(category, name);
+  const rows = await db
+    .select({ sku: inventoryItems.sku })
+    .from(inventoryItems)
+    .where(sql`${inventoryItems.sku} like ${`${prefix}-%`}`);
+
+  const maxNumber = rows.reduce((max, row) => {
+    const match = row.sku.match(new RegExp(`^${prefix}-(\\d+)$`));
+    if (!match) return max;
+    return Math.max(max, Number(match[1]));
+  }, 0);
+
+  return `${prefix}-${String(maxNumber + 1).padStart(4, '0')}`;
 }
 
 function revalidateInventory() {
@@ -135,7 +152,9 @@ export async function createInventoryItemAction(
     }
 
     const d = parsed.data;
-    const sku = d.sku.toUpperCase();
+    const sku = d.sku.trim()
+      ? d.sku.toUpperCase()
+      : await generateInventorySku(d.category, d.name);
     if (await queryInventoryItemBySku(sku)) {
       return { success: false, error: 'Mã vật tư đã tồn tại' };
     }
@@ -146,6 +165,8 @@ export async function createInventoryItemAction(
         sku,
         name: d.name,
         category: normalizeOptional(d.category),
+        specification: normalizeOptional(d.specification),
+        imageUrl: normalizeOptional(d.imageUrl),
         unit: d.unit,
         minStock: String(d.minStock),
         isSerializable: d.isSerializable,
@@ -162,7 +183,14 @@ export async function createInventoryItemAction(
       resource: 'inventory_item',
       resourceId: created.id,
       summary: `Thêm mã vật tư ${sku} - ${d.name}`,
-      after: { sku, name: d.name, unit: d.unit, category: d.category ?? null },
+      after: {
+        sku,
+        name: d.name,
+        unit: d.unit,
+        category: d.category ?? null,
+        specification: d.specification ?? null,
+        imageUrl: d.imageUrl ?? null,
+      },
     });
 
     revalidateInventory();
@@ -200,7 +228,7 @@ export async function updateInventoryItemAction(
     if (!existing) return { success: false, error: 'Không tìm thấy vật tư' };
 
     const d = parsed.data;
-    const sku = d.sku.toUpperCase();
+    const sku = d.sku.trim() ? d.sku.toUpperCase() : existing.sku;
     if (await queryInventoryItemBySku(sku, id)) {
       return { success: false, error: 'Mã vật tư đã tồn tại' };
     }
@@ -211,6 +239,8 @@ export async function updateInventoryItemAction(
         sku,
         name: d.name,
         category: normalizeOptional(d.category),
+        specification: normalizeOptional(d.specification),
+        imageUrl: normalizeOptional(d.imageUrl),
         unit: d.unit,
         minStock: String(d.minStock),
         isSerializable: d.isSerializable,
@@ -232,6 +262,8 @@ export async function updateInventoryItemAction(
         name: existing.name,
         unit: existing.unit,
         category: existing.category,
+        specification: existing.specification,
+        imageUrl: existing.imageUrl,
         isActive: existing.isActive,
       },
       after: {
@@ -239,6 +271,8 @@ export async function updateInventoryItemAction(
         name: d.name,
         unit: d.unit,
         category: d.category ?? null,
+        specification: d.specification ?? null,
+        imageUrl: d.imageUrl ?? null,
         isActive: d.isActive,
       },
     });
@@ -284,34 +318,40 @@ export async function importInventoryItemsAction(
 
       const normalized = {
         ...parsed.data,
-        sku: parsed.data.sku.toUpperCase(),
+        sku: parsed.data.sku.trim().toUpperCase(),
       };
 
-      if (seenSkus.has(normalized.sku)) {
+      if (normalized.sku && seenSkus.has(normalized.sku)) {
         return {
           success: false,
           error: `Mã vật tư bị trùng trong file: ${normalized.sku}`,
         };
       }
 
-      seenSkus.add(normalized.sku);
+      if (normalized.sku) seenSkus.add(normalized.sku);
       parsedRows.push(normalized);
     }
 
+    const lookupSkus = parsedRows.map((row) => row.sku).filter(Boolean);
     const existingRows = await db
       .select({ id: inventoryItems.id, sku: inventoryItems.sku })
       .from(inventoryItems)
-      .where(inArray(inventoryItems.sku, parsedRows.map((row) => row.sku)));
+      .where(inArray(inventoryItems.sku, lookupSkus.length > 0 ? lookupSkus : ['__NO_SKU__']));
     const existingBySku = new Map(existingRows.map((row) => [row.sku, row.id]));
 
     let created = 0;
     let updated = 0;
+    const finalSkus: string[] = [];
 
     for (const row of parsedRows) {
+      const sku = row.sku || await generateInventorySku(row.category, row.name);
+      finalSkus.push(sku);
       const values = {
-        sku: row.sku,
+        sku,
         name: row.name,
         category: normalizeOptional(row.category),
+        specification: normalizeOptional(row.specification),
+        imageUrl: normalizeOptional(row.imageUrl),
         unit: row.unit,
         minStock: String(row.minStock),
         isSerializable: row.isSerializable,
@@ -321,7 +361,7 @@ export async function importInventoryItemsAction(
         updatedAt: new Date(),
       };
 
-      const existingId = existingBySku.get(row.sku);
+      const existingId = row.sku ? existingBySku.get(row.sku) : undefined;
       if (existingId) {
         await db.update(inventoryItems).set(values).where(eq(inventoryItems.id, existingId));
         updated += 1;
@@ -334,7 +374,7 @@ export async function importInventoryItemsAction(
       }
     }
 
-    const skuSample = parsedRows.slice(0, 20).map((row) => row.sku);
+    const skuSample = finalSkus.slice(0, 20);
 
     await createAuditLog({
       userId: session.user.id,

@@ -18,6 +18,8 @@ export const inventoryItems = pgTable(
     sku: varchar('sku', { length: 80 }).notNull().unique(),
     name: varchar('name', { length: 255 }).notNull(),
     category: varchar('category', { length: 120 }),
+    specification: varchar('specification', { length: 255 }),
+    imageUrl: text('image_url'),
     unit: varchar('unit', { length: 50 }).notNull(),
     minStock: numeric('min_stock', { precision: 12, scale: 3 }).default('0').notNull(),
     isSerializable: boolean('is_serializable').default(false).notNull(),

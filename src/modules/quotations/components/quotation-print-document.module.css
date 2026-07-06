@@ -128,6 +128,58 @@
   margin: 0;
 }
 
+.quotationPrintEquipmentGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.quotationPrintEquipmentCard {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid #d4d4d4;
+  padding: 8px;
+  background: #fafafa;
+}
+
+.quotationPrintEquipmentImage {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border: 1px solid #ddd;
+  background: #fff;
+}
+
+.quotationPrintEquipmentCaption {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.quotationPrintEquipmentSku {
+  font-family: var(--font-geist-mono, Consolas, monospace);
+  font-size: 9.5px;
+  color: #555;
+}
+
+.quotationPrintEquipmentName {
+  font-size: 11px;
+  font-weight: 700;
+  color: #111;
+}
+
+.quotationPrintEquipmentSpec {
+  font-size: 10px;
+  color: #444;
+}
+
 .quotationPrintItemsTable {
   width: 100%;
   border-collapse: collapse;

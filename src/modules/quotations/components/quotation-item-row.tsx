@@ -44,6 +44,15 @@ type Props = {
   canRemove: boolean;
   onRemove: () => void;
   formatCurrency: (num: number) => string;
+  inventoryItems: Array<{
+    id: string;
+    sku: string;
+    name: string;
+    category: string | null;
+    specification: string | null;
+    unit: string;
+    imageUrl: string | null;
+  }>;
 };
 
 function FieldError({ message }: { message?: string }) {
@@ -64,11 +73,25 @@ export function QuotationItemRow({
   canRemove,
   onRemove,
   formatCurrency,
+  inventoryItems,
 }: Props) {
   const templates = getQuotationItemTemplates(panelWattageW);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const unitSelectValue = isPresetUnit(unitValue) ? unitValue : QUOTATION_ITEM_UNIT_CUSTOM;
   const showCustomUnit = unitSelectValue === QUOTATION_ITEM_UNIT_CUSTOM;
+
+  const applyInventoryItem = (itemId: string | null) => {
+    const selected = inventoryItems.find((item) => item.id === itemId);
+    if (!selected) {
+      setValue(`items.${idx}.inventoryItemId`, null);
+      return;
+    }
+
+    setValue(`items.${idx}.inventoryItemId`, selected.id, { shouldValidate: true });
+    setValue(`items.${idx}.productName`, selected.name, { shouldValidate: true });
+    setValue(`items.${idx}.description`, selected.specification ?? selected.category ?? '');
+    setValue(`items.${idx}.unit`, selected.unit, { shouldValidate: true });
+  };
 
   const applyTemplate = (templateId: string | null) => {
     if (!templateId) return;
@@ -117,6 +140,48 @@ export function QuotationItemRow({
           </SelectContent>
         </Select>
       </div>
+
+      {inventoryItems.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs">Chọn vật tư từ kho</Label>
+          <Controller
+            control={control}
+            name={`items.${idx}.inventoryItemId`}
+            render={({ field }) => (
+              <Select
+                value={field.value ?? '__none__'}
+                onValueChange={(value) => {
+                  const nextValue = value === '__none__' ? null : value;
+                  field.onChange(nextValue);
+                  applyInventoryItem(nextValue);
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Không gắn vật tư kho">
+                    {(value) => {
+                      if (!value || value === '__none__') return 'Không gắn vật tư kho';
+                      const item = inventoryItems.find((option) => option.id === value);
+                      return item ? `${item.sku} - ${item.name}` : 'Không gắn vật tư kho';
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Không gắn vật tư kho</SelectItem>
+                  {inventoryItems.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.sku} - {item.name}
+                      {item.specification ? ` (${item.specification})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          <p className="text-xs text-muted-foreground">
+            Dùng cho vật tư chính để báo giá lấy đúng quy cách/ảnh từ kho.
+          </p>
+        </div>
+      )}
 
       <div className="flex flex-col gap-1.5">
         <Label className="text-xs">

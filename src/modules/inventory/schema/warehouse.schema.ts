@@ -8,7 +8,6 @@ export const warehouseFormSchema = z.object({
   code: z
     .string()
     .trim()
-    .min(1, 'Mã kho là bắt buộc')
     .max(50, 'Mã kho tối đa 50 ký tự'),
   name: z
     .string()

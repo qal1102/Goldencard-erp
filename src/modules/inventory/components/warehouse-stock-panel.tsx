@@ -218,16 +218,19 @@ function WarehouseDialog({
           )}
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="warehouse-code">Mã kho</Label>
-              <Input
-                id="warehouse-code"
-                value={form.code}
-                onChange={(e) => updateField('code', e.target.value.toUpperCase())}
-                placeholder="VD: KHO-TONG"
-                disabled={isPending}
-              />
-            </div>
+            {mode.type === 'edit' ? (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="warehouse-code">Mã kho</Label>
+                <Input id="warehouse-code" value={form.code} readOnly disabled />
+              </div>
+            ) : (
+              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                <p className="font-medium">Mã kho do hệ thống tự sinh</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Ví dụ: KHO-0001, KHO-0002. Bạn chỉ cần đặt tên kho dễ hiểu.
+                </p>
+              </div>
+            )}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="warehouse-name">Tên kho</Label>
               <Input
@@ -955,7 +958,8 @@ export function WarehouseStockPanel({
 
         {movements.length > 0 && (
           <div className="mt-3 max-h-96 overflow-auto rounded-md border">
-            <div className="grid min-w-[1120px] grid-cols-[110px_150px_140px_1.3fr_130px_110px_110px_110px_130px] border-b bg-muted/60 px-3 py-2 text-xs font-medium">
+            <div className="grid min-w-[1240px] grid-cols-[110px_110px_150px_140px_1.3fr_130px_110px_110px_110px_130px] border-b bg-muted/60 px-3 py-2 text-xs font-medium">
+              <span>Chứng từ</span>
               <span>Loại</span>
               <span>Kho</span>
               <span>Mã vật tư</span>
@@ -969,8 +973,11 @@ export function WarehouseStockPanel({
             {movements.map((row) => (
               <div
                 key={row.id}
-                className="grid min-w-[1120px] grid-cols-[110px_150px_140px_1.3fr_130px_110px_110px_110px_130px] border-b px-3 py-2 text-xs last:border-b-0"
+                className="grid min-w-[1240px] grid-cols-[110px_110px_150px_140px_1.3fr_130px_110px_110px_110px_130px] border-b px-3 py-2 text-xs last:border-b-0"
               >
+                <span className="font-mono font-medium text-primary">
+                  {row.documentCode ?? '-'}
+                </span>
                 <span>
                   <Badge variant="outline" className={getMovementBadgeClass(row.type)}>
                     {getMovementLabel(row.type)}

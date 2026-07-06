@@ -24,6 +24,7 @@ export type SerializedInventoryStockRow = {
 
 export type SerializedInventoryStockMovementRow = {
   id: string;
+  documentCode: string | null;
   type: string;
   warehouseId: string;
   warehouseCode: string;

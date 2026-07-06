@@ -30,6 +30,7 @@ import { useCreateQuotation, useUpdateQuotation } from '../hooks/use-quotations'
 import { LeadConsultationContextCard } from '@/modules/crm/components/lead-consultation-context-card';
 import type { LeadConsultationContext } from '@/modules/crm/schema/lead.schema';
 import { SurveyTechnicalSummary } from './survey-technical-summary';
+import type { InventoryItemOption } from '@/modules/inventory/lib/inventory-item.queries';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -47,6 +48,7 @@ type SurveyContext = {
 };
 
 type ItemRow = {
+  inventoryItemId?: string | null;
   productName: string;
   description: string;
   quantity: number;
@@ -68,6 +70,9 @@ type EditProps = {
 };
 
 type Props = CreateProps | EditProps;
+type InventoryAwareProps = Props & {
+  inventoryItems?: InventoryItemOption[];
+};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -87,6 +92,7 @@ function FieldError({ message }: { message?: string }) {
 }
 
 const defaultItem: ItemRow = {
+  inventoryItemId: null,
   productName: '',
   description: '',
   quantity: 1,
@@ -109,7 +115,7 @@ function initVatPreset(vatRate: number): VatPresetKey {
 // Component
 // ---------------------------------------------------------------------------
 
-export function QuotationForm(props: Props) {
+export function QuotationForm(props: InventoryAwareProps) {
   const { survey } = props;
 
   const createMutation = useCreateQuotation();
@@ -337,6 +343,7 @@ export function QuotationForm(props: Props) {
               canRemove={fields.length > 1}
               onRemove={() => remove(idx)}
               formatCurrency={formatCurrency}
+              inventoryItems={props.inventoryItems ?? []}
             />
           ))}
 

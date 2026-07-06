@@ -23,6 +23,7 @@ export async function queryInventoryItems(filters: InventoryItemFilters = {}) {
           ilike(inventoryItems.sku, `%${q}%`),
           ilike(inventoryItems.name, `%${q}%`),
           ilike(inventoryItems.category, `%${q}%`),
+          ilike(inventoryItems.specification, `%${q}%`),
         )
       : undefined,
   );
@@ -47,3 +48,24 @@ export async function queryInventoryItemBySku(sku: string, excludeId?: string) {
   if (excludeId && row.id === excludeId) return null;
   return row;
 }
+
+export async function queryActiveInventoryItemOptions() {
+  return db
+    .select({
+      id: inventoryItems.id,
+      sku: inventoryItems.sku,
+      name: inventoryItems.name,
+      category: inventoryItems.category,
+      specification: inventoryItems.specification,
+      unit: inventoryItems.unit,
+      imageUrl: inventoryItems.imageUrl,
+    })
+    .from(inventoryItems)
+    .where(eq(inventoryItems.isActive, true))
+    .orderBy(asc(inventoryItems.category), asc(inventoryItems.name))
+    .limit(200);
+}
+
+export type InventoryItemOption = Awaited<
+  ReturnType<typeof queryActiveInventoryItemOptions>
+>[number];

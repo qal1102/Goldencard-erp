@@ -9,6 +9,7 @@ import {
   FileSpreadsheetIcon,
   FileUpIcon,
   FilterIcon,
+  ImageIcon,
   PauseCircleIcon,
   PlusIcon,
   SearchIcon,
@@ -42,6 +43,11 @@ import {
   importInventoryItemsAction,
   updateInventoryItemAction,
 } from '../actions/inventory-item.actions';
+import {
+  getDefaultMinStockForCategory,
+  inventoryCategoryOptions,
+  inventoryCategoryValues,
+} from '../lib/inventory-item-config';
 import type { SerializedInventoryItem } from '../lib/inventory-item-serialize';
 import type {
   InventoryItemFilters,
@@ -65,12 +71,23 @@ function getCatalogStatusLabel(value: string | null) {
 
 const popularUnits = ['tấm', 'bộ', 'cái', 'mét', 'cuộn', 'kg', 'thùng'];
 
+function uniqueOptions(values: string[]) {
+  const map = new Map<string, string>();
+  for (const value of values) {
+    const trimmed = value.trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLocaleLowerCase('vi');
+    if (!map.has(key)) map.set(key, trimmed);
+  }
+  return Array.from(map.values()).sort((a, b) => a.localeCompare(b, 'vi'));
+}
+
 const inventoryExportColumns = [
   {
     key: 'sku',
     label: 'Mã vật tư',
-    guide: 'Bắt buộc, không trùng. Đây là mã hệ thống dùng để tạo mới hoặc cập nhật.',
-    example: 'PIN-550W',
+    guide: 'Có thể để trống khi tạo mới để hệ thống tự sinh mã. Nếu muốn cập nhật vật tư cũ, điền đúng mã đang có.',
+    example: '',
   },
   {
     key: 'name',
@@ -81,8 +98,20 @@ const inventoryExportColumns = [
   {
     key: 'category',
     label: 'Nhóm vật tư',
-    guide: 'Không bắt buộc. Ví dụ: Tấm pin, Inverter, Dây điện, Phụ kiện.',
+    guide: 'Nên chọn theo nhóm chuẩn: Tấm pin, Inverter, Dây điện, Tủ điện, Khung/rail, Phụ kiện, Dụng cụ thi công, Thiết bị bảo vệ.',
     example: 'Tấm pin',
+  },
+  {
+    key: 'specification',
+    label: 'Quy cách/kích cỡ',
+    guide: 'Không bắt buộc nhưng nên điền để tránh nhầm vật tư. Ví dụ: 550W, 6mm2, 5kW, dài 4.2m.',
+    example: '550W',
+  },
+  {
+    key: 'imageUrl',
+    label: 'Link ảnh',
+    guide: 'Không bắt buộc. Dán link ảnh vật tư nếu có để nhân viên nhận diện nhanh hơn.',
+    example: '',
   },
   {
     key: 'unit',
@@ -141,8 +170,10 @@ const emptyForm: InventoryItemFormInput = {
   sku: '',
   name: '',
   category: '',
+  specification: '',
+  imageUrl: '',
   unit: '',
-  minStock: 0,
+  minStock: 1,
   isSerializable: false,
   isActive: true,
   note: '',
@@ -164,6 +195,8 @@ function itemToForm(item: SerializedInventoryItem): InventoryItemFormInput {
     sku: item.sku,
     name: item.name,
     category: item.category ?? '',
+    specification: item.specification ?? '',
+    imageUrl: item.imageUrl ?? '',
     unit: item.unit,
     minStock: Number(item.minStock),
     isSerializable: item.isSerializable,
@@ -181,6 +214,8 @@ function exportRowsFromItems(items: SerializedInventoryItem[]): InventoryExportR
     sku: item.sku,
     name: item.name,
     category: item.category ?? '',
+    specification: item.specification ?? '',
+    imageUrl: item.imageUrl ?? '',
     unit: item.unit,
     minStock: Number(item.minStock),
     isSerializable: item.isSerializable,
@@ -286,8 +321,10 @@ async function downloadXlsx(rows: InventoryExportRow[], filename: string) {
         right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
       };
       if (rowNumber > 1) {
-        const isActiveColumn = columnNumber === 7;
-        const activeCell = row.getCell(7).value;
+        const activeColumnNumber =
+          inventoryExportColumns.findIndex((column) => column.key === 'isActive') + 1;
+        const isActiveColumn = columnNumber === activeColumnNumber;
+        const activeCell = row.getCell(activeColumnNumber).value;
         const isActive = activeCell === true || activeCell === 'TRUE';
         cell.fill = {
           type: 'pattern',
@@ -340,6 +377,20 @@ function normalizeHeader(header: unknown) {
     'Nhom vat tu': 'category',
     'nhom vat tu': 'category',
     category: 'category',
+    'Quy cách/kích cỡ': 'specification',
+    'Quy cach/kich co': 'specification',
+    'Quy cách': 'specification',
+    'Quy cach': 'specification',
+    'Kích cỡ': 'specification',
+    'Kich co': 'specification',
+    specification: 'specification',
+    'Link ảnh': 'imageUrl',
+    'Link anh': 'imageUrl',
+    'Ảnh': 'imageUrl',
+    Anh: 'imageUrl',
+    image: 'imageUrl',
+    imageurl: 'imageUrl',
+    'image url': 'imageUrl',
     'Đơn vị tính': 'unit',
     'Don vi tinh': 'unit',
     'don vi tinh': 'unit',
@@ -390,15 +441,27 @@ function parseBooleanCell(value: unknown) {
 
 function parseNumberCell(value: unknown) {
   const raw = String(value ?? '').trim();
-  if (!raw) return { value: 0, error: null };
+  if (!raw) return { value: 0, error: null, isBlank: true };
 
   const normalized = raw.replace(/\s/g, '').replace(',', '.');
   const numeric = Number(normalized);
   if (!Number.isFinite(numeric) || numeric < 0) {
-    return { value: 0, error: 'Tồn tối thiểu phải là số không âm' };
+    return { value: 0, error: 'Tồn tối thiểu phải là số không âm', isBlank: false };
   }
 
-  return { value: numeric, error: null };
+  return { value: numeric, error: null, isBlank: false };
+}
+
+function parseUrlCell(value: unknown) {
+  const text = String(value ?? '').trim();
+  if (!text) return { value: '', error: null };
+
+  try {
+    new URL(text);
+    return { value: text, error: null };
+  } catch {
+    return { value: text, error: 'Link ảnh không hợp lệ' };
+  }
 }
 
 function detectCsvDelimiter(headerLine: string) {
@@ -505,6 +568,8 @@ function buildPreviewRows(
     const values = row.values;
     const sku = String(values.sku ?? '').trim().toUpperCase();
     const minStock = parseNumberCell(values.minStock);
+    const category = String(values.category ?? '').trim();
+    const imageUrl = parseUrlCell(values.imageUrl);
     const isSerializable = parseBooleanCell(values.isSerializable);
     const isActive = parseBooleanCell(
       values.isActive === undefined || values.isActive === '' ? true : values.isActive,
@@ -514,18 +579,20 @@ function buildPreviewRows(
     const data: InventoryItemFormInput = {
       sku,
       name: String(values.name ?? '').trim(),
-      category: String(values.category ?? '').trim(),
+      category,
+      specification: String(values.specification ?? '').trim(),
+      imageUrl: imageUrl.value,
       unit: String(values.unit ?? '').trim(),
-      minStock: minStock.value,
+      minStock: minStock.isBlank ? getDefaultMinStockForCategory(category) : minStock.value,
       isSerializable: isSerializable.value,
       isActive: isActive.value,
       note: String(values.note ?? '').trim(),
     };
 
-    if (!data.sku) errors.push('Thiếu mã vật tư');
     if (!data.name) errors.push('Thiếu tên vật tư');
     if (!data.unit) errors.push('Thiếu đơn vị tính');
     if (minStock.error) errors.push(minStock.error);
+    if (imageUrl.error) errors.push(imageUrl.error);
     if (isSerializable.error) errors.push(`Theo dõi serial: ${isSerializable.error}`);
     if (isActive.error) errors.push(`Đang sử dụng: ${isActive.error}`);
 
@@ -569,12 +636,26 @@ function InventoryItemDialog({
   );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const selectedCategoryOption = inventoryCategoryOptions.find(
+    (option) => option.value === form.category,
+  );
 
   function updateField<K extends keyof InventoryItemFormInput>(
     key: K,
     value: InventoryItemFormInput[K],
   ) {
     setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateCategory(value: string) {
+    setForm((current) => ({
+      ...current,
+      category: value,
+      minStock:
+        mode.type === 'create' && (!current.minStock || current.minStock <= 1)
+          ? getDefaultMinStockForCategory(value)
+          : current.minStock,
+    }));
   }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -612,7 +693,7 @@ function InventoryItemDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl">
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <DialogHeader>
             <DialogTitle>
@@ -630,16 +711,19 @@ function InventoryItemDialog({
           )}
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="inventory-sku">Mã vật tư</Label>
-              <Input
-                id="inventory-sku"
-                value={form.sku}
-                onChange={(e) => updateField('sku', e.target.value.toUpperCase())}
-                placeholder="VD: PIN-550W"
-                disabled={isPending}
-              />
-            </div>
+            {mode.type === 'edit' ? (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="inventory-sku">Mã vật tư</Label>
+                <Input id="inventory-sku" value={form.sku} readOnly disabled />
+              </div>
+            ) : (
+              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                <p className="font-medium">Mã vật tư do hệ thống tự sinh</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Ví dụ: PIN-0001, INV-0001, DAY-0001. Hãy chọn nhóm vật tư để mã dễ phân loại.
+                </p>
+              </div>
+            )}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="inventory-unit">Đơn vị tính</Label>
               <Input
@@ -658,15 +742,39 @@ function InventoryItemDialog({
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="inventory-name">Tên vật tư</Label>
-            <Input
-              id="inventory-name"
-              value={form.name}
-              onChange={(e) => updateField('name', e.target.value)}
-              placeholder="Tên hiển thị trong kho"
-              disabled={isPending}
-            />
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="inventory-name">Tên vật tư</Label>
+              <Input
+                id="inventory-name"
+                value={form.name}
+                onChange={(e) => updateField('name', e.target.value)}
+                placeholder="VD: Tấm pin Jinko Tiger Neo"
+                disabled={isPending}
+              />
+            </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="inventory-specification">Quy cách/kích cỡ</Label>
+              <Input
+                id="inventory-specification"
+                value={form.specification ?? ''}
+                onChange={(e) => updateField('specification', e.target.value)}
+                placeholder="VD: 550W, 6mm2, 5kW..."
+                disabled={isPending}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="inventory-image-url">Link ảnh</Label>
+              <Input
+                id="inventory-image-url"
+                type="url"
+                value={form.imageUrl ?? ''}
+                onChange={(e) => updateField('imageUrl', e.target.value)}
+                placeholder="https://..."
+                disabled={isPending}
+              />
+            </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -676,8 +784,8 @@ function InventoryItemDialog({
                 id="inventory-category"
                 list="inventory-category-options"
                 value={form.category ?? ''}
-                onChange={(e) => updateField('category', e.target.value)}
-                placeholder="Tấm pin, inverter..."
+                onChange={(e) => updateCategory(e.target.value)}
+                placeholder="Chọn nhóm chuẩn hoặc nhập nhóm khác..."
                 disabled={isPending}
               />
               <datalist id="inventory-category-options">
@@ -685,6 +793,10 @@ function InventoryItemDialog({
                   <option key={category} value={category} />
                 ))}
               </datalist>
+              <p className="text-xs text-muted-foreground">
+                {selectedCategoryOption?.hint ??
+                  'Nhóm quyết định tiền tố mã vật tư và tồn tối thiểu gợi ý.'}
+              </p>
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="inventory-min-stock">Tồn tối thiểu</Label>
@@ -697,6 +809,9 @@ function InventoryItemDialog({
                 onChange={(e) => updateField('minStock', Number(e.target.value))}
                 disabled={isPending}
               />
+              <p className="text-xs text-muted-foreground">
+                Hệ thống dùng mức này để cảnh báo tồn thấp. Có thể để 0 nếu vật tư không cần cảnh báo.
+              </p>
             </div>
           </div>
 
@@ -795,17 +910,15 @@ export function InventoryItemCatalog({
 
   const categoryOptions = useMemo(
     () =>
-      Array.from(
-        new Set(items.map((item) => item.category).filter(Boolean) as string[]),
-      ).sort((a, b) => a.localeCompare(b, 'vi')),
+      uniqueOptions([
+        ...inventoryCategoryValues,
+        ...(items.map((item) => item.category).filter(Boolean) as string[]),
+      ]),
     [items],
   );
 
   const unitOptions = useMemo(
-    () =>
-      Array.from(new Set([...popularUnits, ...items.map((item) => item.unit)])).sort(
-        (a, b) => a.localeCompare(b, 'vi'),
-      ),
+    () => uniqueOptions([...popularUnits, ...items.map((item) => item.unit)]),
     [items],
   );
 
@@ -813,7 +926,7 @@ export function InventoryItemCatalog({
     () =>
       category === ALL_CATEGORY
         ? items
-        : items.filter((item) => (item.category || '') === category),
+        : items.filter((item) => (item.category || '').trim() === category),
     [category, items],
   );
 
@@ -1049,8 +1162,9 @@ export function InventoryItemCatalog({
             <div>
               <p className="text-sm font-medium">File mẫu nhập liệu</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Mẫu tải về chỉ có cột trống để nhập tay. Điền tối thiểu Mã vật tư, Tên vật
-                tư và Đơn vị tính; các cột Có/Không có thể nhập TRUE/FALSE hoặc Có/Không.
+                Mẫu tải về chỉ có cột trống để nhập tay. Điền tối thiểu Tên vật tư và Đơn
+                vị tính; Mã vật tư có thể để trống để hệ thống tự sinh. Các cột Có/Không có
+                thể nhập TRUE/FALSE hoặc Có/Không.
                 Muốn sửa hàng loạt thì export danh mục hiện tại, chỉnh trong Excel rồi upload
                 lại để hệ thống preview trước khi cập nhật.
               </p>
@@ -1237,7 +1351,7 @@ export function InventoryItemCatalog({
                       </Badge>
                     </span>
                     <span className="truncate">{row.data.name || '-'}</span>
-                    <span className="font-mono">{row.data.sku || '-'}</span>
+                    <span className="font-mono">{row.data.sku || 'Tự sinh'}</span>
                     <span>{row.data.unit || '-'}</span>
                     <span className={row.errors.length ? 'text-destructive' : 'text-muted-foreground'}>
                       {row.errors.length ? row.errors.join('; ') : 'Hợp lệ'}
@@ -1307,7 +1421,16 @@ export function InventoryItemCatalog({
         {visibleItems.map((item) => (
           <div key={item.id} className="rounded-lg border p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
+              <div className="flex min-w-0 gap-3">
+                <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted/30">
+                  {item.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={item.imageUrl} alt={item.name} className="size-full object-cover" />
+                  ) : (
+                    <ImageIcon className="size-6 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-mono text-sm font-semibold text-primary">{item.sku}</p>
                   <Badge
@@ -1328,6 +1451,11 @@ export function InventoryItemCatalog({
                   )}
                 </div>
                 <h2 className="mt-1 font-medium">{item.name}</h2>
+                {item.specification && (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Quy cách/kích cỡ: {item.specification}
+                  </p>
+                )}
                 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                   <span>Nhóm: {item.category || 'Chưa phân nhóm'}</span>
                   <span>Đơn vị: {item.unit}</span>
@@ -1355,6 +1483,7 @@ export function InventoryItemCatalog({
                     {item.isActive ? 'Ngừng sử dụng' : 'Kích hoạt lại'}
                   </Button>
                 )}
+                </div>
               </div>
               {canManageInventory && (
                 <Button
@@ -1399,9 +1528,10 @@ export function InventoryItemCatalog({
           </DialogHeader>
 
           <div className="max-h-[70vh] overflow-auto rounded-md border">
-            <div className="sticky top-0 z-10 grid min-w-[900px] grid-cols-[130px_1.3fr_150px_90px_120px_120px_80px] border-b bg-muted px-3 py-2 text-xs font-medium shadow-sm">
+            <div className="sticky top-0 z-10 grid min-w-[1020px] grid-cols-[130px_1.2fr_160px_150px_90px_120px_120px_80px] border-b bg-muted px-3 py-2 text-xs font-medium shadow-sm">
               <span>Mã vật tư</span>
               <span>Tên vật tư</span>
+              <span>Quy cách</span>
               <span>Nhóm</span>
               <span>Đơn vị</span>
               <span>Tồn tối thiểu</span>
@@ -1411,10 +1541,11 @@ export function InventoryItemCatalog({
             {visibleItems.map((item) => (
               <div
                 key={item.id}
-                className="grid min-w-[900px] grid-cols-[130px_1.3fr_150px_90px_120px_120px_80px] items-center border-b px-3 py-2 text-xs last:border-b-0"
+                className="grid min-w-[1020px] grid-cols-[130px_1.2fr_160px_150px_90px_120px_120px_80px] items-center border-b px-3 py-2 text-xs last:border-b-0"
               >
                 <span className="font-mono font-medium text-primary">{item.sku}</span>
                 <span className="truncate">{item.name}</span>
+                <span className="truncate text-muted-foreground">{item.specification || '-'}</span>
                 <span className="truncate text-muted-foreground">
                   {item.category || 'Chưa phân nhóm'}
                 </span>
