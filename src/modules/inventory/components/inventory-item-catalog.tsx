@@ -10,11 +10,13 @@ import {
   FileUpIcon,
   FilterIcon,
   ImageIcon,
+  ImageUpIcon,
   PauseCircleIcon,
   PlusIcon,
   SearchIcon,
   ShieldCheckIcon,
   TablePropertiesIcon,
+  Trash2Icon,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -179,6 +181,17 @@ const emptyForm: InventoryItemFormInput = {
   note: '',
 };
 
+const MAX_INVENTORY_IMAGE_FILE_BYTES = 650 * 1024;
+
+function readInventoryImageFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ''));
+    reader.onerror = () => reject(new Error('Không thể đọc file ảnh'));
+    reader.readAsDataURL(file);
+  });
+}
+
 const templateRows: InventoryExportRow[] = [
 ];
 
@@ -256,6 +269,9 @@ async function downloadXlsx(rows: InventoryExportRow[], filename: string) {
   const guideSheet = workbook.addWorksheet('Hướng dẫn');
   const worksheet = workbook.addWorksheet('Danh mục vật tư');
 
+  guideSheet.properties.tabColor = { argb: 'FF2563EB' };
+  worksheet.properties.tabColor = { argb: 'FF16A34A' };
+
   guideSheet.columns = [
     { header: 'Cột cần nhập', key: 'label', width: 28 },
     { header: 'Cách điền', key: 'guide', width: 64 },
@@ -274,6 +290,7 @@ async function downloadXlsx(rows: InventoryExportRow[], filename: string) {
       example: String(column.example),
     })),
   );
+  guideSheet.getColumn('label').font = { bold: true };
   guideSheet.views = [{ state: 'frozen', ySplit: 1 }];
   guideSheet.eachRow((row, rowNumber) => {
     row.eachCell((cell) => {
@@ -285,10 +302,17 @@ async function downloadXlsx(rows: InventoryExportRow[], filename: string) {
         right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
       };
       if (rowNumber > 1) {
+        const isRequired = ['name', 'unit'].includes(inventoryExportColumns[rowNumber - 2]?.key);
         cell.fill = {
           type: 'pattern',
           pattern: 'solid',
-          fgColor: { argb: rowNumber % 2 === 0 ? 'FFF8FAFC' : 'FFFFFFFF' },
+          fgColor: {
+            argb: isRequired
+              ? 'FFFFF7ED'
+              : rowNumber % 2 === 0
+                ? 'FFF8FAFC'
+                : 'FFFFFFFF',
+          },
         };
       }
     });
@@ -300,11 +324,30 @@ async function downloadXlsx(rows: InventoryExportRow[], filename: string) {
     width: column.key === 'name' || column.key === 'note' ? 32 : 18,
   }));
   worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-  worksheet.getRow(1).fill = {
-    type: 'pattern',
-    pattern: 'solid',
-    fgColor: { argb: 'FF047857' },
-  };
+  worksheet.getRow(1).height = 26;
+  worksheet.getRow(1).eachCell((cell, columnNumber) => {
+    const key = inventoryExportColumns[columnNumber - 1]?.key;
+    const headerColor =
+      key === 'sku'
+        ? 'FF2563EB'
+        : key === 'name' || key === 'unit'
+          ? 'FFEA580C'
+          : key === 'isActive'
+            ? 'FF16A34A'
+            : 'FF047857';
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: headerColor },
+    };
+    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    cell.note =
+      key === 'sku'
+        ? 'Để trống khi tạo vật tư mới để hệ thống tự sinh mã. Điền mã đang có nếu muốn cập nhật.'
+        : key === 'name' || key === 'unit'
+          ? 'Cột bắt buộc phải nhập.'
+          : inventoryExportColumns[columnNumber - 1]?.guide;
+  });
   worksheet.views = [{ state: 'frozen', ySplit: 1 }];
   worksheet.addRows(rows);
   worksheet.autoFilter = {
@@ -342,6 +385,37 @@ async function downloadXlsx(rows: InventoryExportRow[], filename: string) {
       }
     });
   });
+
+  const dataEndRow = Math.max(rows.length + 80, 100);
+  const categoryColumn = inventoryExportColumns.findIndex((column) => column.key === 'category') + 1;
+  const unitColumn = inventoryExportColumns.findIndex((column) => column.key === 'unit') + 1;
+  const serialColumn =
+    inventoryExportColumns.findIndex((column) => column.key === 'isSerializable') + 1;
+  const activeColumn = inventoryExportColumns.findIndex((column) => column.key === 'isActive') + 1;
+  const categoryFormula = `"${inventoryCategoryOptions.map((option) => option.value).join(',')}"`;
+  const unitFormula = `"${popularUnits.join(',')}"`;
+  for (let rowNumber = 2; rowNumber <= dataEndRow; rowNumber += 1) {
+    worksheet.getCell(rowNumber, categoryColumn).dataValidation = {
+      type: 'list',
+      allowBlank: true,
+      formulae: [categoryFormula],
+    };
+    worksheet.getCell(rowNumber, unitColumn).dataValidation = {
+      type: 'list',
+      allowBlank: false,
+      formulae: [unitFormula],
+    };
+    worksheet.getCell(rowNumber, serialColumn).dataValidation = {
+      type: 'list',
+      allowBlank: true,
+      formulae: ['"TRUE,FALSE"'],
+    };
+    worksheet.getCell(rowNumber, activeColumn).dataValidation = {
+      type: 'list',
+      allowBlank: true,
+      formulae: ['"TRUE,FALSE"'],
+    };
+  }
 
   const buffer = await workbook.xlsx.writeBuffer();
   downloadBlob(
@@ -456,12 +530,24 @@ function parseUrlCell(value: unknown) {
   const text = String(value ?? '').trim();
   if (!text) return { value: '', error: null };
 
-  try {
-    new URL(text);
+  if (
+    text.startsWith('data:image/png;base64,') ||
+    text.startsWith('data:image/jpeg;base64,') ||
+    text.startsWith('data:image/webp;base64,')
+  ) {
     return { value: text, error: null };
+  }
+
+  try {
+    const url = new URL(text);
+    if (url.protocol === 'http:' || url.protocol === 'https:') {
+      return { value: text, error: null };
+    }
   } catch {
     return { value: text, error: 'Link ảnh không hợp lệ' };
   }
+
+  return { value: text, error: 'Link ảnh không hợp lệ' };
 }
 
 function detectCsvDelimiter(headerLine: string) {
@@ -635,6 +721,7 @@ function InventoryItemDialog({
     mode.type === 'edit' ? itemToForm(mode.item) : emptyForm,
   );
   const [error, setError] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const selectedCategoryOption = inventoryCategoryOptions.find(
     (option) => option.value === form.category,
@@ -656,6 +743,32 @@ function InventoryItemDialog({
           ? getDefaultMinStockForCategory(value)
           : current.minStock,
     }));
+  }
+
+  async function handleImageFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setImageError(null);
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+      setImageError('Chỉ hỗ trợ ảnh PNG, JPG hoặc WebP.');
+      event.target.value = '';
+      return;
+    }
+
+    if (file.size > MAX_INVENTORY_IMAGE_FILE_BYTES) {
+      setImageError('Ảnh vật tư quá lớn. Vui lòng chọn ảnh dưới 650KB.');
+      event.target.value = '';
+      return;
+    }
+
+    try {
+      updateField('imageUrl', await readInventoryImageFile(file));
+    } catch {
+      setImageError('Không thể đọc file ảnh. Vui lòng thử ảnh khác.');
+    } finally {
+      event.target.value = '';
+    }
   }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -768,12 +881,59 @@ function InventoryItemDialog({
               <Label htmlFor="inventory-image-url">Link ảnh</Label>
               <Input
                 id="inventory-image-url"
-                type="url"
                 value={form.imageUrl ?? ''}
                 onChange={(e) => updateField('imageUrl', e.target.value)}
-                placeholder="https://..."
+                placeholder="Dán link ảnh hoặc tải ảnh từ máy"
                 disabled={isPending}
               />
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isPending}
+                  onClick={() => document.getElementById('inventory-image-file')?.click()}
+                >
+                  <ImageUpIcon className="size-4" />
+                  Tải ảnh từ máy
+                </Button>
+                {form.imageUrl ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
+                    disabled={isPending}
+                    onClick={() => updateField('imageUrl', '')}
+                  >
+                    <Trash2Icon className="size-4" />
+                    Xóa ảnh
+                  </Button>
+                ) : null}
+              </div>
+              <Input
+                id="inventory-image-file"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                disabled={isPending}
+                onChange={handleImageFileChange}
+              />
+              {form.imageUrl ? (
+                <div className="flex items-center gap-2 rounded-md border bg-muted/20 p-2">
+                  <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-background">
+                    <div
+                      aria-label="Ảnh vật tư"
+                      className="size-full bg-cover bg-center"
+                      style={{ backgroundImage: `url("${form.imageUrl}")` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Ảnh này sẽ hiển thị trong danh mục kho và có thể đi kèm báo giá cho thiết bị chính.
+                  </p>
+                </div>
+              ) : null}
+              {imageError ? <p className="text-xs text-destructive">{imageError}</p> : null}
             </div>
           </div>
 

@@ -26,13 +26,21 @@ export const inventoryItemFormSchema = z.object({
     .trim()
     .refine((value) => {
       if (!value) return true;
-      try {
-        new URL(value);
+      if (
+        value.startsWith('data:image/png;base64,') ||
+        value.startsWith('data:image/jpeg;base64,') ||
+        value.startsWith('data:image/webp;base64,')
+      ) {
         return true;
+      }
+      try {
+        const url = new URL(value);
+        return url.protocol === 'http:' || url.protocol === 'https:';
       } catch {
         return false;
       }
     }, 'Link ảnh không hợp lệ')
+    .max(900_000, 'Ảnh vật tư quá lớn, vui lòng chọn ảnh nhỏ hơn')
     .optional(),
   unit: z
     .string()
