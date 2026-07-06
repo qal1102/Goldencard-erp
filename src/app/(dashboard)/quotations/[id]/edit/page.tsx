@@ -9,6 +9,7 @@ import { buildSurveyTechnicalSource } from '@/modules/quotations/lib/generate-qu
 import { isQuotationEditable } from '@/modules/quotations/lib/quotation-resend';
 import { querySurveyById } from '@/modules/surveys/lib/survey.queries';
 import { queryActiveInventoryItemOptions } from '@/modules/inventory/lib/inventory-item.queries';
+import { queryActiveQuotationPriceOptions } from '@/modules/quotations/lib/quotation-price-catalog.queries';
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -34,9 +35,10 @@ export default async function EditQuotationPage({ params }: Props) {
 
   const surveyRef = quotation.survey;
   const surveyId = surveyRef && !Array.isArray(surveyRef) ? surveyRef.id : null;
-  const [linkedSurvey, inventoryItems] = await Promise.all([
+  const [linkedSurvey, inventoryItems, priceCatalogItems] = await Promise.all([
     surveyId != null ? querySurveyById(surveyId) : Promise.resolve(null),
     queryActiveInventoryItemOptions(),
+    queryActiveQuotationPriceOptions(),
   ]);
 
   const isSentEdit = quotation.status === 'sent';
@@ -130,6 +132,7 @@ export default async function EditQuotationPage({ params }: Props) {
               })),
             }}
             inventoryItems={inventoryItems}
+            priceCatalogItems={priceCatalogItems}
           />
         );
       })()}

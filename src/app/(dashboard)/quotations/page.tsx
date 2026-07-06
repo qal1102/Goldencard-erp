@@ -2,8 +2,11 @@ import { redirect } from 'next/navigation';
 import { ModuleGuide } from '@/components/ui/module-guide';
 import { verifySession } from '@/lib/auth/dal';
 import { hasRole } from '@/lib/auth/roles';
+import { queryActiveInventoryItemOptions } from '@/modules/inventory/lib/inventory-item.queries';
+import { QuotationPriceCatalogPanel } from '@/modules/quotations/components/quotation-price-catalog-panel';
 import { QuotationList } from '@/modules/quotations/components/quotation-list';
 import { loadQuotationsList } from '@/modules/quotations/lib/quotation-load';
+import { queryQuotationPriceCatalog } from '@/modules/quotations/lib/quotation-price-catalog.queries';
 
 export default async function QuotationsPage() {
   const session = await verifySession();
@@ -14,10 +17,15 @@ export default async function QuotationsPage() {
   }
 
   const canWrite = hasRole(roles, 'admin', 'director', 'sales', 'chief_accountant');
-  const loadResult = await loadQuotationsList({}, roles);
+  const canManagePricing = hasRole(roles, 'admin', 'director', 'chief_accountant', 'accountant');
+  const [loadResult, priceCatalogRows, inventoryItems] = await Promise.all([
+    loadQuotationsList({}, roles),
+    queryQuotationPriceCatalog({ status: 'active' }),
+    queryActiveInventoryItemOptions(),
+  ]);
 
   return (
-    <div className="mx-auto w-full max-w-xl">
+    <div className="mx-auto w-full max-w-5xl">
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="text-base font-semibold">Báo giá</h1>
@@ -39,6 +47,12 @@ export default async function QuotationsPage() {
           'Khi khách đồng ý, chuyển báo giá sang hợp đồng.',
         ]}
         note="Không tạo nhiều báo giá rời cho cùng một nhu cầu; hãy chỉnh sửa có lý do để lịch sử rõ ràng."
+      />
+
+      <QuotationPriceCatalogPanel
+        initialRows={priceCatalogRows}
+        inventoryItems={inventoryItems}
+        canManagePricing={canManagePricing}
       />
 
       <QuotationList

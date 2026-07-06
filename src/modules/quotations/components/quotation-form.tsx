@@ -31,6 +31,7 @@ import { LeadConsultationContextCard } from '@/modules/crm/components/lead-consu
 import type { LeadConsultationContext } from '@/modules/crm/schema/lead.schema';
 import { SurveyTechnicalSummary } from './survey-technical-summary';
 import type { InventoryItemOption } from '@/modules/inventory/lib/inventory-item.queries';
+import type { QuotationPriceOption } from '../lib/quotation-price-catalog.queries';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -72,6 +73,7 @@ type EditProps = {
 type Props = CreateProps | EditProps;
 type InventoryAwareProps = Props & {
   inventoryItems?: InventoryItemOption[];
+  priceCatalogItems?: QuotationPriceOption[];
 };
 
 // ---------------------------------------------------------------------------
@@ -344,6 +346,7 @@ export function QuotationForm(props: InventoryAwareProps) {
               onRemove={() => remove(idx)}
               formatCurrency={formatCurrency}
               inventoryItems={props.inventoryItems ?? []}
+              priceCatalogItems={props.priceCatalogItems ?? []}
             />
           ))}
 

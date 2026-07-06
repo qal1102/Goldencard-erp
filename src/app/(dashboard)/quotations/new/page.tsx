@@ -7,6 +7,7 @@ import { QuotationForm } from '@/modules/quotations/components/quotation-form';
 import { buildSurveyTechnicalSource } from '@/modules/quotations/lib/generate-quotation-items';
 import { querySurveyById } from '@/modules/surveys/lib/survey.queries';
 import { queryActiveInventoryItemOptions } from '@/modules/inventory/lib/inventory-item.queries';
+import { queryActiveQuotationPriceOptions } from '@/modules/quotations/lib/quotation-price-catalog.queries';
 
 type Props = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -27,10 +28,11 @@ export default async function NewQuotationPage({ searchParams }: Props) {
     redirect('/quotations');
   }
 
-  const [survey, existingQuotation, inventoryItems] = await Promise.all([
+  const [survey, existingQuotation, inventoryItems, priceCatalogItems] = await Promise.all([
     querySurveyById(resolvedSurveyId),
     queryQuotationBySurveyId(resolvedSurveyId),
     queryActiveInventoryItemOptions(),
+    queryActiveQuotationPriceOptions(),
   ]);
 
   if (!survey) redirect('/quotations');
@@ -81,6 +83,7 @@ export default async function NewQuotationPage({ searchParams }: Props) {
           leadConsultation,
         }}
         inventoryItems={inventoryItems}
+        priceCatalogItems={priceCatalogItems}
       />
     </div>
   );

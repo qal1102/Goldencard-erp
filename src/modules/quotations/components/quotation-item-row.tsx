@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import type { QuotationPriceOption } from '../lib/quotation-price-catalog.queries';
 import type { UpdateQuotationInput } from '../schema/quotation.schema';
 import {
   getQuotationItemTemplateLabel,
@@ -53,6 +54,7 @@ type Props = {
     unit: string;
     imageUrl: string | null;
   }>;
+  priceCatalogItems: QuotationPriceOption[];
 };
 
 function FieldError({ message }: { message?: string }) {
@@ -74,9 +76,11 @@ export function QuotationItemRow({
   onRemove,
   formatCurrency,
   inventoryItems,
+  priceCatalogItems,
 }: Props) {
   const templates = getQuotationItemTemplates(panelWattageW);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [selectedPriceId, setSelectedPriceId] = useState('');
   const unitSelectValue = isPresetUnit(unitValue) ? unitValue : QUOTATION_ITEM_UNIT_CUSTOM;
   const showCustomUnit = unitSelectValue === QUOTATION_ITEM_UNIT_CUSTOM;
 
@@ -89,9 +93,35 @@ export function QuotationItemRow({
 
     setValue(`items.${idx}.inventoryItemId`, selected.id, { shouldValidate: true });
     setSelectedTemplateId('');
+    setSelectedPriceId('');
     setValue(`items.${idx}.productName`, selected.name, { shouldValidate: true });
     setValue(`items.${idx}.description`, selected.specification ?? selected.category ?? '');
     setValue(`items.${idx}.unit`, selected.unit, { shouldValidate: true });
+  };
+
+  const applyPriceCatalogItem = (priceId: string | null) => {
+    if (!priceId) {
+      setSelectedPriceId('');
+      return;
+    }
+
+    const selected = priceCatalogItems.find((item) => item.id === priceId);
+    if (!selected) return;
+
+    setSelectedPriceId(priceId);
+    setSelectedTemplateId('');
+    setValue(`items.${idx}.inventoryItemId`, selected.inventoryItemId ?? null, {
+      shouldValidate: true,
+    });
+    setValue(`items.${idx}.productName`, selected.displayName, { shouldValidate: true });
+    setValue(
+      `items.${idx}.description`,
+      selected.description ?? selected.inventorySpecification ?? selected.category ?? '',
+    );
+    setValue(`items.${idx}.unit`, selected.unit, { shouldValidate: true });
+    setValue(`items.${idx}.unitPrice`, Number(selected.unitPrice) || 0, {
+      shouldValidate: true,
+    });
   };
 
   const applyTemplate = (templateId: string | null) => {
@@ -99,6 +129,7 @@ export function QuotationItemRow({
     const template = templates.find((item) => item.id === templateId);
     if (!template) return;
     setSelectedTemplateId(templateId);
+    setSelectedPriceId('');
     setValue(`items.${idx}.inventoryItemId`, null);
     setValue(`items.${idx}.productName`, template.productName, { shouldValidate: true });
     setValue(`items.${idx}.description`, template.description);
@@ -122,6 +153,41 @@ export function QuotationItemRow({
           </Button>
         )}
       </div>
+
+      {priceCatalogItems.length > 0 && (
+        <div className="flex flex-col gap-1.5 rounded-lg border border-primary/20 bg-primary/5 p-2">
+          <Label className="text-xs">Chọn từ bảng giá bán</Label>
+          <Select
+            value={selectedPriceId || '__none__'}
+            onValueChange={(value) =>
+              applyPriceCatalogItem(value === '__none__' ? null : value)
+            }
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Chọn giá chuẩn">
+                {(value) => {
+                  if (!value || value === '__none__') return 'Chọn giá chuẩn';
+                  const item = priceCatalogItems.find((option) => option.id === value);
+                  return item
+                    ? `${item.displayName} - ${formatCurrency(Number(item.unitPrice) || 0)}`
+                    : 'Chọn giá chuẩn';
+                }}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Không dùng bảng giá</SelectItem>
+              {priceCatalogItems.map((item) => (
+                <SelectItem key={item.id} value={item.id}>
+                  {item.displayName} - {formatCurrency(Number(item.unitPrice) || 0)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Ưu tiên dùng giá chuẩn đã được quản lý để tránh nhập nhầm đơn giá.
+          </p>
+        </div>
+      )}
 
       <div className="flex flex-col gap-1.5">
         <Label className="text-xs">Chọn hạng mục mẫu</Label>
