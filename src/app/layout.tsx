@@ -28,8 +28,11 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: "/goldencard-icon.svg",
-    apple: "/goldencard-icon.svg",
+    icon: [
+      { url: "/goldencard-app-icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/goldencard-app-icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/goldencard-app-icon-180.png",
   },
 };
 

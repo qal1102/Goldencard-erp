@@ -18,6 +18,7 @@ Production has been verified to include the schema objects introduced by `0030` 
 - Inventory item metadata: `specification`, `image_url`.
 - Quotation item to inventory item link: `quotation_items.inventory_item_id`.
 - Stock movement document codes: `inventory_stock_movements.document_code`.
+- Quotation pricing catalog foundation: `quotation_price_catalog`.
 
 ## Why Not Patch `_journal.json` Blindly
 
@@ -30,10 +31,13 @@ Adding journal entries without matching snapshots/hash history can make future `
 Use these for the manual baseline:
 
 ```bash
+npm run db:manual:check
 npm run db:manual:verify
 npm run db:manual:migrate
 npm run db:manual:verify
 ```
+
+The manual check script blocks destructive SQL patterns such as `DROP`, `TRUNCATE`, `DELETE FROM`, broad `UPDATE`, and unintended changes to core CRM/contract tables. Known approved exceptions are kept narrow, such as the `users.job_title` column and the quotation item inventory link.
 
 The manual migrate script:
 

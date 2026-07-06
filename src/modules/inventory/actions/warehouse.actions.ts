@@ -13,6 +13,7 @@ import {
 } from '@/db/schema';
 import { createAuditLog } from '@/lib/audit/create-audit-log';
 import { requireRole } from '@/lib/auth/roles';
+import { INVENTORY_MANAGER_ROLES } from '../lib/inventory-permissions';
 import { serializeWarehouses } from '../lib/warehouse-serialize';
 import {
   queryInventoryStockMovementRows,
@@ -45,14 +46,7 @@ async function requireWarehouseViewer() {
 
 async function requireWarehouseManager() {
   const session = await requireWarehouseViewer();
-  requireRole(
-    session.user.roles ?? [],
-    'admin',
-    'director',
-    'chief_accountant',
-    'accountant',
-    'technician',
-  );
+  requireRole(session.user.roles ?? [], ...INVENTORY_MANAGER_ROLES);
   return session;
 }
 

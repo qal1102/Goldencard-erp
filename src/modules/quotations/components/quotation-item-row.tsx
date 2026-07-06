@@ -88,6 +88,7 @@ export function QuotationItemRow({
     }
 
     setValue(`items.${idx}.inventoryItemId`, selected.id, { shouldValidate: true });
+    setSelectedTemplateId('');
     setValue(`items.${idx}.productName`, selected.name, { shouldValidate: true });
     setValue(`items.${idx}.description`, selected.specification ?? selected.category ?? '');
     setValue(`items.${idx}.unit`, selected.unit, { shouldValidate: true });
@@ -98,6 +99,7 @@ export function QuotationItemRow({
     const template = templates.find((item) => item.id === templateId);
     if (!template) return;
     setSelectedTemplateId(templateId);
+    setValue(`items.${idx}.inventoryItemId`, null);
     setValue(`items.${idx}.productName`, template.productName, { shouldValidate: true });
     setValue(`items.${idx}.description`, template.description);
     setValue(`items.${idx}.unit`, template.unit, { shouldValidate: true });

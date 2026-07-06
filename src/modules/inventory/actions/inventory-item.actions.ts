@@ -14,6 +14,7 @@ import {
   type InventoryItemFormInput,
 } from '../schema/inventory-item.schema';
 import { getInventorySkuPrefix } from '../lib/inventory-item-config';
+import { INVENTORY_MANAGER_ROLES } from '../lib/inventory-permissions';
 import { serializeInventoryItems } from '../lib/inventory-item-serialize';
 import { queryInventoryItemBySku, queryInventoryItems } from '../lib/inventory-item.queries';
 
@@ -29,14 +30,7 @@ async function requireInventoryViewer() {
 
 async function requireInventoryManager() {
   const session = await requireInventoryViewer();
-  requireRole(
-    session.user.roles ?? [],
-    'admin',
-    'director',
-    'chief_accountant',
-    'accountant',
-    'technician',
-  );
+  requireRole(session.user.roles ?? [], ...INVENTORY_MANAGER_ROLES);
   return session;
 }
 

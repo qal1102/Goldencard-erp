@@ -9,6 +9,7 @@
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:manual:check": "node scripts/check-manual-migrations.mjs",
     "db:manual:migrate": "node scripts/apply-manual-migrations.mjs",
     "db:manual:verify": "node scripts/verify-manual-migrations.mjs",
     "db:push": "drizzle-kit push",

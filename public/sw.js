@@ -21,8 +21,8 @@ self.addEventListener('push', (event) => {
   const title = payload.title || 'GoldenCard ERP';
   const options = {
     body: payload.body || 'Có cập nhật mới trong hệ thống.',
-    icon: '/goldencard-icon.svg',
-    badge: '/goldencard-icon.svg',
+    icon: '/goldencard-app-icon-192.png',
+    badge: '/goldencard-app-icon-192.png',
     data: {
       url: payload.url || '/notifications',
     },

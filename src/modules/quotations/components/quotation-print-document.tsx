@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { PrintReturnButton } from '@/components/navigation/print-return-button';
 import type { QuotationPrintModel } from '../lib/build-quotation-print-model';
@@ -25,6 +26,21 @@ function InfoTable({ rows }: { rows: Array<{ label: string; value: React.ReactNo
         ))}
       </tbody>
     </table>
+  );
+}
+
+function EquipmentImage({ src, alt }: { src: string; alt: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt}
+      className={styles.quotationPrintEquipmentImage}
+      onError={() => setFailed(true)}
+    />
   );
 }
 
@@ -84,12 +100,7 @@ export function QuotationPrintDocument({ model, quotationId }: Props) {
             <div className={styles.quotationPrintEquipmentGrid}>
               {model.mainEquipment.map((item) => (
                 <figure key={item.sku} className={styles.quotationPrintEquipmentCard}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={item.imageUrl}
-                    alt={item.name}
-                    className={styles.quotationPrintEquipmentImage}
-                  />
+                  <EquipmentImage src={item.imageUrl} alt={item.name} />
                   <figcaption className={styles.quotationPrintEquipmentCaption}>
                     <span className={styles.quotationPrintEquipmentSku}>{item.sku}</span>
                     <span className={styles.quotationPrintEquipmentName}>{item.name}</span>

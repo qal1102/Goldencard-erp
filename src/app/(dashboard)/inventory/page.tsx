@@ -5,6 +5,7 @@ import { hasRole } from '@/lib/auth/roles';
 import { InventoryItemCatalog } from '@/modules/inventory/components/inventory-item-catalog';
 import { WarehouseStockPanel } from '@/modules/inventory/components/warehouse-stock-panel';
 import { loadInventoryItemsList } from '@/modules/inventory/lib/inventory-item-load';
+import { INVENTORY_MANAGER_ROLES } from '@/modules/inventory/lib/inventory-permissions';
 import {
   loadInventoryStockMovementsList,
   loadInventoryStocksList,
@@ -15,14 +16,7 @@ import {
 export default async function InventoryPage() {
   const session = await verifySession();
   const roles = session.user.roles ?? [];
-  const canManageInventory = hasRole(
-    roles,
-    'admin',
-    'director',
-    'chief_accountant',
-    'accountant',
-    'technician',
-  );
+  const canManageInventory = hasRole(roles, ...INVENTORY_MANAGER_ROLES);
 
   const [
     itemsResult,
@@ -54,8 +48,8 @@ export default async function InventoryPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Kho vật tư</h1>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
             Theo dõi danh mục vật tư, kho vật lý, số tồn theo kho và lịch sử
-            nhập/xuất/trả kho. Tất cả tài khoản nội bộ có thể xem kho; chỉ kế toán, kỹ thuật,
-            ban giám đốc và quản lý được thêm mã vật tư, nhập/xuất/trả kho hoặc kiểm kê. Hệ thống lưu
+            nhập/xuất/trả kho. Tất cả tài khoản nội bộ có thể xem kho; chỉ kế toán, kỹ thuật trưởng,
+            quản lý dự án và ban giám đốc được thêm mã vật tư, nhập/xuất/trả kho hoặc kiểm kê. Hệ thống lưu
             nhật ký người thao tác để truy vết.
           </p>
         </div>

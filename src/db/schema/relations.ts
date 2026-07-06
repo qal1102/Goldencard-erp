@@ -16,6 +16,7 @@ import { leads } from './leads';
 import { quotationEditLogs } from './quotation-edit-logs';
 import { quotationExports } from './quotation-exports';
 import { quotationItems } from './quotation-items';
+import { quotationPriceCatalog } from './quotation-price-catalog';
 import { quotations } from './quotations';
 import { surveyEditLogs } from './survey-edit-logs';
 import { surveyZones } from './survey-zones';
@@ -483,6 +484,7 @@ export const inventoryItemsRelations = relations(inventoryItems, ({ one, many })
   workOrderMaterials: many(workOrderMaterials),
   stockMovements: many(inventoryStockMovements),
   quotationItems: many(quotationItems),
+  quotationPriceCatalogItems: many(quotationPriceCatalog),
   createdByUser: one(users, {
     fields: [inventoryItems.createdBy],
     references: [users.id],
@@ -492,6 +494,23 @@ export const inventoryItemsRelations = relations(inventoryItems, ({ one, many })
     fields: [inventoryItems.updatedBy],
     references: [users.id],
     relationName: 'inventory_item_updated_by_user',
+  }),
+}));
+
+export const quotationPriceCatalogRelations = relations(quotationPriceCatalog, ({ one }) => ({
+  inventoryItem: one(inventoryItems, {
+    fields: [quotationPriceCatalog.inventoryItemId],
+    references: [inventoryItems.id],
+  }),
+  createdByUser: one(users, {
+    fields: [quotationPriceCatalog.createdBy],
+    references: [users.id],
+    relationName: 'quotation_price_catalog_created_by_user',
+  }),
+  updatedByUser: one(users, {
+    fields: [quotationPriceCatalog.updatedBy],
+    references: [users.id],
+    relationName: 'quotation_price_catalog_updated_by_user',
   }),
 }));
 

@@ -13,6 +13,7 @@ export * from './push-subscriptions';
 export * from './quotation-edit-logs';
 export * from './quotation-exports';
 export * from './quotation-items';
+export * from './quotation-price-catalog';
 export * from './quotations';
 export * from './relations';
 export * from './role-permissions';
