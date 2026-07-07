@@ -109,8 +109,23 @@ function NotificationList({
 
   if (!notifications?.length) {
     return (
-      <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-        Chưa có thông báo
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+          Chưa có thông báo
+          <p className="mt-1 text-xs">
+            Khi có việc mới, hệ thống sẽ hiển thị ở đây và gửi thông báo nếu bạn đã bật quyền.
+          </p>
+        </div>
+        {showFooterLink && (
+          <div className="border-t bg-muted/30 px-3 py-3">
+            <Link
+              href="/notifications"
+              className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted active:bg-muted/80"
+            >
+              Xem tất cả thông báo
+            </Link>
+          </div>
+        )}
       </div>
     );
   }

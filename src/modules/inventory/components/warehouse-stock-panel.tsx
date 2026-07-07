@@ -1130,8 +1130,9 @@ export function WarehouseStockPanel({
               <Input
                 id="movement-quantity"
                 type="number"
-                min="0.001"
-                step="0.001"
+                min="1"
+                step="1"
+                inputMode="numeric"
                 value={movementForm.quantity}
                 onChange={(e) => updateMovementField('quantity', Number(e.target.value))}
                 disabled={isMovementPending}
@@ -1276,8 +1277,9 @@ export function WarehouseStockPanel({
               <Input
                 id="transfer-quantity"
                 type="number"
-                min="0.001"
-                step="0.001"
+                min="1"
+                step="1"
+                inputMode="numeric"
                 value={transferForm.quantity}
                 onChange={(e) => updateTransferField('quantity', Number(e.target.value))}
                 disabled={isTransferPending}
@@ -1400,7 +1402,8 @@ export function WarehouseStockPanel({
                 id="stock-quantity"
                 type="number"
                 min="0"
-                step="0.001"
+                step="1"
+                inputMode="numeric"
                 value={stockForm.quantityOnHand}
                 onChange={(e) => updateStockField('quantityOnHand', Number(e.target.value))}
                 disabled={isStockPending}
