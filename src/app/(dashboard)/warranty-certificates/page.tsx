@@ -2,6 +2,7 @@ import { AccessDeniedMessage } from '@/components/ui/access-denied-message';
 import { ModuleGuide } from '@/components/ui/module-guide';
 import { verifySession } from '@/lib/auth/dal';
 import { hasRole } from '@/lib/auth/roles';
+import { modulePerfLog, modulePerfTimed } from '@/lib/server/module-list-log';
 import { WarrantyCertificateList } from '@/modules/warranty-certificates/components/warranty-certificate-list';
 import { loadWarrantyCertificatesList } from '@/modules/warranty-certificates/lib/warranty-certificate-load';
 
@@ -15,15 +16,48 @@ const CERT_VIEW_ROLES = [
   'customer_service',
 ] as const;
 
+const WARRANTY_CERTIFICATE_LOAD_TIMEOUT_MS = 8000;
+
+type LoadWarrantyCertificatesResult = Awaited<ReturnType<typeof loadWarrantyCertificatesList>>;
+
+function withWarrantyCertificateTimeout<T>(
+  step: string,
+  promise: Promise<T>,
+  fallback: T,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeout = new Promise<T>((resolve) => {
+    timeoutId = setTimeout(() => {
+      modulePerfLog(
+        'warranty-certificates',
+        `${step} timeout`,
+        WARRANTY_CERTIFICATE_LOAD_TIMEOUT_MS,
+      );
+      resolve(fallback);
+    }, WARRANTY_CERTIFICATE_LOAD_TIMEOUT_MS);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+  });
+}
+
 export default async function WarrantyCertificatesPage() {
-  const session = await verifySession();
+  const session = await modulePerfTimed('warranty-certificates', 'auth', () => verifySession());
   const roles = session.user.roles ?? [];
 
   if (!hasRole(roles, ...CERT_VIEW_ROLES)) {
     return <AccessDeniedMessage moduleName="phiếu bảo hành" />;
   }
 
-  const loadResult = await loadWarrantyCertificatesList({}, roles);
+  const loadResult = await withWarrantyCertificateTimeout<LoadWarrantyCertificatesResult>(
+    'list load',
+    modulePerfTimed('warranty-certificates', 'list load', () =>
+      loadWarrantyCertificatesList({}, roles),
+    ),
+    { success: false, error: 'Tải danh sách phiếu bảo hành quá lâu. Vui lòng thử lại.' },
+  );
 
   return (
     <div className="mx-auto w-full max-w-xl">
@@ -47,6 +81,7 @@ export default async function WarrantyCertificatesPage() {
       />
 
       <WarrantyCertificateList
+        cacheScope={session.user.id}
         initialData={loadResult.success ? loadResult.data : undefined}
         initialError={loadResult.success ? null : loadResult.error}
       />

@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
+import { readLocalQueryCache, writeLocalQueryCache } from '@/lib/query/local-storage-cache';
 import {
   createWarrantyCertificateFromHandoverAction,
   getWarrantyCertificateAction,
@@ -46,22 +47,41 @@ export const warrantyCertificateKeys = {
 type UseWarrantyCertificatesOptions = {
   initialData?: WarrantyCertificateRow[];
   enabled?: boolean;
+  cacheScope?: string;
 };
+
+function warrantyCertificateLocalCacheKey(
+  filters: WarrantyCertificateFilters = {},
+  scope = 'default',
+) {
+  const normalized = normalizeWarrantyCertificateFilters(filters);
+  return [
+    'warranty-certificates.list',
+    scope,
+    normalized.status ?? 'all',
+    normalized.customerId ?? 'all',
+    normalized.handoverId ?? 'all',
+  ].join('.');
+}
 
 export function useWarrantyCertificates(
   filters: WarrantyCertificateFilters = {},
   options?: UseWarrantyCertificatesOptions,
 ) {
   const normalized = normalizeWarrantyCertificateFilters(filters);
+  const cacheKey = warrantyCertificateLocalCacheKey(normalized, options?.cacheScope);
+  const cachedInitialData =
+    options?.initialData ?? readLocalQueryCache<WarrantyCertificateRow[]>(cacheKey);
 
   return useQuery({
     queryKey: warrantyCertificateKeys.list(normalized),
     queryFn: async () => {
       const result = await getWarrantyCertificatesAction(normalized);
       if (!result.success) throw new Error(result.error);
+      writeLocalQueryCache(cacheKey, result.data);
       return result.data;
     },
-    initialData: options?.initialData,
+    initialData: cachedInitialData,
     enabled: options?.enabled ?? true,
     staleTime: 30_000,
     retry: 1,

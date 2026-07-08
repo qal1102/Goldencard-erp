@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
+import { readLocalQueryCache, writeLocalQueryCache } from '@/lib/query/local-storage-cache';
 import { leadKeys } from '@/modules/crm/hooks/use-leads';
 import { handoverKeys } from '@/modules/handovers/hooks/use-handovers';
 import {
@@ -62,22 +63,39 @@ export const warrantyTicketKeys = {
 type UseWarrantyTicketsOptions = {
   initialData?: WarrantyTicketRow[];
   enabled?: boolean;
+  cacheScope?: string;
 };
+
+function warrantyTicketLocalCacheKey(filters: WarrantyTicketFilters = {}, scope = 'default') {
+  const normalized = normalizeWarrantyTicketFilters(filters);
+  return [
+    'warranty-tickets.list',
+    scope,
+    normalized.status ?? 'all',
+    normalized.priority ?? 'all',
+    normalized.customerId ?? 'all',
+    normalized.handoverId ?? 'all',
+    normalized.leadId ?? 'all',
+  ].join('.');
+}
 
 export function useWarrantyTickets(
   filters: WarrantyTicketFilters = {},
   options?: UseWarrantyTicketsOptions,
 ) {
   const normalized = normalizeWarrantyTicketFilters(filters);
+  const cacheKey = warrantyTicketLocalCacheKey(normalized, options?.cacheScope);
+  const cachedInitialData = options?.initialData ?? readLocalQueryCache<WarrantyTicketRow[]>(cacheKey);
 
   return useQuery({
     queryKey: warrantyTicketKeys.list(normalized),
     queryFn: async () => {
       const result = await getWarrantyTicketsAction(normalized);
       if (!result.success) throw new Error(result.error);
+      writeLocalQueryCache(cacheKey, result.data);
       return result.data;
     },
-    initialData: options?.initialData,
+    initialData: cachedInitialData,
     enabled: options?.enabled ?? true,
     staleTime: 30_000,
     retry: 1,

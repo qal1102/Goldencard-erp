@@ -17,11 +17,12 @@ function formatDate(date: Date | string | null | undefined): string {
 }
 
 type Props = {
+  cacheScope?: string;
   initialData?: WarrantyCertificateRow[];
   initialError?: string | null;
 };
 
-export function WarrantyCertificateList({ initialData, initialError = null }: Props) {
+export function WarrantyCertificateList({ cacheScope, initialData, initialError = null }: Props) {
   const {
     data: certificates,
     isPending,
@@ -30,6 +31,7 @@ export function WarrantyCertificateList({ initialData, initialError = null }: Pr
     error,
     refetch,
   } = useWarrantyCertificates({}, {
+    cacheScope,
     initialData: initialError ? undefined : initialData,
   });
 

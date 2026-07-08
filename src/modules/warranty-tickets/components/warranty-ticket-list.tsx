@@ -44,12 +44,14 @@ function formatDate(date: Date | string): string {
 
 type Props = {
   canWrite?: boolean;
+  cacheScope?: string;
   initialData?: WarrantyTicketRow[];
   initialError?: string | null;
 };
 
 export function WarrantyTicketList({
   canWrite = false,
+  cacheScope,
   initialData,
   initialError = null,
 }: Props) {
@@ -82,7 +84,7 @@ export function WarrantyTicketList({
     isError,
     error,
     refetch,
-  } = useWarrantyTickets(filters, { initialData: hasInitial ? initialData : undefined });
+  } = useWarrantyTickets(filters, { cacheScope, initialData: hasInitial ? initialData : undefined });
 
   const showSkeleton = isPending && !tickets;
   const showError = !tickets && (Boolean(initialError) || isError);

@@ -2,6 +2,7 @@ import { AccessDeniedMessage } from '@/components/ui/access-denied-message';
 import { ModuleGuide } from '@/components/ui/module-guide';
 import { verifySession } from '@/lib/auth/dal';
 import { hasRole } from '@/lib/auth/roles';
+import { modulePerfLog, modulePerfTimed } from '@/lib/server/module-list-log';
 import { WarrantyTicketList } from '@/modules/warranty-tickets/components/warranty-ticket-list';
 import { loadWarrantyTicketsList } from '@/modules/warranty-tickets/lib/warranty-ticket-load';
 
@@ -23,8 +24,31 @@ const WARRANTY_WRITE_ROLES = [
   'customer_service',
 ] as const;
 
+const WARRANTY_LOAD_TIMEOUT_MS = 8000;
+
+type LoadWarrantyTicketsResult = Awaited<ReturnType<typeof loadWarrantyTicketsList>>;
+
+function withWarrantyTimeout<T>(
+  step: string,
+  promise: Promise<T>,
+  fallback: T,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeout = new Promise<T>((resolve) => {
+    timeoutId = setTimeout(() => {
+      modulePerfLog('warranty', `${step} timeout`, WARRANTY_LOAD_TIMEOUT_MS);
+      resolve(fallback);
+    }, WARRANTY_LOAD_TIMEOUT_MS);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+  });
+}
+
 export default async function WarrantyPage() {
-  const session = await verifySession();
+  const session = await modulePerfTimed('warranty', 'auth', () => verifySession());
   const roles = session.user.roles ?? [];
 
   if (!hasRole(roles, ...WARRANTY_VIEW_ROLES)) {
@@ -32,7 +56,11 @@ export default async function WarrantyPage() {
   }
 
   const canWrite = hasRole(roles, ...WARRANTY_WRITE_ROLES);
-  const loadResult = await loadWarrantyTicketsList({}, roles);
+  const loadResult = await withWarrantyTimeout<LoadWarrantyTicketsResult>(
+    'list load',
+    modulePerfTimed('warranty', 'list load', () => loadWarrantyTicketsList({}, roles)),
+    { success: false, error: 'Tải danh sách bảo hành/CSKH quá lâu. Vui lòng thử lại.' },
+  );
 
   return (
     <div className="mx-auto w-full max-w-xl">
@@ -57,6 +85,7 @@ export default async function WarrantyPage() {
 
       <WarrantyTicketList
         canWrite={canWrite}
+        cacheScope={session.user.id}
         initialData={loadResult.success ? loadResult.data : undefined}
         initialError={loadResult.success ? null : loadResult.error}
       />
