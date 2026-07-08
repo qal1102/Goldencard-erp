@@ -3,6 +3,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import {
+  readLocalQueryCache,
+  writeLocalQueryCache,
+} from '@/lib/query/local-storage-cache';
+import {
   addLeadNoteAction,
   assignLeadAction,
   createLeadAction,
@@ -42,14 +46,33 @@ export const leadKeys = {
   assignableUsers: () => ['leads', 'assignable-users'] as const,
 };
 
+type LeadListData = Extract<
+  Awaited<ReturnType<typeof getLeadsAction>>,
+  { success: true }
+>['data'];
+
+function leadListCacheKey(filters: LeadFilters) {
+  return `crm.leads.${JSON.stringify({
+    search: filters.search ?? '',
+    status: filters.status ?? '',
+    assignedTo: filters.assignedTo ?? '',
+    salesFilter: filters.salesFilter ?? '',
+  })}`;
+}
+
 export function useLeads(filters: LeadFilters = {}) {
+  const cacheKey = leadListCacheKey(filters);
+
   return useQuery({
     queryKey: leadKeys.list(filters),
     queryFn: async () => {
       const result = await getLeadsAction(filters);
       if (!result.success) throw new Error(result.error);
+      writeLocalQueryCache(cacheKey, result.data);
       return result.data;
     },
+    initialData: () => readLocalQueryCache<LeadListData>(cacheKey),
+    refetchOnMount: true,
     staleTime: 30_000,
     retry: 1,
     refetchOnWindowFocus: false,

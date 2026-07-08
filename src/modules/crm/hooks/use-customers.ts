@@ -2,6 +2,10 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  readLocalQueryCache,
+  writeLocalQueryCache,
+} from '@/lib/query/local-storage-cache';
+import {
   convertLeadToCustomerAction,
   getCustomerAction,
   getCustomersAction,
@@ -21,14 +25,28 @@ export const customerKeys = {
   detail: (id: string) => ['customers', 'detail', id] as const,
 };
 
+type CustomerListData = Extract<
+  Awaited<ReturnType<typeof getCustomersAction>>,
+  { success: true }
+>['data'];
+
+function customerListCacheKey(filters: CustomerFilters) {
+  return `crm.customers.${JSON.stringify({ search: filters.search ?? '' })}`;
+}
+
 export function useCustomers(filters: CustomerFilters = {}) {
+  const cacheKey = customerListCacheKey(filters);
+
   return useQuery({
     queryKey: customerKeys.list(filters),
     queryFn: async () => {
       const result = await getCustomersAction(filters);
       if (!result.success) throw new Error(result.error);
+      writeLocalQueryCache(cacheKey, result.data);
       return result.data;
     },
+    initialData: () => readLocalQueryCache<CustomerListData>(cacheKey),
+    refetchOnMount: true,
     staleTime: 30_000,
     retry: 1,
     refetchOnWindowFocus: false,

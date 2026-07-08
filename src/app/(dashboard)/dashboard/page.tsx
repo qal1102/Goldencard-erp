@@ -19,6 +19,7 @@ import {
 import { db } from '@/db';
 import { leads, quotations, warrantyTickets, workOrders } from '@/db/schema';
 import { mainNavItems } from '@/lib/navigation/modules';
+import { modulePerfLog, modulePerfTimed } from '@/lib/server/module-list-log';
 import { getLeadStatusLabel } from '@/modules/crm/lib/lead-labels';
 import {
   QUOTATION_STATUS_LABELS,
@@ -39,6 +40,22 @@ const activeLeadStatuses = [
 const quotationActionStatuses = ['draft', 'sent', 'needs_revision'] as const;
 const activeWorkOrderStatuses = ['scheduled', 'in_progress'] as const;
 const activeWarrantyStatuses = ['open', 'assigned', 'scheduled', 'in_progress'] as const;
+const DASHBOARD_LOAD_TIMEOUT_MS = 6000;
+
+function withDashboardTimeout<T>(step: string, promise: Promise<T>, fallback: T): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeout = new Promise<T>((resolve) => {
+    timeoutId = setTimeout(() => {
+      modulePerfLog('dashboard', `${step} timeout`, DASHBOARD_LOAD_TIMEOUT_MS);
+      resolve(fallback);
+    }, DASHBOARD_LOAD_TIMEOUT_MS);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+  });
+}
 
 function startOfToday() {
   const d = new Date();
@@ -68,51 +85,93 @@ export default async function DashboardPage() {
     recentLeads,
     recentQuotations,
   ] = await Promise.all([
-    db.select({ value: count() }).from(leads).where(gte(leads.createdAt, today)),
-    db.select({ value: count() }).from(leads).where(inArray(leads.status, activeLeadStatuses)),
-    db
-      .select({ value: count() })
-      .from(quotations)
-      .where(
-        and(
-          inArray(quotations.status, quotationActionStatuses),
-          latestQuotationRevisionCondition(),
-        ),
+    withDashboardTimeout(
+      'leads today',
+      modulePerfTimed('dashboard', 'leads today', () =>
+        db.select({ value: count() }).from(leads).where(gte(leads.createdAt, today)),
       ),
-    db
-      .select({ value: count() })
-      .from(workOrders)
-      .where(inArray(workOrders.status, activeWorkOrderStatuses)),
-    db
-      .select({ value: count() })
-      .from(warrantyTickets)
-      .where(inArray(warrantyTickets.status, activeWarrantyStatuses)),
-    db.query.leads.findMany({
-      columns: {
-        id: true,
-        code: true,
-        fullName: true,
-        status: true,
-        createdAt: true,
-      },
-      orderBy: [desc(leads.createdAt)],
-      limit: 5,
-    }),
-    db.query.quotations.findMany({
-      columns: {
-        id: true,
-        code: true,
-        status: true,
-        grandTotal: true,
-        createdAt: true,
-      },
-      where: and(
-        inArray(quotations.status, quotationActionStatuses),
-        latestQuotationRevisionCondition(),
+      [{ value: 0 }],
+    ),
+    withDashboardTimeout(
+      'active leads',
+      modulePerfTimed('dashboard', 'active leads', () =>
+        db.select({ value: count() }).from(leads).where(inArray(leads.status, activeLeadStatuses)),
       ),
-      orderBy: [desc(quotations.createdAt)],
-      limit: 5,
-    }),
+      [{ value: 0 }],
+    ),
+    withDashboardTimeout(
+      'quotations to handle',
+      modulePerfTimed('dashboard', 'quotations to handle', () =>
+        db
+          .select({ value: count() })
+          .from(quotations)
+          .where(
+            and(
+              inArray(quotations.status, quotationActionStatuses),
+              latestQuotationRevisionCondition(),
+            ),
+          ),
+      ),
+      [{ value: 0 }],
+    ),
+    withDashboardTimeout(
+      'active work orders',
+      modulePerfTimed('dashboard', 'active work orders', () =>
+        db
+          .select({ value: count() })
+          .from(workOrders)
+          .where(inArray(workOrders.status, activeWorkOrderStatuses)),
+      ),
+      [{ value: 0 }],
+    ),
+    withDashboardTimeout(
+      'active warranty tickets',
+      modulePerfTimed('dashboard', 'active warranty tickets', () =>
+        db
+          .select({ value: count() })
+          .from(warrantyTickets)
+          .where(inArray(warrantyTickets.status, activeWarrantyStatuses)),
+      ),
+      [{ value: 0 }],
+    ),
+    withDashboardTimeout(
+      'recent leads',
+      modulePerfTimed('dashboard', 'recent leads', () =>
+        db.query.leads.findMany({
+          columns: {
+            id: true,
+            code: true,
+            fullName: true,
+            status: true,
+            createdAt: true,
+          },
+          orderBy: [desc(leads.createdAt)],
+          limit: 5,
+        }),
+      ),
+      [],
+    ),
+    withDashboardTimeout(
+      'recent quotations',
+      modulePerfTimed('dashboard', 'recent quotations', () =>
+        db.query.quotations.findMany({
+          columns: {
+            id: true,
+            code: true,
+            status: true,
+            grandTotal: true,
+            createdAt: true,
+          },
+          where: and(
+            inArray(quotations.status, quotationActionStatuses),
+            latestQuotationRevisionCondition(),
+          ),
+          orderBy: [desc(quotations.createdAt)],
+          limit: 5,
+        }),
+      ),
+      [],
+    ),
   ]);
 
   const statCards = [
