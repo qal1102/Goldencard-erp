@@ -1364,12 +1364,12 @@ export function InventoryItemCatalog({
         <div className="rounded-lg border p-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-sm font-medium">File mẫu nhập liệu</p>
+              <p className="text-sm font-medium">Tải file nhập liệu</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 Mẫu tải về chỉ có cột trống để nhập tay. Điền tối thiểu Tên vật tư và Đơn
                 vị tính; Mã vật tư có thể để trống để hệ thống tự sinh. Các cột Có/Không có
                 thể nhập TRUE/FALSE hoặc Có/Không.
-                Muốn sửa hàng loạt thì export danh mục hiện tại, chỉnh trong Excel rồi upload
+                Muốn sửa hàng loạt thì tải danh mục hiện tại, chỉnh trong Excel rồi upload
                 lại để hệ thống preview trước khi cập nhật.
               </p>
             </div>
@@ -1379,11 +1379,11 @@ export function InventoryItemCatalog({
                 size="sm"
                 variant="outline"
                 onClick={() =>
-                  downloadCsv(templateRows, `inventory-template-${getExportFileDate()}.csv`)
+                  downloadCsv(templateRows, `mau-nhap-vat-tu-${getExportFileDate()}.csv`)
                 }
               >
                 <DownloadIcon className="size-4" />
-                Mẫu CSV
+                Mẫu trống CSV
               </Button>
               <Button
                 type="button"
@@ -1392,24 +1392,24 @@ export function InventoryItemCatalog({
                 onClick={() =>
                   void downloadXlsx(
                     templateRows,
-                    `inventory-template-${getExportFileDate()}.xlsx`,
+                    `mau-nhap-vat-tu-${getExportFileDate()}.xlsx`,
                   )
                 }
               >
                 <FileSpreadsheetIcon className="size-4" />
-                Mẫu Excel
+                Mẫu trống Excel
               </Button>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
                 onClick={() =>
-                  downloadCsv(currentExportRows, `inventory-catalog-${getExportFileDate()}.csv`)
+                  downloadCsv(currentExportRows, `danh-muc-vat-tu-${getExportFileDate()}.csv`)
                 }
                 disabled={currentExportRows.length === 0}
               >
                 <DownloadIcon className="size-4" />
-                Export CSV
+                Tải danh mục CSV
               </Button>
               <Button
                 type="button"
@@ -1418,13 +1418,13 @@ export function InventoryItemCatalog({
                 onClick={() =>
                   void downloadXlsx(
                     currentExportRows,
-                    `inventory-catalog-${getExportFileDate()}.xlsx`,
+                    `danh-muc-vat-tu-${getExportFileDate()}.xlsx`,
                   )
                 }
                 disabled={currentExportRows.length === 0}
               >
                 <FileSpreadsheetIcon className="size-4" />
-                Export Excel
+                Tải danh mục Excel
               </Button>
             </div>
           </div>
@@ -1445,12 +1445,12 @@ export function InventoryItemCatalog({
                 size="sm"
                 variant="outline"
                 onClick={() =>
-                  downloadCsv(currentExportRows, `inventory-catalog-${getExportFileDate()}.csv`)
+                  downloadCsv(currentExportRows, `danh-muc-vat-tu-${getExportFileDate()}.csv`)
                 }
                 disabled={currentExportRows.length === 0}
               >
                 <DownloadIcon className="size-4" />
-                Export CSV
+                Tải danh mục CSV
               </Button>
               <Button
                 type="button"
@@ -1459,13 +1459,13 @@ export function InventoryItemCatalog({
                 onClick={() =>
                   void downloadXlsx(
                     currentExportRows,
-                    `inventory-catalog-${getExportFileDate()}.xlsx`,
+                    `danh-muc-vat-tu-${getExportFileDate()}.xlsx`,
                   )
                 }
                 disabled={currentExportRows.length === 0}
               >
                 <FileSpreadsheetIcon className="size-4" />
-                Export Excel
+                Tải danh mục Excel
               </Button>
             </div>
           </div>
