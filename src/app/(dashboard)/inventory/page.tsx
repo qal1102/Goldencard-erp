@@ -2,19 +2,48 @@ import { Badge } from '@/components/ui/badge';
 import { ModuleGuide } from '@/components/ui/module-guide';
 import { verifySession } from '@/lib/auth/dal';
 import { hasRole } from '@/lib/auth/roles';
+import { modulePerfLog, modulePerfTimed } from '@/lib/server/module-list-log';
 import { InventoryItemCatalog } from '@/modules/inventory/components/inventory-item-catalog';
 import { WarehouseStockPanel } from '@/modules/inventory/components/warehouse-stock-panel';
-import { loadInventoryItemsList } from '@/modules/inventory/lib/inventory-item-load';
+import {
+  loadInventoryItemsList,
+  type LoadInventoryItemsResult,
+} from '@/modules/inventory/lib/inventory-item-load';
 import { INVENTORY_MANAGER_ROLES } from '@/modules/inventory/lib/inventory-permissions';
 import {
   loadInventoryStockMovementsList,
   loadInventoryStocksList,
   loadInventoryWorkOrderOptions,
   loadWarehousesList,
+  type LoadInventoryStocksResult,
+  type LoadInventoryStockMovementsResult,
+  type LoadInventoryWorkOrderOptionsResult,
+  type LoadWarehousesResult,
 } from '@/modules/inventory/lib/warehouse-load';
 
+const INVENTORY_LOAD_TIMEOUT_MS = 8000;
+
+function withInventoryTimeout<T>(
+  step: string,
+  promise: Promise<T>,
+  fallback: T,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeout = new Promise<T>((resolve) => {
+    timeoutId = setTimeout(() => {
+      modulePerfLog('inventory', `${step} timeout`, INVENTORY_LOAD_TIMEOUT_MS);
+      resolve(fallback);
+    }, INVENTORY_LOAD_TIMEOUT_MS);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+  });
+}
+
 export default async function InventoryPage() {
-  const session = await verifySession();
+  const session = await modulePerfTimed('inventory', 'auth', () => verifySession());
   const roles = session.user.roles ?? [];
   const canManageInventory = hasRole(roles, ...INVENTORY_MANAGER_ROLES);
 
@@ -25,12 +54,32 @@ export default async function InventoryPage() {
     movementsResult,
     workOrdersResult,
   ] = await Promise.all([
-    loadInventoryItemsList({}),
-    loadWarehousesList({}),
-    loadInventoryStocksList(),
-    loadInventoryStockMovementsList(),
+    withInventoryTimeout<LoadInventoryItemsResult>(
+      'items load',
+      modulePerfTimed('inventory', 'items load', () => loadInventoryItemsList({})),
+      { success: false, error: 'Tải danh mục vật tư quá lâu. Vui lòng thử lại.' },
+    ),
+    withInventoryTimeout<LoadWarehousesResult>(
+      'warehouses load',
+      modulePerfTimed('inventory', 'warehouses load', () => loadWarehousesList({})),
+      { success: false, error: 'Tải danh sách kho quá lâu. Vui lòng thử lại.' },
+    ),
+    withInventoryTimeout<LoadInventoryStocksResult>(
+      'stocks load',
+      modulePerfTimed('inventory', 'stocks load', () => loadInventoryStocksList()),
+      { success: false, error: 'Tải tồn kho quá lâu. Vui lòng thử lại.' },
+    ),
+    withInventoryTimeout<LoadInventoryStockMovementsResult>(
+      'movements load',
+      modulePerfTimed('inventory', 'movements load', () => loadInventoryStockMovementsList()),
+      { success: false, error: 'Tải lịch sử kho quá lâu. Vui lòng thử lại.' },
+    ),
     canManageInventory
-      ? loadInventoryWorkOrderOptions()
+      ? withInventoryTimeout<LoadInventoryWorkOrderOptionsResult>(
+          'work orders load',
+          modulePerfTimed('inventory', 'work orders load', () => loadInventoryWorkOrderOptions()),
+          { success: false, error: 'Tải danh sách lệnh thi công quá lâu. Vui lòng thử lại.' },
+        )
       : Promise.resolve({ success: true as const, data: [] }),
   ]);
 

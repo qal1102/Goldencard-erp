@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import {
   AlertTriangleIcon,
   ArrowDownToLineIcon,
@@ -137,6 +137,34 @@ const emptyStockTransferForm: InventoryStockTransferInput = {
   quantity: 1,
   note: '',
 };
+
+const WAREHOUSE_STOCK_CACHE_KEY = 'goldencard.inventory.warehouse-stock.v1';
+
+type WarehouseStockCache = {
+  warehouses: SerializedWarehouse[];
+  stocks: SerializedInventoryStockRow[];
+  movements: SerializedInventoryStockMovementRow[];
+  savedAt: string;
+};
+
+function readWarehouseStockCache(): WarehouseStockCache | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const raw = window.localStorage.getItem(WAREHOUSE_STOCK_CACHE_KEY);
+    if (!raw) return null;
+    const cached = JSON.parse(raw) as Partial<WarehouseStockCache>;
+    return {
+      warehouses: Array.isArray(cached.warehouses) ? cached.warehouses : [],
+      stocks: Array.isArray(cached.stocks) ? cached.stocks : [],
+      movements: Array.isArray(cached.movements) ? cached.movements : [],
+      savedAt: typeof cached.savedAt === 'string' ? cached.savedAt : '',
+    };
+  } catch {
+    window.localStorage.removeItem(WAREHOUSE_STOCK_CACHE_KEY);
+    return null;
+  }
+}
 
 type DialogMode =
   | { type: 'create'; warehouse?: undefined }
@@ -326,9 +354,22 @@ export function WarehouseStockPanel({
   workOrderError = null,
   inventoryItems = [],
 }: Props) {
-  const [warehouses, setWarehouses] = useState(initialWarehouses);
-  const [stocks, setStocks] = useState(initialStocks);
-  const [movements, setMovements] = useState(initialMovements);
+  const [cachedWarehouseStock] = useState(readWarehouseStockCache);
+  const [warehouses, setWarehouses] = useState(
+    () =>
+      initialWarehouseError && cachedWarehouseStock
+        ? cachedWarehouseStock.warehouses
+        : initialWarehouses,
+  );
+  const [stocks, setStocks] = useState(
+    () => (initialStockError && cachedWarehouseStock ? cachedWarehouseStock.stocks : initialStocks),
+  );
+  const [movements, setMovements] = useState(
+    () =>
+      initialMovementError && cachedWarehouseStock
+        ? cachedWarehouseStock.movements
+        : initialMovements,
+  );
   const [warehouseStatus, setWarehouseStatus] = useState<WarehouseStatus>(ALL_STATUS);
   const [selectedWarehouseId, setSelectedWarehouseId] = useState('all');
   const [dialogMode, setDialogMode] = useState<DialogMode | null>(null);
@@ -344,14 +385,36 @@ export function WarehouseStockPanel({
   const [transferForm, setTransferForm] = useState<InventoryStockTransferInput>(
     emptyStockTransferForm,
   );
-  const [warehouseError, setWarehouseError] = useState<string | null>(initialWarehouseError);
-  const [stockError, setStockError] = useState<string | null>(initialStockError);
-  const [movementError, setMovementError] = useState<string | null>(initialMovementError);
+  const [warehouseError, setWarehouseError] = useState<string | null>(
+    () => (initialWarehouseError && cachedWarehouseStock ? null : initialWarehouseError),
+  );
+  const [stockError, setStockError] = useState<string | null>(
+    () => (initialStockError && cachedWarehouseStock ? null : initialStockError),
+  );
+  const [movementError, setMovementError] = useState<string | null>(
+    () => (initialMovementError && cachedWarehouseStock ? null : initialMovementError),
+  );
   const [workOrderLoadError] = useState<string | null>(workOrderError);
   const [isPending, startTransition] = useTransition();
   const [isStockPending, startStockTransition] = useTransition();
   const [isMovementPending, startMovementTransition] = useTransition();
   const [isTransferPending, startTransferTransition] = useTransition();
+
+  useEffect(() => {
+    if (warehouses.length === 0 && stocks.length === 0 && movements.length === 0) return;
+
+    try {
+      const cache: WarehouseStockCache = {
+        warehouses,
+        stocks,
+        movements,
+        savedAt: new Date().toISOString(),
+      };
+      window.localStorage.setItem(WAREHOUSE_STOCK_CACHE_KEY, JSON.stringify(cache));
+    } catch {
+      // Local cache is best-effort only; server data remains the source of truth.
+    }
+  }, [movements, stocks, warehouses]);
 
   const activeWarehouses = useMemo(
     () => warehouses.filter((warehouse) => warehouse.isActive).length,

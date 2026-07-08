@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import {
   BoxesIcon,
   CheckCircle2Icon,
@@ -58,7 +58,32 @@ import type {
 
 const ALL_STATUS = 'all';
 const ALL_CATEGORY = 'all';
+const INVENTORY_ITEM_CACHE_KEY = 'goldencard.inventory.items.v1';
 type CatalogStatus = NonNullable<InventoryItemFilters['status']>;
+
+type InventoryItemCache = {
+  items: SerializedInventoryItem[];
+  savedAt: string;
+};
+
+function readInventoryItemCache(): InventoryItemCache | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const raw = window.localStorage.getItem(INVENTORY_ITEM_CACHE_KEY);
+    if (!raw) return null;
+    const cached = JSON.parse(raw) as Partial<InventoryItemCache>;
+    return Array.isArray(cached.items)
+      ? {
+          items: cached.items,
+          savedAt: typeof cached.savedAt === 'string' ? cached.savedAt : '',
+        }
+      : null;
+  } catch {
+    window.localStorage.removeItem(INVENTORY_ITEM_CACHE_KEY);
+    return null;
+  }
+}
 
 const catalogStatusLabels: Record<CatalogStatus, string> = {
   all: 'Tất cả trạng thái',
@@ -1048,11 +1073,16 @@ export function InventoryItemCatalog({
   initialError = null,
   canManageInventory = false,
 }: CatalogProps) {
-  const [items, setItems] = useState<SerializedInventoryItem[]>(initialItems ?? []);
+  const [cachedItems] = useState(readInventoryItemCache);
+  const [items, setItems] = useState<SerializedInventoryItem[]>(
+    () => initialItems ?? (initialError && cachedItems ? cachedItems.items : []),
+  );
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<CatalogStatus>(ALL_STATUS);
   const [category, setCategory] = useState(ALL_CATEGORY);
-  const [error, setError] = useState<string | null>(initialError);
+  const [error, setError] = useState<string | null>(
+    () => (initialError && cachedItems ? null : initialError),
+  );
   const [dialogMode, setDialogMode] = useState<DialogMode | null>(null);
   const [isQuickTableOpen, setIsQuickTableOpen] = useState(false);
   const [importFileName, setImportFileName] = useState<string | null>(null);
@@ -1061,6 +1091,20 @@ export function InventoryItemCatalog({
   const [importResult, setImportResult] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isImportPending, startImportTransition] = useTransition();
+
+  useEffect(() => {
+    if (items.length === 0) return;
+
+    try {
+      const cache: InventoryItemCache = {
+        items,
+        savedAt: new Date().toISOString(),
+      };
+      window.localStorage.setItem(INVENTORY_ITEM_CACHE_KEY, JSON.stringify(cache));
+    } catch {
+      // Local cache is best-effort only; server data remains the source of truth.
+    }
+  }, [items]);
 
   const stats = useMemo(() => {
     const active = items.filter((item) => item.isActive).length;
