@@ -2,14 +2,43 @@ import { redirect } from 'next/navigation';
 import { ModuleGuide } from '@/components/ui/module-guide';
 import { verifySession } from '@/lib/auth/dal';
 import { hasRole } from '@/lib/auth/roles';
+import { modulePerfLog, modulePerfTimed } from '@/lib/server/module-list-log';
 import { queryActiveInventoryItemOptions } from '@/modules/inventory/lib/inventory-item.queries';
 import { QuotationPriceCatalogPanel } from '@/modules/quotations/components/quotation-price-catalog-panel';
 import { QuotationList } from '@/modules/quotations/components/quotation-list';
 import { loadQuotationsList } from '@/modules/quotations/lib/quotation-load';
+import type { QuotationPriceCatalogRow } from '@/modules/quotations/lib/quotation-price-catalog.queries';
 import { queryQuotationPriceCatalog } from '@/modules/quotations/lib/quotation-price-catalog.queries';
 
+const QUOTATION_LOAD_TIMEOUT_MS = 8000;
+
+type LoadQuotationsResult = Awaited<ReturnType<typeof loadQuotationsList>>;
+
+type PriceCatalogLoadResult =
+  | { success: true; data: QuotationPriceCatalogRow[] }
+  | { success: false; error: string };
+
+function withQuotationTimeout<T>(
+  step: string,
+  promise: Promise<T>,
+  fallback: T,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeout = new Promise<T>((resolve) => {
+    timeoutId = setTimeout(() => {
+      modulePerfLog('quotations', `${step} timeout`, QUOTATION_LOAD_TIMEOUT_MS);
+      resolve(fallback);
+    }, QUOTATION_LOAD_TIMEOUT_MS);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+  });
+}
+
 export default async function QuotationsPage() {
-  const session = await verifySession();
+  const session = await modulePerfTimed('quotations', 'auth', () => verifySession());
   const roles = session.user.roles ?? [];
 
   if (!hasRole(roles, 'admin', 'director', 'sales', 'project_manager', 'chief_engineer', 'chief_accountant', 'accountant')) {
@@ -18,10 +47,25 @@ export default async function QuotationsPage() {
 
   const canWrite = hasRole(roles, 'admin', 'director', 'sales', 'chief_accountant');
   const canManagePricing = hasRole(roles, 'admin', 'director', 'chief_accountant', 'accountant');
-  const [loadResult, priceCatalogRows, inventoryItems] = await Promise.all([
-    loadQuotationsList({}, roles),
-    queryQuotationPriceCatalog({ status: 'active' }),
-    queryActiveInventoryItemOptions(),
+  const [loadResult, priceCatalogResult, inventoryItems] = await Promise.all([
+    withQuotationTimeout<LoadQuotationsResult>(
+      'list load',
+      modulePerfTimed('quotations', 'list load', () => loadQuotationsList({}, roles)),
+      { success: false, error: 'Tải danh sách báo giá quá lâu. Vui lòng thử lại.' },
+    ),
+    withQuotationTimeout<PriceCatalogLoadResult>(
+      'price catalog load',
+      modulePerfTimed('quotations', 'price catalog load', async () => ({
+        success: true as const,
+        data: await queryQuotationPriceCatalog({ status: 'active' }),
+      })),
+      { success: false, error: 'Tải bảng giá bán quá lâu. Vui lòng thử lại.' },
+    ),
+    withQuotationTimeout(
+      'inventory options load',
+      modulePerfTimed('quotations', 'inventory options load', () => queryActiveInventoryItemOptions()),
+      [],
+    ),
   ]);
 
   return (
@@ -50,7 +94,8 @@ export default async function QuotationsPage() {
       />
 
       <QuotationPriceCatalogPanel
-        initialRows={priceCatalogRows}
+        initialRows={priceCatalogResult.success ? priceCatalogResult.data : undefined}
+        initialError={priceCatalogResult.success ? null : priceCatalogResult.error}
         inventoryItems={inventoryItems}
         canManagePricing={canManagePricing}
       />

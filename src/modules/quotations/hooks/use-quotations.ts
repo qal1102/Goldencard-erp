@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
+import { readLocalQueryCache, writeLocalQueryCache } from '@/lib/query/local-storage-cache';
 import {
   createQuotationAction,
   getCompletedSurveysWithoutQuotationAction,
@@ -39,6 +40,11 @@ export const quotationKeys = {
   bySurvey: (surveyId: string) => ['quotations', 'by-survey', surveyId] as const,
 };
 
+function quotationLocalCacheKey(filters: QuotationFilters = {}) {
+  const normalized = normalizeQuotationFilters(filters);
+  return `quotations.list.${normalized.status ?? 'all'}.${normalized.customerId ?? 'all'}`;
+}
+
 type UseQuotationsOptions = {
   initialData?: QuotationRow[];
   enabled?: boolean;
@@ -46,15 +52,18 @@ type UseQuotationsOptions = {
 
 export function useQuotations(filters: QuotationFilters = {}, options?: UseQuotationsOptions) {
   const normalized = normalizeQuotationFilters(filters);
+  const cacheKey = quotationLocalCacheKey(normalized);
+  const cachedInitialData = options?.initialData ?? readLocalQueryCache<QuotationRow[]>(cacheKey);
 
   return useQuery({
     queryKey: quotationKeys.list(normalized),
     queryFn: async () => {
       const result = await getQuotationsAction(normalized);
       if (!result.success) throw new Error(result.error);
+      writeLocalQueryCache(cacheKey, result.data);
       return result.data;
     },
-    initialData: options?.initialData,
+    initialData: cachedInitialData,
     enabled: options?.enabled ?? true,
     staleTime: 30_000,
     retry: 1,

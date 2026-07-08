@@ -1,7 +1,7 @@
 'use client';
 
 import { Edit3Icon, PackageSearchIcon, PlusIcon, SearchIcon } from 'lucide-react';
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,6 +35,7 @@ import type {
 } from '../schema/quotation-price-catalog.schema';
 
 const NONE_VALUE = '__none__';
+const PRICE_CATALOG_CACHE_KEY = 'goldencard.quotations.price-catalog.v1';
 
 type Props = {
   initialRows?: QuotationPriceCatalogRow[];
@@ -44,6 +45,11 @@ type Props = {
 };
 
 type FormState = QuotationPriceCatalogFormInput;
+
+type PriceCatalogCache = {
+  rows: QuotationPriceCatalogRow[];
+  savedAt: string;
+};
 
 const emptyForm: FormState = {
   inventoryItemId: null,
@@ -79,14 +85,38 @@ function rowToForm(row: QuotationPriceCatalogRow): FormState {
   };
 }
 
+function readPriceCatalogCache(): PriceCatalogCache | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const raw = window.localStorage.getItem(PRICE_CATALOG_CACHE_KEY);
+    if (!raw) return null;
+    const cached = JSON.parse(raw) as Partial<PriceCatalogCache>;
+    return Array.isArray(cached.rows)
+      ? {
+        rows: cached.rows,
+        savedAt: typeof cached.savedAt === 'string' ? cached.savedAt : '',
+      }
+      : null;
+  } catch {
+    window.localStorage.removeItem(PRICE_CATALOG_CACHE_KEY);
+    return null;
+  }
+}
+
 export function QuotationPriceCatalogPanel({
   initialRows = [],
   initialError = null,
   inventoryItems,
   canManagePricing,
 }: Props) {
-  const [rows, setRows] = useState(initialRows);
-  const [error, setError] = useState(initialError);
+  const [cachedRows] = useState(readPriceCatalogCache);
+  const [rows, setRows] = useState<QuotationPriceCatalogRow[]>(
+    () => initialRows ?? (initialError && cachedRows ? cachedRows.rows : []),
+  );
+  const [error, setError] = useState<string | null>(
+    () => (initialError && cachedRows ? null : initialError),
+  );
   const [filters, setFilters] = useState<QuotationPriceCatalogFilters>({
     q: '',
     status: 'active',
@@ -98,6 +128,20 @@ export function QuotationPriceCatalogPanel({
   const [isPending, startTransition] = useTransition();
 
   const activeCount = useMemo(() => rows.filter((row) => row.isActive).length, [rows]);
+
+  useEffect(() => {
+    if (rows.length === 0) return;
+
+    try {
+      const cache: PriceCatalogCache = {
+        rows,
+        savedAt: new Date().toISOString(),
+      };
+      window.localStorage.setItem(PRICE_CATALOG_CACHE_KEY, JSON.stringify(cache));
+    } catch {
+      // Local cache is best-effort only; server data remains the source of truth.
+    }
+  }, [rows]);
 
   const refresh = (nextFilters = filters) => {
     startTransition(async () => {
