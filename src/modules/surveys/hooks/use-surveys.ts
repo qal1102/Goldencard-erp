@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
+import { readLocalQueryCache, writeLocalQueryCache } from '@/lib/query/local-storage-cache';
 import {
   createSurveyAction,
   getSurveyAction,
@@ -45,19 +46,28 @@ export const surveyKeys = {
 
 type UseSurveysOptions = {
   initialData?: SurveyRow[];
+  cacheScope?: string;
 };
+
+function surveyLocalCacheKey(filters: SurveyFilters = {}, scope = 'default') {
+  const normalized = normalizeSurveyFilters(filters);
+  return `surveys.list.${scope}.${normalized.status ?? 'all'}.${normalized.customerId ?? 'all'}`;
+}
 
 export function useSurveys(filters: SurveyFilters = {}, options?: UseSurveysOptions) {
   const normalized = normalizeSurveyFilters(filters);
+  const cacheKey = surveyLocalCacheKey(normalized, options?.cacheScope);
+  const cachedInitialData = options?.initialData ?? readLocalQueryCache<SurveyRow[]>(cacheKey);
 
   return useQuery({
     queryKey: surveyKeys.list(normalized),
     queryFn: async () => {
       const result = await getSurveysAction(normalized);
       if (!result.success) throw new Error(result.error);
+      writeLocalQueryCache(cacheKey, result.data);
       return result.data;
     },
-    initialData: options?.initialData,
+    initialData: cachedInitialData,
     staleTime: 30_000,
     retry: 1,
     refetchOnMount: options?.initialData === undefined,

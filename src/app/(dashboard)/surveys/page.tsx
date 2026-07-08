@@ -2,16 +2,44 @@ import { PlusCircleIcon } from 'lucide-react';
 import { ModuleGuide } from '@/components/ui/module-guide';
 import { verifySession } from '@/lib/auth/dal';
 import { hasRole } from '@/lib/auth/roles';
+import { modulePerfLog, modulePerfTimed } from '@/lib/server/module-list-log';
 import { SurveyList } from '@/modules/surveys/components/survey-list';
 import { loadSurveysList } from '@/modules/surveys/lib/survey-load';
 
+const SURVEY_LOAD_TIMEOUT_MS = 8000;
+
+type LoadSurveysResult = Awaited<ReturnType<typeof loadSurveysList>>;
+
+function withSurveyTimeout<T>(
+  step: string,
+  promise: Promise<T>,
+  fallback: T,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeout = new Promise<T>((resolve) => {
+    timeoutId = setTimeout(() => {
+      modulePerfLog('surveys', `${step} timeout`, SURVEY_LOAD_TIMEOUT_MS);
+      resolve(fallback);
+    }, SURVEY_LOAD_TIMEOUT_MS);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+  });
+}
+
 export default async function SurveysPage() {
-  const session = await verifySession();
+  const session = await modulePerfTimed('surveys', 'auth', () => verifySession());
   const roles = session.user.roles ?? [];
   const isTechnician =
     hasRole(roles, 'technician') &&
     !hasRole(roles, 'admin', 'director', 'sales', 'project_manager', 'chief_engineer');
-  const loadResult = await loadSurveysList({}, roles, session.user.id);
+  const loadResult = await withSurveyTimeout<LoadSurveysResult>(
+    'list load',
+    modulePerfTimed('surveys', 'list load', () => loadSurveysList({}, roles, session.user.id)),
+    { success: false, error: 'Tải danh sách khảo sát quá lâu. Vui lòng thử lại.' },
+  );
 
   return (
     <div className="mx-auto w-full max-w-xl">
@@ -47,6 +75,7 @@ export default async function SurveysPage() {
 
       <SurveyList
         isTechnician={isTechnician}
+        cacheScope={session.user.id}
         initialData={loadResult.success ? loadResult.data : undefined}
         initialError={loadResult.success ? null : loadResult.error}
       />

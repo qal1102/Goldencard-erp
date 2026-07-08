@@ -33,11 +33,12 @@ function formatDate(date: Date | string | null | undefined): string | null {
 
 type Props = {
   isTechnician: boolean;
+  cacheScope?: string;
   initialData?: SurveyRow[];
   initialError?: string | null;
 };
 
-export function SurveyList({ isTechnician, initialData, initialError = null }: Props) {
+export function SurveyList({ isTechnician, cacheScope, initialData, initialError = null }: Props) {
   const [statusFilter, setStatusFilter] = useState<SurveyStatus | typeof ALL_STATUS_FILTER>(
     ALL_STATUS_FILTER,
   );
@@ -59,7 +60,7 @@ export function SurveyList({ isTechnician, initialData, initialError = null }: P
     isError,
     error,
     refetch,
-  } = useSurveys(filters, { initialData: hasInitial ? initialData : undefined });
+  } = useSurveys(filters, { cacheScope, initialData: hasInitial ? initialData : undefined });
 
   const showSkeleton = isPending && !surveyList;
   const showError = !surveyList && (Boolean(initialError) || isError);
