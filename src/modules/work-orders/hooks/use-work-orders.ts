@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
+import { readLocalQueryCache, writeLocalQueryCache } from '@/lib/query/local-storage-cache';
 import { contractKeys } from '@/modules/contracts/hooks/use-contracts';
 import { leadKeys } from '@/modules/crm/hooks/use-leads';
 import {
@@ -63,19 +64,28 @@ export const workOrderKeys = {
 type UseWorkOrdersOptions = {
   initialData?: WorkOrderRow[];
   enabled?: boolean;
+  cacheScope?: string;
 };
+
+function workOrderLocalCacheKey(filters: WorkOrderFilters = {}, scope = 'default') {
+  const normalized = normalizeWorkOrderFilters(filters);
+  return `work-orders.list.${scope}.${normalized.status ?? 'all'}.${normalized.customerId ?? 'all'}.${normalized.assignedTo ?? 'all'}`;
+}
 
 export function useWorkOrders(filters: WorkOrderFilters = {}, options?: UseWorkOrdersOptions) {
   const normalized = normalizeWorkOrderFilters(filters);
+  const cacheKey = workOrderLocalCacheKey(normalized, options?.cacheScope);
+  const cachedInitialData = options?.initialData ?? readLocalQueryCache<WorkOrderRow[]>(cacheKey);
 
   return useQuery({
     queryKey: workOrderKeys.list(normalized),
     queryFn: async () => {
       const result = await getWorkOrdersAction(normalized);
       if (!result.success) throw new Error(result.error);
+      writeLocalQueryCache(cacheKey, result.data);
       return result.data;
     },
-    initialData: options?.initialData,
+    initialData: cachedInitialData,
     enabled: options?.enabled ?? true,
     staleTime: 30_000,
     retry: 1,

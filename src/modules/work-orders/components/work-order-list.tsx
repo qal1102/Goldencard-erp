@@ -34,12 +34,14 @@ function formatDate(date: Date | string | null | undefined): string {
 
 type Props = {
   isTechnician?: boolean;
+  cacheScope?: string;
   initialData?: WorkOrderRow[];
   initialError?: string | null;
 };
 
 export function WorkOrderList({
   isTechnician = false,
+  cacheScope,
   initialData,
   initialError = null,
 }: Props) {
@@ -64,7 +66,7 @@ export function WorkOrderList({
     isError,
     error,
     refetch,
-  } = useWorkOrders(filters, { initialData: hasInitial ? initialData : undefined });
+  } = useWorkOrders(filters, { cacheScope, initialData: hasInitial ? initialData : undefined });
 
   const showSkeleton = isPending && !workOrderList;
   const showError = !workOrderList && (Boolean(initialError) || isError);

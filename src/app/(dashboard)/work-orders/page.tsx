@@ -2,6 +2,7 @@ import { AccessDeniedMessage } from '@/components/ui/access-denied-message';
 import { ModuleGuide } from '@/components/ui/module-guide';
 import { verifySession } from '@/lib/auth/dal';
 import { hasRole } from '@/lib/auth/roles';
+import { modulePerfLog, modulePerfTimed } from '@/lib/server/module-list-log';
 import { WorkOrderList } from '@/modules/work-orders/components/work-order-list';
 import { loadWorkOrdersList } from '@/modules/work-orders/lib/work-order-load';
 
@@ -16,8 +17,31 @@ const VIEW_ROLES = [
   'technician',
 ] as const;
 
+const WORK_ORDER_LOAD_TIMEOUT_MS = 8000;
+
+type LoadWorkOrdersResult = Awaited<ReturnType<typeof loadWorkOrdersList>>;
+
+function withWorkOrderTimeout<T>(
+  step: string,
+  promise: Promise<T>,
+  fallback: T,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeout = new Promise<T>((resolve) => {
+    timeoutId = setTimeout(() => {
+      modulePerfLog('work-orders', `${step} timeout`, WORK_ORDER_LOAD_TIMEOUT_MS);
+      resolve(fallback);
+    }, WORK_ORDER_LOAD_TIMEOUT_MS);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+  });
+}
+
 export default async function WorkOrdersPage() {
-  const session = await verifySession();
+  const session = await modulePerfTimed('work-orders', 'auth', () => verifySession());
   const roles = session.user.roles ?? [];
 
   if (!hasRole(roles, ...VIEW_ROLES)) {
@@ -36,9 +60,15 @@ export default async function WorkOrdersPage() {
       'accountant',
     );
 
-  const loadResult = await loadWorkOrdersList(
-    {},
-    { userId: session.user.id, roles },
+  const loadResult = await withWorkOrderTimeout<LoadWorkOrdersResult>(
+    'list load',
+    modulePerfTimed('work-orders', 'list load', () =>
+      loadWorkOrdersList(
+        {},
+        { userId: session.user.id, roles },
+      ),
+    ),
+    { success: false, error: 'Tải danh sách lệnh thi công quá lâu. Vui lòng thử lại.' },
   );
 
   return (
@@ -66,6 +96,7 @@ export default async function WorkOrdersPage() {
 
       <WorkOrderList
         isTechnician={isTechnician}
+        cacheScope={session.user.id}
         initialData={loadResult.success ? loadResult.data : undefined}
         initialError={loadResult.success ? null : loadResult.error}
       />
