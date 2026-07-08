@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Trash2Icon } from 'lucide-react';
-import { Controller, type Control, type UseFormSetValue } from 'react-hook-form';
+import { Controller, useWatch, type Control, type UseFormSetValue } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -83,6 +83,17 @@ export function QuotationItemRow({
   const [selectedPriceId, setSelectedPriceId] = useState('');
   const unitSelectValue = isPresetUnit(unitValue) ? unitValue : QUOTATION_ITEM_UNIT_CUSTOM;
   const showCustomUnit = unitSelectValue === QUOTATION_ITEM_UNIT_CUSTOM;
+  const selectedInventoryItemId = useWatch({
+    control,
+    name: `items.${idx}.inventoryItemId`,
+  });
+  const selectedInventoryItem = inventoryItems.find((item) => item.id === selectedInventoryItemId);
+  const selectedPriceItem = priceCatalogItems.find((item) => item.id === selectedPriceId);
+  const previewImageUrl =
+    selectedInventoryItem?.imageUrl ?? selectedPriceItem?.inventoryImageUrl ?? null;
+  const previewName =
+    selectedInventoryItem?.name ?? selectedPriceItem?.inventoryName ?? selectedPriceItem?.displayName;
+  const previewSku = selectedInventoryItem?.sku ?? selectedPriceItem?.inventorySku;
 
   const applyInventoryItem = (itemId: string | null) => {
     const selected = inventoryItems.find((item) => item.id === itemId);
@@ -186,6 +197,26 @@ export function QuotationItemRow({
           <p className="text-xs text-muted-foreground">
             Ưu tiên dùng giá chuẩn đã được quản lý để tránh nhập nhầm đơn giá.
           </p>
+        </div>
+      )}
+
+      {previewImageUrl && (
+        <div className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-2 dark:border-emerald-900 dark:bg-emerald-950/30">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={previewImageUrl}
+            alt={previewName ?? 'Ảnh vật tư'}
+            className="size-14 shrink-0 rounded-md border bg-background object-cover"
+          />
+          <div className="min-w-0 text-xs">
+            <p className="font-medium text-emerald-900 dark:text-emerald-100">
+              Sẽ kèm ảnh khi in / lưu PDF
+            </p>
+            <p className="mt-0.5 truncate text-emerald-800 dark:text-emerald-200">
+              {previewSku ? `${previewSku} - ` : ''}
+              {previewName ?? 'Vật tư kho'}
+            </p>
+          </div>
         </div>
       )}
 
