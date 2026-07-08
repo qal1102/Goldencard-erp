@@ -44,11 +44,12 @@ function formatDate(date: Date | string | null | undefined): string {
 }
 
 type Props = {
+  cacheScope?: string;
   initialData?: ContractRow[];
   initialError?: string | null;
 };
 
-export function ContractList({ initialData, initialError = null }: Props) {
+export function ContractList({ cacheScope, initialData, initialError = null }: Props) {
   const [statusFilter, setStatusFilter] = useState<ContractStatus | typeof ALL_STATUS_FILTER>(
     ALL_STATUS_FILTER,
   );
@@ -70,7 +71,7 @@ export function ContractList({ initialData, initialError = null }: Props) {
     isError,
     error,
     refetch,
-  } = useContracts(filters, { initialData: hasInitial ? initialData : undefined });
+  } = useContracts(filters, { cacheScope, initialData: hasInitial ? initialData : undefined });
 
   const showSkeleton = isPending && !contractList;
   const showError = !contractList && (Boolean(initialError) || isError);

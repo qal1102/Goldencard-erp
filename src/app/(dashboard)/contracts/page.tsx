@@ -2,11 +2,35 @@ import { redirect } from 'next/navigation';
 import { ModuleGuide } from '@/components/ui/module-guide';
 import { verifySession } from '@/lib/auth/dal';
 import { hasRole } from '@/lib/auth/roles';
+import { modulePerfLog, modulePerfTimed } from '@/lib/server/module-list-log';
 import { ContractList } from '@/modules/contracts/components/contract-list';
 import { loadContractsList } from '@/modules/contracts/lib/contract-load';
 
+const CONTRACT_LOAD_TIMEOUT_MS = 8000;
+
+type LoadContractsResult = Awaited<ReturnType<typeof loadContractsList>>;
+
+function withContractTimeout<T>(
+  step: string,
+  promise: Promise<T>,
+  fallback: T,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeout = new Promise<T>((resolve) => {
+    timeoutId = setTimeout(() => {
+      modulePerfLog('contracts', `${step} timeout`, CONTRACT_LOAD_TIMEOUT_MS);
+      resolve(fallback);
+    }, CONTRACT_LOAD_TIMEOUT_MS);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+  });
+}
+
 export default async function ContractsPage() {
-  const session = await verifySession();
+  const session = await modulePerfTimed('contracts', 'auth', () => verifySession());
   const roles = session.user.roles ?? [];
 
   if (
@@ -15,7 +39,11 @@ export default async function ContractsPage() {
     redirect('/dashboard');
   }
 
-  const loadResult = await loadContractsList({}, roles);
+  const loadResult = await withContractTimeout<LoadContractsResult>(
+    'list load',
+    modulePerfTimed('contracts', 'list load', () => loadContractsList({}, roles)),
+    { success: false, error: 'Tải danh sách hợp đồng quá lâu. Vui lòng thử lại.' },
+  );
 
   return (
     <div className="mx-auto w-full max-w-xl">
@@ -39,6 +67,7 @@ export default async function ContractsPage() {
       />
 
       <ContractList
+        cacheScope={session.user.id}
         initialData={loadResult.success ? loadResult.data : undefined}
         initialError={loadResult.success ? null : loadResult.error}
       />

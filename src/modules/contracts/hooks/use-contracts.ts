@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
+import { readLocalQueryCache, writeLocalQueryCache } from '@/lib/query/local-storage-cache';
 import { leadKeys } from '@/modules/crm/hooks/use-leads';
 import { quotationKeys } from '@/modules/quotations/hooks/use-quotations';
 import {
@@ -44,19 +45,28 @@ export const contractKeys = {
 type UseContractsOptions = {
   initialData?: ContractRow[];
   enabled?: boolean;
+  cacheScope?: string;
 };
+
+function contractLocalCacheKey(filters: ContractFilters = {}, scope = 'default') {
+  const normalized = normalizeContractFilters(filters);
+  return `contracts.list.${scope}.${normalized.status ?? 'all'}.${normalized.customerId ?? 'all'}`;
+}
 
 export function useContracts(filters: ContractFilters = {}, options?: UseContractsOptions) {
   const normalized = normalizeContractFilters(filters);
+  const cacheKey = contractLocalCacheKey(normalized, options?.cacheScope);
+  const cachedInitialData = options?.initialData ?? readLocalQueryCache<ContractRow[]>(cacheKey);
 
   return useQuery({
     queryKey: contractKeys.list(normalized),
     queryFn: async () => {
       const result = await getContractsAction(normalized);
       if (!result.success) throw new Error(result.error);
+      writeLocalQueryCache(cacheKey, result.data);
       return result.data;
     },
-    initialData: options?.initialData,
+    initialData: cachedInitialData,
     enabled: options?.enabled ?? true,
     staleTime: 30_000,
     retry: 1,
