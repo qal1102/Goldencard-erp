@@ -1,17 +1,40 @@
 'use client';
 
 const CACHE_PREFIX = 'goldencard.query-cache.';
+const DEFAULT_CACHE_MAX_AGE_MS = 15 * 60 * 1000;
 
-export function readLocalQueryCache<T>(key: string): T | undefined {
+type CacheEntry<T> = {
+  data?: T;
+  savedAt?: string;
+};
+
+function isFresh(savedAt: string | undefined, maxAgeMs: number) {
+  if (!savedAt) return false;
+  const savedAtMs = new Date(savedAt).getTime();
+  if (!Number.isFinite(savedAtMs)) return false;
+  return Date.now() - savedAtMs <= maxAgeMs;
+}
+
+export function readLocalQueryCache<T>(
+  key: string,
+  options: { maxAgeMs?: number } = {},
+): T | undefined {
   if (typeof window === 'undefined') return undefined;
 
+  const storageKey = `${CACHE_PREFIX}${key}`;
+  const maxAgeMs = options.maxAgeMs ?? DEFAULT_CACHE_MAX_AGE_MS;
+
   try {
-    const raw = window.localStorage.getItem(`${CACHE_PREFIX}${key}`);
+    const raw = window.localStorage.getItem(storageKey);
     if (!raw) return undefined;
-    const parsed = JSON.parse(raw) as { data?: T };
+    const parsed = JSON.parse(raw) as CacheEntry<T>;
+    if (!isFresh(parsed.savedAt, maxAgeMs)) {
+      window.localStorage.removeItem(storageKey);
+      return undefined;
+    }
     return parsed.data;
   } catch {
-    window.localStorage.removeItem(`${CACHE_PREFIX}${key}`);
+    window.localStorage.removeItem(storageKey);
     return undefined;
   }
 }

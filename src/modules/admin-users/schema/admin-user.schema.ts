@@ -27,12 +27,18 @@ export const adminUserFiltersSchema = z.object({
 
 export type AdminUserFilters = z.infer<typeof adminUserFiltersSchema>;
 
+const strongPasswordSchema = z
+  .string()
+  .min(8, 'Mật khẩu tối thiểu 8 ký tự')
+  .regex(/[A-Za-z]/, 'Mật khẩu phải có ít nhất một chữ cái')
+  .regex(/[0-9]/, 'Mật khẩu phải có ít nhất một chữ số');
+
 export const createAdminUserSchema = z.object({
   name: z.string().trim().min(1, 'Vui lòng nhập họ tên'),
   email: z.string().trim().email('Email không hợp lệ'),
   phone: optionalPhoneForCreateSchema,
   jobTitle: z.string().trim().max(150, 'Chức danh tối đa 150 ký tự').optional(),
-  password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự'),
+  password: strongPasswordSchema,
   roleIds: z.array(z.string().uuid()).min(1, 'Chọn ít nhất một vai trò'),
   isActive: z.boolean().default(true),
 });
@@ -51,7 +57,7 @@ export const updateAdminUserSchema = z.object({
 export type UpdateAdminUserInput = z.infer<typeof updateAdminUserSchema>;
 
 export const resetAdminUserPasswordSchema = z.object({
-  password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự'),
+  password: strongPasswordSchema,
 });
 
 export type ResetAdminUserPasswordInput = z.infer<typeof resetAdminUserPasswordSchema>;
