@@ -1217,7 +1217,7 @@ export function InventoryItemCatalog({
           : parseCsvText(await file.text());
 
       if (rawRows.length === 0) {
-        setImportError('File không có dòng dữ liệu để preview.');
+        setImportError('File không có dòng dữ liệu để xem trước.');
         return;
       }
 
@@ -1244,7 +1244,7 @@ export function InventoryItemCatalog({
       .map((row) => row.data);
 
     if (validRows.length === 0) {
-      setImportError('Không có dòng hợp lệ để import.');
+      setImportError('Không có dòng hợp lệ để nhập.');
       return;
     }
 
@@ -1260,7 +1260,7 @@ export function InventoryItemCatalog({
       const refreshed = await getInventoryItemsAction(currentFilters);
       if (refreshed.success) setItems(refreshed.data);
       setImportResult(
-        `Import xong: tạo mới ${result.data.created}, cập nhật ${result.data.updated}.`,
+        `Nhập file xong: tạo mới ${result.data.created}, cập nhật ${result.data.updated}.`,
       );
       setImportPreview([]);
       setImportFileName(null);
@@ -1369,8 +1369,8 @@ export function InventoryItemCatalog({
                 Mẫu tải về chỉ có cột trống để nhập tay. Điền tối thiểu Tên vật tư và Đơn
                 vị tính; Mã vật tư có thể để trống để hệ thống tự sinh. Các cột Có/Không có
                 thể nhập TRUE/FALSE hoặc Có/Không.
-                Muốn sửa hàng loạt thì tải danh mục hiện tại, chỉnh trong Excel rồi upload
-                lại để hệ thống preview trước khi cập nhật.
+                Muốn sửa hàng loạt thì tải danh mục hiện tại, chỉnh trong Excel rồi tải lên
+                lại để hệ thống xem trước khi cập nhật.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
@@ -1477,10 +1477,10 @@ export function InventoryItemCatalog({
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-sm font-medium">Import từ file</p>
+              <p className="text-sm font-medium">Nhập từ file</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Upload CSV/XLSX để preview trước. Dòng lỗi sẽ không được import. SKU đã có
-                sẽ cập nhật, SKU mới sẽ tạo mới.
+                Tải lên CSV/XLSX để xem trước. Dòng lỗi sẽ không được nhập. Mã vật tư đã có
+                sẽ cập nhật, mã mới sẽ tạo mới.
               </p>
             </div>
             <label className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
@@ -1496,7 +1496,7 @@ export function InventoryItemCatalog({
           </div>
 
           {importFileName && (
-            <p className="text-xs text-muted-foreground">File đang preview: {importFileName}</p>
+            <p className="text-xs text-muted-foreground">File đang xem trước: {importFileName}</p>
           )}
 
           {importError && (
@@ -1581,7 +1581,7 @@ export function InventoryItemCatalog({
                     setImportError(null);
                   }}
                 >
-                  Xóa preview
+                  Xóa bản xem trước
                 </Button>
                 <Button
                   type="button"
@@ -1589,8 +1589,8 @@ export function InventoryItemCatalog({
                   onClick={handleConfirmImport}
                 >
                   {isImportPending
-                    ? 'Đang import...'
-                    : `Import ${importStats.valid} dòng hợp lệ`}
+                    ? 'Đang nhập...'
+                    : `Nhập ${importStats.valid} dòng hợp lệ`}
                 </Button>
               </div>
             </div>
