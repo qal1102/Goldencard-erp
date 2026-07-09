@@ -64,10 +64,10 @@ export function useAdminUsers(
     },
     initialData: options?.initialData,
     enabled: options?.enabled ?? true,
-    staleTime: 30_000,
+    staleTime: 0,
     retry: 1,
     retryDelay: 1000,
-    refetchOnMount: options?.initialData === undefined,
+    refetchOnMount: 'always',
     refetchOnWindowFocus: false,
   });
 }
@@ -126,10 +126,12 @@ export function useUpdateAdminUser(id: string) {
 
   return useMutation({
     mutationFn: (input: UpdateAdminUserInput) => updateAdminUserAction(id, input),
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       if (result.success) {
-        queryClient.invalidateQueries({ queryKey: adminUserKeys.detail(id) });
-        queryClient.invalidateQueries({ queryKey: adminUserKeys.all });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: adminUserKeys.detail(id) }),
+          queryClient.invalidateQueries({ queryKey: adminUserKeys.all }),
+        ]);
       }
     },
   });

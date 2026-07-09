@@ -207,7 +207,7 @@ function AdminUserManageForm({ user, allRoles }: ManageFormProps) {
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                minLength={6}
+                minLength={8}
                 autoComplete="new-password"
               />
             </div>
